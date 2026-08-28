@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · UTILITĂȚI.MD{% endblock %}
+{% block body %}
+<main class="dashboard">
+  <div class="dash-head">
+    <h1>{{ t('dash_welcome') }}</h1>
+    <a class="btn" href="/homes">{{ t('dash_add_home') }}</a>
+  </div>
+  <p class="subtitle">{{ t('dash_subtitle') }}</p>
+
+  {% if homes %}
+    <div class="home-grid">
+      {% for home in homes %}
+        <article class="home-card">
+          <div class="home-card-head">
+            <span class="home-icon">🏠</span>
+            <div>
+              <h2>{{ home.name }}</h2>
+              <span class="muted">{{ home.address }}{% if home.floor %}, et. {{ home.floor }}{% endif %}</span>
+            </div>
+            <span class="badge {{ home.status }}">{{ t('dash_active') if home.status == 'enabled' else t('dash_disabled') }}</span>
+          </div>
+          <div class="home-stats">
+            <span>{{ home.utilities_count }} {{ t('dash_utilities') }}</span>
+            <span>{{ home.unpaid_invoices }} {{ t('dash_unpaid') }}</span>
+          </div>
+          <div class="home-actions">
+            <a class="btn" href="/homes/{{ home.id }}">{{ t('dash_open') }}</a>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">
+      <p>{{ t('dash_empty') }}</p>
+      <a class="btn" href="/homes">{{ t('dash_add_first') }}</a>
+    </div>
+  {% endif %}
+  <p class="updated">{{ t('updated_at') }}: {{ now.strftime("%d.%m.%Y %H:%M") }}</p>
+</main>
+{% endblock %}
