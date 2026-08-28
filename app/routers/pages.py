@@ -38,16 +38,14 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 PROVIDER_META = {
-    "premier_energy": {"icon": "⚡", "name": "Premier Energy", "fields": ["contract", "username", "password"]},
-    "infosapr": {"icon": "💧", "name": "InfoSapr", "fields": ["contract"]},
-    "energocom": {"icon": "⚡", "name": "Energocom", "fields": ["contract"]},
-    "starnet": {"icon": "🌐", "name": "Starnet", "fields": ["contract"]},
-    "fee_nord": {"icon": "⚡", "name": "FEE Nord", "fields": ["contract"]},
-    "apa_canal_chisinau": {"icon": "💧", "name": "Apă-Canal Chișinău", "fields": ["contract"]},
-    "auto_salubritate": {"icon": "🗑", "name": "Auto Salubritate", "fields": ["contract"]},
-    "termoelectrica": {"icon": "🔥", "name": "Termoelectrica", "fields": ["contract"]},
-    "infocom": {"icon": "📡", "name": "INFOCOM", "fields": ["contract"]},
-    "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract"]},
+    "infosapr": {"icon": "💧", "name": "InfoSapr", "fields": ["contract"], "account_label": "Numărul contului personal", "placeholder": "ex: 123456789"},
+    "starnet": {"icon": "🌐", "name": "StarNet", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "ex: 123456"},
+    "fee_nord": {"icon": "⚡", "name": "FEE Nord", "fields": ["contract"], "account_label": "Nr. Contract", "placeholder": "ex: 12-1234567890"},
+    "apa_canal_chisinau": {"icon": "💧", "name": "Apă-Canal Chișinău", "fields": ["contract"], "account_label": "Numărul facturii", "placeholder": "5-9 caractere (A, P, cifre)"},
+    "auto_salubritate": {"icon": "🗑", "name": "Auto Salubritate", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "ex: 123456"},
+    "termoelectrica": {"icon": "🔥", "name": "Termoelectrica", "fields": ["contract"], "account_label": "Cod ID", "placeholder": "ex: 1234567"},
+    "infocom": {"icon": "📡", "name": "INFOCOM", "fields": ["contract"], "account_label": "Numărul facturii", "placeholder": "5 sau 9 cifre"},
+    "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract"], "account_label": "Cont Abonat", "placeholder": "ex: 123456"},
 }
 
 

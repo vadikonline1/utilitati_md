@@ -6,28 +6,22 @@ from typing import Any
 
 from aiohttp import ClientSession
 
-from .apa_canal_chisinau import ApaCanalChisinauProvider
 from .auto_salubritate import AutoSalubritateProvider
 from .base import BaseUtilityProvider
-from .bpay_utility import BPAY_PROVIDERS, BpayUtilityProvider
-from .energocom import EnergocomProvider
 from .fee_nord import FeeNordProvider
 from .infosapr import InfoSaprProvider
-from .premier_energy import PremierEnergyProvider
-from .starnet import StarnetProvider
+from .oplata_utility import OPLATA_PROVIDERS, OplataUtilityProvider
 
 PROVIDER_CLASSES: dict[str, type[BaseUtilityProvider]] = {
-    "premier_energy": PremierEnergyProvider,
     "infosapr": InfoSaprProvider,
-    "energocom": EnergocomProvider,
-    "starnet": StarnetProvider,
     "fee_nord": FeeNordProvider,
-    "apa_canal_chisinau": ApaCanalChisinauProvider,
     "auto_salubritate": AutoSalubritateProvider,
-    # Generic bpay.md-backed providers (single account reference, no cabinet).
-    "termoelectrica": BpayUtilityProvider,
-    "infocom": BpayUtilityProvider,
-    "stroy_master_domofon": BpayUtilityProvider,
+    # Generic oplata.md-backed providers (single account reference, no cabinet).
+    "termoelectrica": OplataUtilityProvider,
+    "infocom": OplataUtilityProvider,
+    "stroy_master_domofon": OplataUtilityProvider,
+    "starnet": OplataUtilityProvider,
+    "apa_canal_chisinau": OplataUtilityProvider,
 }
 
 
@@ -54,7 +48,7 @@ def get_provider_instance(
         extra_config=extra_config,
     )
 
-    if provider_id in BPAY_PROVIDERS:
-        return BpayUtilityProvider(provider_id, **base_kwargs)
+    if provider_id in OPLATA_PROVIDERS:
+        return OplataUtilityProvider(provider_id, **base_kwargs)
 
     return provider_cls(**base_kwargs)

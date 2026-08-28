@@ -108,13 +108,13 @@
       <label>{{ t('home_provider') }}
         <select name="provider" id="provider-select" required onchange="updateProviderFields()">
           {% for pid, meta in providers.items() %}
-            <option value="{{ pid }}" data-fields="{% for f in meta.fields %}{{ f }}{% if not loop.last %},{% endif %}{% endfor %}">{{ meta.icon }} {{ meta.name }}</option>
+            <option value="{{ pid }}" data-fields="{% for f in meta.fields %}{{ f }}{% if not loop.last %},{% endif %}{% endfor %}" data-account-label="{{ meta.account_label or t('home_contract_number') }}" data-placeholder="{{ meta.placeholder or t('account_number_ph') }}">{{ meta.icon }} {{ meta.name }}</option>
           {% endfor %}
         </select>
       </label>
       <div class="provider-field-contract">
-        <label>{{ t('home_contract_number') }}
-          <input type="text" name="contract_number" placeholder="{{ t('account_number_ph') }}" required>
+        <label id="contract-field-label">{{ t('home_contract_number') }}
+          <input type="text" name="contract_number" id="contract-field-input" placeholder="{{ t('account_number_ph') }}" required>
         </label>
       </div>
       <div class="provider-field-username" hidden>
@@ -138,9 +138,12 @@ function openModal(id) { document.getElementById(id).hidden = false; }
 function closeModal(id) { document.getElementById(id).hidden = true; }
 function updateProviderFields() {
   const sel = document.getElementById("provider-select");
-  const fields = (sel.options[sel.selectedIndex].dataset.fields || "contract").split(",");
+  const opt = sel.options[sel.selectedIndex];
+  const fields = (opt.dataset.fields || "contract").split(",");
   document.querySelector(".provider-field-username").hidden = !fields.includes("username");
   document.querySelector(".provider-field-password").hidden = !fields.includes("password");
+  document.getElementById("contract-field-label").childNodes[0].nodeValue = opt.dataset.accountLabel + " ";
+  document.getElementById("contract-field-input").placeholder = opt.dataset.placeholder;
 }
 document.addEventListener("DOMContentLoaded", updateProviderFields);
 </script>

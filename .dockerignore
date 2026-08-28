@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.db
+.env
+.git/
+git
+get-pip.py
+Dockerfile
+.dockerignore
+.docker/
