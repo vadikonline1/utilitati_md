@@ -6,13 +6,9 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    environment:
-      # Change these in production.
-      UTILITATI_SECRET_KEY: "${UTILITATI_SECRET_KEY:-change-me-in-production}"
-      UTILITATI_USERNAME: "${UTILITATI_USERNAME:-admin}"
-      UTILITATI_PASSWORD: "${UTILITATI_PASSWORD:-admin}"
-      # SQLite database lives on the volume so data survives rebuilds.
-      UTILITATI_DB: /app/data/utilitati.db
+    # All runtime configuration lives in utilitati.env (single source of truth).
+    env_file:
+      - utilitati.env
     volumes:
       - utilitati-data:/app/data
     healthcheck:
