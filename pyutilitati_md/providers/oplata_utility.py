@@ -6,10 +6,10 @@ exist — only a single account/factură/contract reference which we store in th
 standard ``contract_number`` field.
 
 Each provider's oplata.md ``service_id`` is a plain constant in code (see
-``OPLATA_SERVICE_IDS``), mirroring the dedicated ``FEE_NORD_SERVICE_ID`` /
-``INFOSAPR_SERVICE_ID`` connectors. No runtime/environment configuration is
-required: the request is built from the operator-set service id and the
-account reference the user enters in the app.
+``OPLATA_SERVICE_IDS``). Set the correct oplata.md service id for each provider
+you deploy directly here — no environment configuration is required. The request
+is built from that service id plus the account reference the user enters in the
+app.
 """
 
 from __future__ import annotations
@@ -24,8 +24,9 @@ from .oplata_md import OplataMDClient
 
 _LOGGER = logging.getLogger(__name__)
 
-# oplata.md "service_id" per provider. Set the correct value for each provider
-# you deploy; this connector needs no environment configuration beyond that.
+# oplata.md "service_id" per provider. This is the numeric "Id" oplata.md uses to
+# route the /payment/check request to the right provider. Set the correct value
+# for each provider you deploy (only FEE Nord's id is verified here: 1184).
 OPLATA_SERVICE_IDS: dict[str, int] = {
     "premier_energy": 0,
     "energocom": 0,
@@ -33,7 +34,7 @@ OPLATA_SERVICE_IDS: dict[str, int] = {
     "termoelectrica": 0,
     "apa_canal_chisinau": 0,
     "starnet": 0,
-    "fee_nord": 0,
+    "fee_nord": 1184,
     "stroy_master_domofon": 0,
 }
 
@@ -49,7 +50,8 @@ OPLATA_NAMES: dict[str, str] = {
     "stroy_master_domofon": "Stroy Master Domofon",
 }
 
-# oplata.md "Pasul 1" account field label per provider.
+# oplata.md "Pasul 1" account field name submitted in the request (Items[0].Name)
+# per provider. This must match the field name oplata.md shows for the provider.
 OPLATA_ACCOUNT_NAMES: dict[str, str] = {
     "premier_energy": "Cod NLC",
     "energocom": "Contul personal",
@@ -62,7 +64,7 @@ OPLATA_ACCOUNT_NAMES: dict[str, str] = {
 }
 
 # Providers that accept the generic single-account oplata flow.
-OPLATA_PROVIDERS: frozenset[str] = frozenset(OPLATA_SERVICE_IDS)
+OPLATA_PROVIDERS: frozenset[str] = frozenset(OPLATA_NAMES)
 
 
 class OplataUtilityProvider(BaseUtilityProvider):

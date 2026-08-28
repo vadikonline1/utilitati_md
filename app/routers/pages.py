@@ -47,7 +47,6 @@ PROVIDER_META = {
     "starnet": {"icon": "🌐", "name": "StarNet", "fields": ["contract"], "account_label": "Codul personal", "placeholder": "1-12 cifre"},
     "fee_nord": {"icon": "⚡", "name": "FEE Nord", "fields": ["contract"], "account_label": "Numărul contractului", "placeholder": "ex: 12-1234567890"},
     "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract"], "account_label": "Cont Abonat", "placeholder": "ex: 123456"},
-    "auto_salubritate": {"icon": "🗑", "name": "Auto Salubritate", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "ex: 123456"},
 }
 
 
@@ -314,10 +313,6 @@ async def utility_connect(
         data["username"] = form.get("username") or None
     if "password" in fields:
         data["password"] = form.get("password") or None
-
-    # StarNet: the contract number is also the personal-cabinet login (ID).
-    if provider == "starnet":
-        data["username"] = data["username"] or contract_number
 
     acc_id = upsert_account(user_id, data)
     new_account = get_account_row(user_id, acc_id)

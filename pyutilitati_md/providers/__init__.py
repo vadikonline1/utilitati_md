@@ -6,14 +6,13 @@ from typing import Any
 
 from aiohttp import ClientSession
 
-from .auto_salubritate import AutoSalubritateProvider
 from .base import BaseUtilityProvider
 from .infosapr import InfoSaprProvider
 from .oplata_utility import OPLATA_PROVIDERS, OplataUtilityProvider
 
 PROVIDER_CLASSES: dict[str, type[BaseUtilityProvider]] = {
+    # Dedicated oplata.md connector.
     "infosapr": InfoSaprProvider,
-    "auto_salubritate": AutoSalubritateProvider,
     # Generic oplata.md-backed providers (single account reference, no cabinet).
     "premier_energy": OplataUtilityProvider,
     "energocom": OplataUtilityProvider,
