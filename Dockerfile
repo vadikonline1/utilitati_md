@@ -19,6 +19,7 @@ RUN pip install --upgrade pip \
     && pip install -r requirements.txt
 
 COPY . .
+COPY entrypoint.sh /entrypoint.sh
 
 RUN mkdir -p /app/data
 
@@ -27,9 +28,10 @@ EXPOSE 8000
 # Persist the SQLite database in a volume-friendly location.
 ENV UTILITATI_DB=/app/data/utilitati.db
 
-# Non-root user for better isolation.
+# Non-root user for better isolation. The entrypoint (as root) fixes ownership
+# of the mounted data dir on startup, then drops privileges to appuser.
 RUN useradd -ms /bin/bash appuser \
-    && chown -R appuser:appuser /app
-USER appuser
+    && chown -R appuser:appuser /app \
+    && chmod +x /entrypoint.sh
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/entrypoint.sh"]
