@@ -117,6 +117,26 @@ class OplataMDClient:
             except ValueError:
                 pass
 
+        # 1b. Fallback: providers like Premier Energy surface each outstanding
+        # invoice as a radio button (Items[0].Value = "REF; SUMAMDL") instead of
+        # a single id="Amount" total. Parse those into line items.
+        if total_amount is None and re.search(
+            r'name="Items\[0\]\.Value"[^>]*type="radio"', html_text
+        ):
+            items, total_amount = self._parse_radio_invoices(html_text)
+            if total_amount is None:
+                raise UtilitatiMDApiError(
+                    f"Failed to parse invoice total amount for contract "
+                    f"'{contract_number}'"
+                )
+            # TODO: better period/label extraction when available
+            return OplataMDInvoiceResult(
+                contract_number=contract_number,
+                total_amount_mdl=total_amount,
+                items=items,
+                raw_html=html_text,
+            )
+
         if total_amount is None:
             if 'id="Amount"' not in html_text:
                 raise UtilitatiMDAuthError(
@@ -169,3 +189,54 @@ class OplataMDClient:
             items=items,
             raw_html=html_text,
         )
+
+    def _parse_radio_invoices(
+        self, html_text: str
+    ) -> tuple[list[OplataMDServiceItem], float | None]:
+        """Parse providers that return invoices as radio buttons.
+
+        oplata.md renders each outstanding invoice as:
+            <input id="Items_0__Value" name="Items[0].Value" type="radio"
+                   value="REF" />REF; 123.45MDL <br />
+        The visible label holds the reference followed by "; <amount>MDL".
+        Returns (line_items, total) where total is the sum of all invoices.
+        """
+        items: list[OplataMDServiceItem] = []
+        total = 0.0
+
+        # Each radio block: value="REF" />LABEL <br>
+        pattern = re.compile(
+            r'name="Items\[0\]\.Value"[^>]*type="radio"[^>]*value="([^"]*)"'
+            r'\s*/>\s*([^<\n]+?)\s*(?:<br|</)'
+        )
+        for match in pattern.finditer(html_text):
+            value = match.group(1)
+            label = match.group(2)
+            amount = self._extract_amount_from_label(label)
+            if amount is None:
+                continue
+            name = value if value else label.split(";")[0].strip()
+            items.append(OplataMDServiceItem(name=name, amount_mdl=amount))
+            total += amount
+
+        if not items:
+            return [], None
+        return items, round(total, 2)
+
+    @staticmethod
+    def _extract_amount_from_label(label: str) -> float | None:
+        """Pull the trailing '<number>MDL' (or a bare number) from a label."""
+        match = re.search(r"([\d]+(?:[\.,]\d+)?)\s*MDL", label, re.IGNORECASE)
+        if match:
+            try:
+                return float(match.group(1).replace(",", "."))
+            except ValueError:
+                return None
+        # Fallback: a bare decimal token in the label.
+        match = re.search(r"([\d]+\.\d{2})", label)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                return None
+        return None

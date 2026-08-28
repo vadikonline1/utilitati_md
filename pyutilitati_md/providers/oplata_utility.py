@@ -25,15 +25,16 @@ from .oplata_md import OplataMDClient
 _LOGGER = logging.getLogger(__name__)
 
 # oplata.md "service_id" per provider. This is the numeric "Id" oplata.md uses to
-# route the /payment/check request to the right provider. Set the correct value
-# for each provider you deploy (only FEE Nord's id is verified here: 1184).
+# route the /payment/check request to the right provider. Values were confirmed
+# against the live oplata.md service pages in August 2026.
 OPLATA_SERVICE_IDS: dict[str, int] = {
-    "premier_energy": 0,
-    "energocom": 0,
+    "premier_energy": 604,
+    "energocom": 1333,
+    "moldovagaz": 603,
     "infocom": 0,
-    "termoelectrica": 0,
-    "apa_canal_chisinau": 0,
-    "starnet": 0,
+    "termoelectrica": 815,
+    "apa_canal_chisinau": 605,
+    "starnet": 300,
     "fee_nord": 1184,
     "stroy_master_domofon": 0,
 }
@@ -42,6 +43,7 @@ OPLATA_SERVICE_IDS: dict[str, int] = {
 OPLATA_NAMES: dict[str, str] = {
     "premier_energy": "Premier Energy",
     "energocom": "Energocom",
+    "moldovagaz": "Moldovagaz",
     "infocom": "INFOCOM",
     "termoelectrica": "Termoelectrica",
     "apa_canal_chisinau": "Apă-Canal Chișinău",
@@ -53,12 +55,13 @@ OPLATA_NAMES: dict[str, str] = {
 # oplata.md "Pasul 1" account field name submitted in the request (Items[0].Name)
 # per provider. This must match the field name oplata.md shows for the provider.
 OPLATA_ACCOUNT_NAMES: dict[str, str] = {
-    "premier_energy": "Cod NLC",
-    "energocom": "Contul personal",
+    "premier_energy": "Codul NLC",
+    "energocom": "Cont personal ",
+    "moldovagaz": "Cont personal (Ex.123/0123456789)",
     "infocom": "Numărul contului",
-    "termoelectrica": "Numărul contului",
-    "apa_canal_chisinau": "Numărul contului",
-    "starnet": "Codul personal",
+    "termoelectrica": "Cod ID",
+    "apa_canal_chisinau": "Numărul facturii",
+    "starnet": "Personal ID",
     "fee_nord": "Numărul contractului",
     "stroy_master_domofon": "Cont Abonat",
 }
@@ -124,24 +127,36 @@ class OplataUtilityProvider(BaseUtilityProvider):
             account_name=self._account_name,
         )
 
-        # oplata.md returns one line item per outstanding invoice/period, so a
-        # single check can surface several invoices at once.
+        # oplata.md returns one line item per billing/service element. Some
+        # providers (e.g. Premier Energy) surface several distinct unpaid
+        # invoices at once (each with its own positive amount), while others
+        # (e.g. Termoelectrica) return a per-service breakdown of a single
+        # invoice. Only split into separate invoices when every item carries a
+        # real, billed amount; otherwise collapse them into one invoice whose
+        # items become the service breakdown.
         invoices: list[Invoice] = []
-        if res.items:
+        if res.items and all(i.amount_mdl > 0 for i in res.items):
             for i, item in enumerate(res.items, start=1):
                 invoices.append(
                     Invoice(
-                        invoice_number=(
-                            f"{self._id.upper()}-{i}"
-                            if len(res.items) > 1
-                            else f"{self._id.upper()}-{self.contract_number}"
-                        ),
+                        invoice_number=f"{self._id.upper()}-{i}",
                         amount_mdl=item.amount_mdl,
                         issue_date=date.today(),
-                        is_paid=(item.amount_mdl <= 0),
+                        is_paid=False,
+                        external_invoice_id=item.name or None,
                         extra_details={"destination": item.name},
                     )
                 )
+        elif res.items:
+            invoices.append(
+                Invoice(
+                    invoice_number=f"{self._id.upper()}-{self.contract_number}",
+                    amount_mdl=res.total_amount_mdl,
+                    issue_date=date.today(),
+                    is_paid=(res.total_amount_mdl <= 0),
+                    extra_details={item.name: item.amount_mdl for item in res.items},
+                )
+            )
         else:
             invoices.append(
                 Invoice(

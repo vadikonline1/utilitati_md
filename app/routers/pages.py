@@ -41,6 +41,7 @@ PROVIDER_META = {
     "infosapr": {"icon": "💧", "name": "InfoSapr", "fields": ["contract"], "account_label": "Numărul contului personal", "placeholder": "ex: 123456789"},
     "premier_energy": {"icon": "⚡", "name": "Premier Energy", "fields": ["contract"], "account_label": "Cod NLC", "placeholder": "ex: 123456789"},
     "energocom": {"icon": "🔥", "name": "Energocom", "fields": ["contract"], "account_label": "Contul personal", "placeholder": "14 caractere (ex: 123/0123456789)"},
+    "moldovagaz": {"icon": "🔥", "name": "Moldovagaz", "fields": ["contract"], "account_label": "Contul personal", "placeholder": "14 caractere (ex: 123/0123456789)"},
     "infocom": {"icon": "📡", "name": "INFOCOM", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "ex: 123456"},
     "termoelectrica": {"icon": "🔥", "name": "Termoelectrica", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "14 cifre (ex: 12345678901234)"},
     "apa_canal_chisinau": {"icon": "💧", "name": "Apă-Canal Chișinău", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "5-9 caractere (A, P, cifre)"},
