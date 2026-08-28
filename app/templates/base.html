@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Utilități.MD{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">🇲🇩 UTILITĂȚI.MD</a>
+    <nav class="main-nav">
+      {% block nav %}
+      <a href="/dashboard">{{ t('nav_dashboard') }}</a>
+      <a href="/homes">{{ t('nav_homes') }}</a>
+      <a href="/invoices">{{ t('nav_invoices') }}</a>
+      <a href="/profile">{{ t('nav_profile') }}</a>
+      <a href="/logout">{{ t('nav_logout') }}</a>
+      {% endblock %}
+    </nav>
+    <div class="lang-switch">
+      {% for code, name in langs.items() %}
+        <a href="/set-language/{{ code }}?next={{ request.url.path }}"
+           class="{{ 'active' if code == lang }}">{{ code|upper }}</a>
+      {% endfor %}
+    </div>
+  </header>
+  {% block body %}{% endblock %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>
