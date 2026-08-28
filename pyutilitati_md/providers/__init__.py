@@ -8,20 +8,21 @@ from aiohttp import ClientSession
 
 from .auto_salubritate import AutoSalubritateProvider
 from .base import BaseUtilityProvider
-from .fee_nord import FeeNordProvider
 from .infosapr import InfoSaprProvider
 from .oplata_utility import OPLATA_PROVIDERS, OplataUtilityProvider
 
 PROVIDER_CLASSES: dict[str, type[BaseUtilityProvider]] = {
     "infosapr": InfoSaprProvider,
-    "fee_nord": FeeNordProvider,
     "auto_salubritate": AutoSalubritateProvider,
     # Generic oplata.md-backed providers (single account reference, no cabinet).
-    "termoelectrica": OplataUtilityProvider,
+    "premier_energy": OplataUtilityProvider,
+    "energocom": OplataUtilityProvider,
     "infocom": OplataUtilityProvider,
-    "stroy_master_domofon": OplataUtilityProvider,
-    "starnet": OplataUtilityProvider,
+    "termoelectrica": OplataUtilityProvider,
     "apa_canal_chisinau": OplataUtilityProvider,
+    "starnet": OplataUtilityProvider,
+    "fee_nord": OplataUtilityProvider,
+    "stroy_master_domofon": OplataUtilityProvider,
 }
 
 

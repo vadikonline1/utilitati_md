@@ -27,29 +27,38 @@ _LOGGER = logging.getLogger(__name__)
 # oplata.md "service_id" per provider. Set the correct value for each provider
 # you deploy; this connector needs no environment configuration beyond that.
 OPLATA_SERVICE_IDS: dict[str, int] = {
-    "termoelectrica": 0,
+    "premier_energy": 0,
+    "energocom": 0,
     "infocom": 0,
-    "stroy_master_domofon": 0,
-    "starnet": 0,
+    "termoelectrica": 0,
     "apa_canal_chisinau": 0,
+    "starnet": 0,
+    "fee_nord": 0,
+    "stroy_master_domofon": 0,
 }
 
 # Display names (kept in sync with the web UI provider meta).
 OPLATA_NAMES: dict[str, str] = {
-    "termoelectrica": "Termoelectrica",
+    "premier_energy": "Premier Energy",
+    "energocom": "Energocom",
     "infocom": "INFOCOM",
-    "stroy_master_domofon": "Stroy Master Domofon",
-    "starnet": "StarNet",
+    "termoelectrica": "Termoelectrica",
     "apa_canal_chisinau": "Apă-Canal Chișinău",
+    "starnet": "StarNet",
+    "fee_nord": "FEE Nord",
+    "stroy_master_domofon": "Stroy Master Domofon",
 }
 
 # oplata.md "Pasul 1" account field label per provider.
 OPLATA_ACCOUNT_NAMES: dict[str, str] = {
-    "termoelectrica": "Cod ID",
+    "premier_energy": "Cod NLC",
+    "energocom": "Contul personal",
     "infocom": "Numărul contului",
-    "stroy_master_domofon": "Cont Abonat",
-    "starnet": "Cont personal",
+    "termoelectrica": "Numărul contului",
     "apa_canal_chisinau": "Numărul contului",
+    "starnet": "Codul personal",
+    "fee_nord": "Numărul contractului",
+    "stroy_master_domofon": "Cont Abonat",
 }
 
 # Providers that accept the generic single-account oplata flow.

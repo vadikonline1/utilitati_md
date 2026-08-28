@@ -5,9 +5,9 @@ across multiple homes: it extracts invoices, notifies people when a new invoice
 arrives, and monitors its payment status. FastAPI + Jinja2 + SQLite, with
 provider connectors in the bundled `pyutilitati_md` library.
 
-All providers are verified through **oplata.md** only: Termoelectrica,
-INFOCOM, FEE Nord, Apă-Canal Chișinău, Stroy Master Domofon, StarNet,
-InfoSapr and Auto Salubritate.
+All providers are verified through **oplata.md** only: Premier Energy,
+Energocom, Termoelectrica, INFOCOM, FEE Nord, Apă-Canal Chișinău, Stroy Master
+Domofon, StarNet, InfoSapr and Auto Salubritate.
 
 ## Run with Docker
 
@@ -33,13 +33,14 @@ the container).
 
 ### oplata.md service ids
 
-Each oplata-backed provider carries its oplata.md **service id** as a constant in
-code (`pyutilitati_md/providers/oplata_utility.py` for the generic providers,
-`OPLATA_SERVICE_IDS`; the dedicated connectors are hardcoded: FEE Nord `1184`,
-InfoSapr `602`, Auto Salubritate `606`). Set the correct value for the providers
-you deploy directly in code — no environment configuration is required, and each
-user simply enters their own account reference (Cod ID / Numărul facturii / Nr.
-contract / Cont Abonat) in the app.
+Each provider carries its oplata.md **service id** as a constant in code
+(`pyutilitati_md/providers/oplata_utility.py`, `OPLATA_SERVICE_IDS`). Set the
+correct oplata.md service id for the providers you deploy directly in code — no
+environment configuration is required. InfoSapr and Auto Salubritate use their
+own dedicated connectors with verified ids hardcoded (InfoSapr `602`, Auto
+Salubritate `606`). Each user simply enters their own account reference in the
+app (Cod NLC, Numărul contului, Codul personal, Numărul contractului, Cont
+Abonat, etc.).
 
 ## Run locally (dev)
 
