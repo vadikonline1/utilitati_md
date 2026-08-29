@@ -142,7 +142,7 @@ def invoice_months() -> int:
 
 
 def unconfirmed_hours() -> int:
-    return get_int_setting("unconfirmed_hours", 24)
+    return get_int_setting("unconfirmed_hours", 1)
 
 
 def warn_days() -> list[int]:

@@ -196,6 +196,26 @@ def get_user(user_id: int) -> dict | None:
     return dict(row) if row else None
 
 
+def list_users() -> list[dict]:
+    """Return all users (for the admin Users tab), newest first."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT id, username, full_name, email, is_active, created_at, "
+            "datetime(last_login) AS last_login "
+            "FROM users ORDER BY id DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def set_user_active(user_id: int, is_active: bool) -> None:
+    """Enable / disable a user account (is_active 1 or 0)."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET is_active = ? WHERE id = ?",
+            (1 if is_active else 0, user_id),
+        )
+
+
 def change_password(user_id: int, old_password: str, new_password: str) -> bool:
     """Change a user's password, verifying the old one first."""
     with _conn() as conn:

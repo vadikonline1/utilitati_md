@@ -35,6 +35,17 @@ CREATE TABLE IF NOT EXISTS contact_messages (
     message TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS faq_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    question_ro TEXT NOT NULL DEFAULT '',
+    question_ru TEXT NOT NULL DEFAULT '',
+    question_en TEXT NOT NULL DEFAULT '',
+    answer_ro TEXT NOT NULL DEFAULT '',
+    answer_ru TEXT NOT NULL DEFAULT '',
+    answer_en TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL DEFAULT ''
@@ -180,3 +191,22 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute(
             "UPDATE accounts SET provider = 'energocom' WHERE provider = 'moldovagaz'"
         )
+
+    # FAQ: seed the default Q&A on first creation (idempotent).
+    if "faq_items" not in tables:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS faq_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                question_ro TEXT NOT NULL DEFAULT '',
+                question_ru TEXT NOT NULL DEFAULT '',
+                question_en TEXT NOT NULL DEFAULT '',
+                answer_ro TEXT NOT NULL DEFAULT '',
+                answer_ru TEXT NOT NULL DEFAULT '',
+                answer_en TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
+    from .services.faq import seed_default_faq
+    seed_default_faq(conn)

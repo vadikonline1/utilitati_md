@@ -22,12 +22,14 @@ from ..auth import (
     deactivate_user,
     get_user,
     get_user_lang,
-    login_state,
+    is_usable_user,
+    list_users,
     parse_session_token,
     register,
     resolve_reset_token,
     set_password_for_user,
     set_reset_token,
+    set_user_active,
     set_user_lang,
     user_by_email,
     user_state,
@@ -38,6 +40,7 @@ from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import contact as contact_svc
 from ..services import email as email_svc
+from ..services import faq as faq_svc
 from ..services.settings import (
     MSG_TYPES,
     all_settings,
@@ -175,7 +178,12 @@ def _check_captcha(token: str, answer: str) -> bool:
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request, user_id: int | None = Depends(optional_auth_token)):
     return templates.TemplateResponse(
-        request, "home.html", _ctx(request, logged_in=user_id is not None)
+        request, "home.html",
+        _ctx(
+            request,
+            logged_in=user_id is not None,
+            faq_items=faq_svc.list_faq_items(),
+        ),
     )
 
 
@@ -657,6 +665,9 @@ async def admin_page(request: Request, user_id: int | None = Depends(optional_au
             msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
             msg_defaults_data=_msg_defaults_data(),
             contact_messages=contact_svc.list_contact_messages(),
+            users=list_users(),
+            faq_items=faq_svc.list_faq_items(),
+            current_uid=user_id,
         ),
     )
 
@@ -685,7 +696,7 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         "inactive_months": str(form.get("inactive_months", "12")),
         "warn_days": str(form.get("warn_days", "90,60,30")),
         "invoice_months": str(form.get("invoice_months", "24")),
-        "unconfirmed_hours": str(form.get("unconfirmed_hours", "24")),
+        "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")),
     }
     if sync_mode == "interval":
         try:
@@ -709,6 +720,9 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
             msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
             msg_defaults_data=_msg_defaults_data(),
             contact_messages=contact_svc.list_contact_messages(),
+            users=list_users(),
+            faq_items=faq_svc.list_faq_items(),
+            current_uid=user_id,
         ),
     )
 
@@ -764,6 +778,82 @@ async def admin_contact_delete_submit(
         )
     contact_svc.delete_contact_message(message_id)
     return RedirectResponse("/admin?tab=contact", status_code=303)
+
+
+@router.post("/admin/users/{target_id}/status")
+async def admin_user_status_submit(
+    target_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    # Never disable yourself (would lock yourself out of the admin panel).
+    if target_id != user_id:
+        form = await request.form()
+        enabled = str(form.get("enabled", "")) == "1"
+        set_user_active(target_id, enabled)
+    return RedirectResponse("/admin?tab=users", status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+# FAQ management (admin)
+# --------------------------------------------------------------------------- #
+def _faq_from_form(form, faq_id: int | None = None) -> dict[str, str]:
+    return {
+        "question_ro": str(form.get("question_ro", "")).strip(),
+        "question_ru": str(form.get("question_ru", "")).strip(),
+        "question_en": str(form.get("question_en", "")).strip(),
+        "answer_ro": str(form.get("answer_ro", "")).strip(),
+        "answer_ru": str(form.get("answer_ru", "")).strip(),
+        "answer_en": str(form.get("answer_en", "")).strip(),
+    }
+
+
+@router.post("/admin/faq")
+async def admin_faq_add_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    faq_svc.add_faq_item(_faq_from_form(form))
+    return RedirectResponse("/admin?tab=faq", status_code=303)
+
+
+@router.post("/admin/faq/{faq_id}")
+async def admin_faq_edit_submit(
+    faq_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    faq_svc.update_faq_item(faq_id, _faq_from_form(form))
+    return RedirectResponse("/admin?tab=faq", status_code=303)
+
+
+@router.post("/admin/faq/{faq_id}/delete")
+async def admin_faq_delete_submit(
+    faq_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    faq_svc.delete_faq_item(faq_id)
+    return RedirectResponse("/admin?tab=faq", status_code=303)
 
 
 # --------------------------------------------------------------------------- #

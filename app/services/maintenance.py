@@ -1,14 +1,19 @@
 """Automatic data-retention + inactivity cleanup jobs.
 
 Runs alongside the background sync loop (once per scheduled run when enabled in
-/admin). Three jobs:
+/admin). Jobs:
 
 1. Inactivity: users who have not authenticated for more than `inactive_months`
    are warned by email `warn_days` before the 1-year mark, then permanently
    deleted once the limit is exceeded (unless they sign in again).
 2. Old invoices: invoices older than `invoice_months` are permanently deleted.
-3. Unconfirmed accounts: accounts that were never confirmed (is_active = 0) are
-   deleted after `unconfirmed_hours`.
+3. Unconfirmed accounts: accounts that were never confirmed are deleted after
+   `unconfirmed_hours` (default 1 hour).
+4. Deactivated accounts: user-requested deletions are executed once their
+   30-day grace period passes.
+
+Jobs 3 and 4 are explicit business rules and always run, even when the general
+retention toggle is off.
 """
 
 from __future__ import annotations
@@ -139,10 +144,17 @@ def _run_invoices(conn) -> dict:
 
 
 def _run_unconfirmed(conn) -> dict:
+    """Permanently delete accounts that were never confirmed after N hours.
+
+    Only users who never confirmed their email (a confirm_token is still set)
+    are removed, so manually-disabled confirmed users are never affected.
+    """
     hours = unconfirmed_hours()
     cutoff = _iso_seconds_ago(hours)
     cur = conn.execute(
-        "DELETE FROM users WHERE is_active = 0 AND created_at < ?", (cutoff,)
+        "DELETE FROM users WHERE is_active = 0 AND confirm_token IS NOT NULL "
+        "AND created_at < ?",
+        (cutoff,),
     )
     return {"deleted_unconfirmed": cur.rowcount}
 
@@ -175,12 +187,14 @@ def run_maintenance() -> dict:
     """
     result: dict = {"disabled": False}
     with _conn() as conn:
+        # User-requested deletions (deactivated grace period) and unconfirmed
+        # account cleanups are explicit business rules and always run.
         result["deactivated"] = _run_deactivated(conn)
+        result["unconfirmed"] = _run_unconfirmed(conn)
         if not retention_enabled():
             result["disabled"] = True
         else:
             result["inactivity"] = _run_inactivity(conn)
             result["invoices"] = _run_invoices(conn)
-            result["unconfirmed"] = _run_unconfirmed(conn)
     _LOGGER.info("Maintenance run: %s", result)
     return result
