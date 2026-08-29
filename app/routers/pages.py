@@ -26,7 +26,7 @@ from ..config import ADMIN_USERNAME, SITE_URL, TEMPLATES_DIR
 from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import email as email_svc
-from ..services.settings import all_settings, get_sync_interval_hours, set_settings
+from ..services.settings import all_settings, get_setting, get_sync_interval_hours, set_settings
 from ..services.sync import dashboard_stats, generate_invoices_for_user
 from ..services.utilities import (
     create_home,
@@ -55,6 +55,22 @@ from ..services.utilities import (
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+def _email_cfg() -> bool:
+    """True when SMTP is configured in /admin (email notifications available)."""
+    return email_svc.smtp_configured()
+
+
+def _telegram_cfg() -> bool:
+    """True when a Telegram bot token is configured in /admin."""
+    return bool(get_setting("telegram_token"))
+
+
+def _telegram_bot_url() -> str:
+    """Human-readable URL of our Telegram bot (t.me/<botname>)."""
+    botname = get_setting("telegram_botname", "utilitati_md_bot").strip().lstrip("@")
+    return f"https://t.me/{botname}"
 
 PROVIDER_META = {
     "infosapr": {"icon": "💧", "name": "InfoSapr", "fields": ["contract"], "account_label": "Numărul contului personal", "placeholder": "ex: 123456789"},
@@ -296,6 +312,9 @@ async def profile_page(request: Request, user_id: int | None = Depends(optional_
             username=get_username(user_id),
             emails=prefs["emails"],
             telegram_chat_ids=prefs["telegram"],
+            email_configured=_email_cfg(),
+            telegram_configured=_telegram_cfg(),
+            telegram_bot_url=_telegram_bot_url(),
             is_admin=(get_username(user_id) == ADMIN_USERNAME),
         ),
     )
@@ -345,6 +364,9 @@ async def profile_notifications_submit(
             username=get_username(user_id),
             emails=prefs["emails"],
             telegram_chat_ids=prefs["telegram"],
+            email_configured=_email_cfg(),
+            telegram_configured=_telegram_cfg(),
+            telegram_bot_url=_telegram_bot_url(),
             is_admin=(get_username(user_id) == ADMIN_USERNAME),
         ),
     )

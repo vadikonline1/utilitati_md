@@ -63,17 +63,9 @@
             <td><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></td>
             <td class="row-actions">
               <a class="btn small" href="/accounts/{{ inv.account_id }}/invoices">{{ t('invoice_check') }}</a>
-              <form method="post" action="/invoices/generate" class="inline-form">
-                <input type="hidden" name="account_id" value="{{ inv.account_id }}">
-                <input type="hidden" name="back" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
-                <button type="submit" class="btn small ghost">{{ t('invoices_generate') }}</button>
-              </form>
               <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
                 <input type="hidden" name="status" value="{{ 'disabled' if inv.status == 'enabled' else 'enabled' }}">
                 <button type="submit" class="btn small">{{ t('invoice_disable') if inv.status == 'enabled' else t('invoice_enable') }}</button>
-              </form>
-              <form method="post" action="/invoices/{{ inv.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('invoice_delete_confirm') }}')">
-                <button type="submit" class="btn-danger small">{{ t('invoice_delete') }}</button>
               </form>
             </td>
           </tr>

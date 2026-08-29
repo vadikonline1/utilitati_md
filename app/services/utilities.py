@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from pyutilitati_md import (
@@ -22,6 +22,7 @@ from pyutilitati_md.exceptions import (
 )
 
 from ..db import _conn
+from . import crypto
 
 try:
     import aiohttp
@@ -57,14 +58,22 @@ def get_notification_prefs(user_id: int) -> dict[str, str]:
         ).fetchone()
     if row is None:
         return {"emails": "", "telegram": ""}
-    return {"emails": row["notification_emails"] or "", "telegram": row["telegram_chat_ids"] or ""}
+    emails = row["notification_emails"] or ""
+    telegram = row["telegram_chat_ids"] or ""
+    if crypto.is_encrypted(emails):
+        emails = crypto.decrypt(emails) or ""
+    if crypto.is_encrypted(telegram):
+        telegram = crypto.decrypt(telegram) or ""
+    return {"emails": emails, "telegram": telegram}
 
 
 def set_notification_prefs(user_id: int, emails: str, telegram: str) -> None:
+    enc_emails = crypto.encrypt(emails.strip()) or ""
+    enc_telegram = crypto.encrypt(telegram.strip()) or ""
     with _conn() as conn:
         conn.execute(
             "UPDATE users SET notification_emails = ?, telegram_chat_ids = ? WHERE id = ?",
-            (emails.strip(), telegram.strip(), user_id),
+            (enc_emails, enc_telegram, user_id),
         )
 
 
@@ -342,7 +351,7 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> int | None:
     invoice_number = getattr(invoice, "invoice_number", "") or ""
     amount = float(getattr(invoice, "amount_mdl", 0) or 0)
     issue_date = _to_str(getattr(invoice, "issue_date", None))
-    due_date = _to_str(getattr(invoice, "due_date", None))
+    due_date = _month_end_date(issue_date)
     is_paid = bool(getattr(invoice, "is_paid", False))
     pdf_url = getattr(invoice, "pdf_url", None)
     currency = getattr(invoice, "currency", "MDL") or "MDL"
@@ -552,3 +561,15 @@ def _parse_date(value: str | date) -> date | None:
         except ValueError:
             continue
     return None
+
+
+def _month_end_date(value: str | date | None) -> str | None:
+    """Last calendar day of the month of the given date, as YYYY-MM-DD."""
+    d = _parse_date(value)
+    if d is None:
+        return None
+    if d.month == 12:
+        end = date(d.year + 1, 1, 1)
+    else:
+        end = date(d.year, d.month + 1, 1)
+    return (end - timedelta(days=1)).isoformat()

@@ -25,13 +25,19 @@
     <div class="card">
       <h2>{{ t('profile_notifications') }}</h2>
       <form method="post" action="/profile/notifications" class="form-stack">
-        <label>{{ t('profile_emails') }}
-          <input type="text" name="emails" value="{{ emails }}" placeholder="{{ t('profile_emails_hint') }}">
-        </label>
-        <label>{{ t('profile_telegram') }}
-          <input type="text" name="telegram_chat_ids" value="{{ telegram_chat_ids }}" placeholder="{{ t('profile_telegram_hint') }}">
-        </label>
-        <p class="field-hint">{{ t('profile_telegram_note') }}</p>
+        {% if email_configured %}
+          <label>{{ t('profile_emails') }}
+            <textarea name="emails" rows="3" placeholder="{{ t('profile_emails_hint') }}">{{ emails }}</textarea>
+          </label>
+        {% endif %}
+        {% if telegram_configured %}
+          <label>{{ t('profile_telegram') }}
+            <textarea name="telegram_chat_ids" rows="3" placeholder="{{ t('profile_telegram_hint') }}">{{ telegram_chat_ids }}</textarea>
+          </label>
+          {% if telegram_bot_url %}
+            <p class="field-hint">{{ t('profile_telegram_note') }} <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener">{{ telegram_bot_url }}</a></p>
+          {% endif %}
+        {% endif %}
         <button type="submit">{{ t('profile_save_notif') }}</button>
       </form>
     </div>
