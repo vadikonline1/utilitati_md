@@ -11,7 +11,8 @@ services:
     # long syntax). The app also falls back to baked-in defaults if a variable
     # is not set.
     env_file:
-      - utilitati.env
+      - path: utilitati.env
+        required: false
     volumes:
       - utilitati-data:/app/data
     healthcheck:
