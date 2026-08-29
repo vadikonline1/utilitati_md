@@ -9,7 +9,15 @@
 <body>
   <header class="topbar">
     <a class="brand" href="/">🇲🇩 UTILITĂȚI.MD</a>
-    <nav class="main-nav">
+
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu"
+            aria-expanded="false" aria-controls="mainNav">
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+      <span class="nav-toggle-bar"></span>
+    </button>
+
+    <nav class="main-nav" id="mainNav">
       {% block nav %}
       <a href="/dashboard">{{ t('nav_dashboard') }}</a>
       <a href="/homes">{{ t('nav_homes') }}</a>
@@ -19,22 +27,63 @@
       <a href="/logout">{{ t('nav_logout') }}</a>
       {% endblock %}
     </nav>
-    <div class="lang-switch">
-      {% for code, name in langs.items() %}
-        <a href="/set-language/{{ code }}?next={{ request.url.path }}"
-           class="{{ 'active' if code == lang }}">{{ code|upper }}</a>
-      {% endfor %}
+
+    <div class="lang-dropdown" id="langDropdown">
+      <button class="lang-toggle" type="button" id="langToggle"
+              aria-expanded="false" aria-controls="langMenu">
+        {{ lang|upper }} <span class="caret">▾</span>
+      </button>
+      <div class="lang-menu" id="langMenu">
+        {% for code, name in langs.items() %}
+          <a href="/set-language/{{ code }}?next={{ request.url.path }}"
+             class="{{ 'active' if code == lang }}">
+            {{ name }} <span class="lang-code">({{ code|upper }})</span>
+          </a>
+        {% endfor %}
+      </div>
     </div>
   </header>
+
   {% block body %}{% endblock %}
+
   <footer class="site-footer">
-    <span>🇲🇩 {{ t('footer_site') }}</span>
+    <div class="footer-brand">🇲🇩 {{ t('footer_site') }}</div>
     <nav class="footer-nav">
       <a href="/">{{ t('nav_home') }}</a>
       <a href="/privacy">{{ t('nav_privacy') }}</a>
       <a href="/contact">{{ t('nav_contact') }}</a>
     </nav>
+    <div class="footer-copy">© {{ now.year }} {{ t('footer_site') }}</div>
   </footer>
+
   {% block scripts %}{% endblock %}
+  <script>
+    (function () {
+      function setupToggle(openBtn, panel) {
+        if (!openBtn || !panel) return;
+        openBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var isOpen = !panel.classList.contains('open');
+          closeAll();
+          if (isOpen) {
+            panel.classList.add('open');
+            openBtn.setAttribute('aria-expanded', 'true');
+          }
+        });
+      }
+      function closeAll() {
+        document.querySelectorAll('.main-nav, .lang-menu').forEach(function (p) {
+          p.classList.remove('open');
+        });
+        document.querySelectorAll('.nav-toggle, .lang-toggle').forEach(function (b) {
+          b.setAttribute('aria-expanded', 'false');
+        });
+      }
+      setupToggle(document.getElementById('navToggle'), document.getElementById('mainNav'));
+      setupToggle(document.getElementById('langToggle'), document.getElementById('langMenu'));
+      document.addEventListener('click', closeAll);
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+    })();
+  </script>
 </body>
 </html>

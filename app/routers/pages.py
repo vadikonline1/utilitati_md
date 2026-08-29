@@ -351,13 +351,14 @@ async def profile_page(request: Request, user_id: int | None = Depends(optional_
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
     prefs = get_notification_prefs(user_id)
+    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
     return templates.TemplateResponse(
         request, "profile.html",
         _ctx(
             request,
             message=None,
             username=get_username(user_id),
-            user_lang=get_user_lang(user_id) or lang,
+            user_lang=lang,
             emails=prefs["emails"],
             telegram_chat_ids=prefs["telegram"],
             email_configured=_email_cfg(),
@@ -404,13 +405,14 @@ async def profile_notifications_submit(
         str(form.get("telegram_chat_ids", "")),
     )
     prefs = get_notification_prefs(user_id)
+    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
     return templates.TemplateResponse(
         request, "profile.html",
         _ctx(
             request,
             message=_t("profile_notif_saved"),
             username=get_username(user_id),
-            user_lang=get_user_lang(user_id) or lang,
+            user_lang=lang,
             emails=prefs["emails"],
             telegram_chat_ids=prefs["telegram"],
             email_configured=_email_cfg(),
