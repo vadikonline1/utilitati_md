@@ -31,6 +31,7 @@ from ..services import email as email_svc
 from ..services.settings import (
     MSG_TYPES,
     all_settings,
+    clear_msg_templates,
     get_setting,
     get_sync_interval_hours,
     inactive_months,
@@ -462,6 +463,18 @@ def _is_admin(user_id: int | None) -> bool:
     return user_id is not None and is_admin_username(get_username(user_id))
 
 
+def _msg_defaults_data() -> dict:
+    """{msg_type: {lang: {subj, body}}} with the built-in default templates."""
+    return {
+        mt: {
+            lang: {"subj": email_svc.get_default_msg(mt, lang)[0],
+                   "body": email_svc.get_default_msg(mt, lang)[1]}
+            for lang in ("ro", "ru", "en")
+        }
+        for mt in MSG_TYPES
+    }
+
+
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
     _t = make_translator(get_lang(request.cookies.get("lang")))
@@ -483,6 +496,7 @@ async def admin_page(request: Request, user_id: int | None = Depends(optional_au
             unconfirmed_hours=unconfirmed_hours(),
             msg_types=MSG_TYPES,
             msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
+            msg_defaults_data=_msg_defaults_data(),
         ),
     )
 
@@ -533,6 +547,7 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
             unconfirmed_hours=unconfirmed_hours(),
             msg_types=MSG_TYPES,
             msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
+            msg_defaults_data=_msg_defaults_data(),
         ),
     )
 
@@ -557,6 +572,22 @@ async def admin_messages_submit(
         lang: str(form.get(f"body_{lang}", "")).strip() for lang in ("ro", "ru", "en")
     }
     set_msg_templates(msg_type, subjects, bodies)
+    return RedirectResponse(f"/admin?tab=messages&saved={msg_type}", status_code=303)
+
+
+@router.post("/admin/messages/{msg_type}/reset")
+async def admin_messages_reset(
+    msg_type: str, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    if msg_type not in MSG_TYPES:
+        return RedirectResponse("/admin", status_code=303)
+    clear_msg_templates(msg_type)
     return RedirectResponse(f"/admin?tab=messages&saved={msg_type}", status_code=303)
 
 

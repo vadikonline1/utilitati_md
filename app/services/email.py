@@ -206,6 +206,14 @@ _DEFAULTS: dict[str, dict[str, tuple[str, str]]] = {
 }
 
 
+def get_default_msg(msg_type: str, lang: str) -> tuple[str, str]:
+    """Return the built-in default (subject, body) for a type+lang (admin editor)."""
+    try:
+        return _DEFAULTS[msg_type][lang]
+    except KeyError:
+        return _DEFAULTS.get(msg_type, {}).get("ro", ("", ""))
+
+
 def _resolve(msg_type: str, lang: str) -> tuple[str, str]:
     """Return (subject, body) for a type+lang, preferring admin-custom templates."""
     return (

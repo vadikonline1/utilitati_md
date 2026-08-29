@@ -176,6 +176,15 @@ def set_msg_templates(msg_type: str, subjects: dict, bodies: dict) -> None:
     set_settings(values)
 
 
+def clear_msg_templates(msg_type: str) -> None:
+    """Remove any custom templates for a type so built-in defaults are used again."""
+    values = {}
+    for lang in ("ro", "ru", "en"):
+        values[f"msg_{msg_type}_subj_{lang}"] = ""
+        values[f"msg_{msg_type}_body_{lang}"] = ""
+    set_settings(values)
+
+
 def msg_templates(msg_type: str) -> dict[str, dict[str, str]]:
     """Return {lang: {subj, body}} for a message type, for the admin editor."""
     return {

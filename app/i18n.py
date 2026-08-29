@@ -874,6 +874,7 @@ def make_translator(lang: str) -> Callable[[str], str]:
 _NEW_KEYS: dict[str, dict[str, str]] = {
     "en": {
         "footer_site": "Utilitati.MD",
+        "footer_desc": "Tracking, management and automatic notification of utility invoices in Moldova — electricity, gas, water, internet and more, all in one place.",
         "nav_privacy": "Privacy & GDPR",
         "nav_contact": "Contact",
         "profile_language": "Platform language",
@@ -896,6 +897,8 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
         "msg_reset_placeholders": "Placeholders: {name}, {url}",
         "msg_inactive_placeholders": "Placeholders: {name}, {days}, {date}, {url}",
         "admin_edit_msg": "Edit messages",
+        "admin_reset_msg": "Reset to default",
+        "admin_defaults_title": "Default text (used until you edit below)",
         "admin_msg_saved": "Message templates saved.",
         "msg_lang_ro": "Romanian",
         "msg_lang_ru": "Russian",
@@ -945,6 +948,7 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
     },
     "ru": {
         "footer_site": "Utilitati.MD",
+        "footer_desc": "Отслеживание, управление и автоматические уведомления о счетах за коммунальные услуги в Молдове — электричество, газ, вода, интернет и другое в одном месте.",
         "nav_privacy": "Конфиденциальность и GDPR",
         "nav_contact": "Контакты",
         "profile_language": "Язык платформы",
@@ -967,6 +971,8 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
         "msg_reset_placeholders": "Плейсхолдеры: {name}, {url}",
         "msg_inactive_placeholders": "Плейсхолдеры: {name}, {days}, {date}, {url}",
         "admin_edit_msg": "Редактировать сообщения",
+        "admin_reset_msg": "Сбросить",
+        "admin_defaults_title": "Текст по умолчанию (используется, пока вы не измените)",
         "admin_msg_saved": "Шаблоны сообщений сохранены.",
         "msg_lang_ro": "Румынский",
         "msg_lang_ru": "Русский",
@@ -1016,6 +1022,7 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
     },
     "ro": {
         "footer_site": "Utilitati.MD",
+        "footer_desc": "Urmărirea, gestionarea și notificarea automată a facturilor la utilități în Moldova — electricitate, gaze, apă, internet și altele, toate într-un singur loc.",
         "nav_privacy": "Confidențialitate și GDPR",
         "nav_contact": "Contact",
         "profile_language": "Limba platformei",
@@ -1038,6 +1045,8 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
         "msg_reset_placeholders": "Placeholderi: {name}, {url}",
         "msg_inactive_placeholders": "Placeholderi: {name}, {days}, {date}, {url}",
         "admin_edit_msg": "Editează mesajele",
+        "admin_reset_msg": "Resetează",
+        "admin_defaults_title": "Textul implicit (folosit până îl modifici)",
         "admin_msg_saved": "Șabloanele de mesaje au fost salvate.",
         "msg_lang_ro": "Română",
         "msg_lang_ru": "Rusă",

@@ -47,12 +47,15 @@
   {% block body %}{% endblock %}
 
   <footer class="site-footer">
-    <div class="footer-brand">🇲🇩 {{ t('footer_site') }}</div>
-    <nav class="footer-nav">
-      <a href="/">{{ t('nav_home') }}</a>
-      <a href="/privacy">{{ t('nav_privacy') }}</a>
-      <a href="/contact">{{ t('nav_contact') }}</a>
-    </nav>
+    <div class="footer-row">
+      <div class="footer-brand">🇲🇩 {{ t('footer_site') }}</div>
+      <nav class="footer-nav">
+        <a href="/">{{ t('nav_home') }}</a>
+        <a href="/privacy">{{ t('nav_privacy') }}</a>
+        <a href="/contact">{{ t('nav_contact') }}</a>
+      </nav>
+    </div>
+    <p class="footer-desc">{{ t('footer_desc') }}</p>
     <div class="footer-copy">© {{ now.year }} {{ t('footer_site') }}</div>
   </footer>
 

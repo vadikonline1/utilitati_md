@@ -36,6 +36,7 @@
       </form>
     </div>
 
+    {% if email_configured or telegram_configured %}
     <div class="card">
       <h2>{{ t('profile_notifications') }}</h2>
       <form method="post" action="/profile/notifications" class="form-stack">
@@ -55,6 +56,7 @@
         <button type="submit">{{ t('profile_save_notif') }}</button>
       </form>
     </div>
+    {% endif %}
   </div>
 </main>
 {% endblock %}

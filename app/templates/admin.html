@@ -106,11 +106,27 @@
       <p class="subtitle">{{ t('admin_messages_hint') }}</p>
       <div class="config-grid">
         {% for mt in msg_types %}
-          <div class="card">
+          <div class="card msg-card">
             <h2>{{ t('msg_' ~ mt ~ '_title') }}</h2>
             <p class="field-hint">{{ t('msg_' ~ mt ~ '_placeholders') }}</p>
-            <div class="row-actions">
+            <div class="msg-defaults">
+              <p class="msg-defaults-title">{{ t('admin_defaults_title') }}:</p>
+              {% for code in ['ro', 'ru', 'en'] %}
+                <div class="msg-default">
+                  <span class="msg-default-lang">{{ t('msg_lang_' ~ code) }}</span>
+                  <div class="msg-default-text">
+                    <b>{{ msg_defaults_data[mt][code].subj }}</b>
+                    <span>{{ msg_defaults_data[mt][code].body }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="row-actions msg-actions">
               <button type="button" class="btn" onclick="openModal('modal-msg-{{ mt }}')">{{ t('admin_edit_msg') }}</button>
+              <form method="post" action="/admin/messages/{{ mt }}/reset"
+                    onsubmit="return confirm('{{ t('admin_reset_msg') }}?');">
+                <button type="submit" class="btn ghost">{{ t('admin_reset_msg') }}</button>
+              </form>
             </div>
           </div>
         {% endfor %}
@@ -130,10 +146,13 @@
             <fieldset class="msg-lang">
               <legend>{{ t('msg_lang_' ~ code) }}</legend>
               <label>{{ t('msg_subject') }}
-                <input type="text" name="subj_{{ code }}" value="{{ msg_templates_data[mt][code].subj }}">
+                <input type="text" name="subj_{{ code }}"
+                       value="{{ msg_templates_data[mt][code].subj }}"
+                       placeholder="{{ msg_defaults_data[mt][code].subj }}">
               </label>
               <label>{{ t('msg_body') }}
-                <textarea name="body_{{ code }}" rows="7">{{ msg_templates_data[mt][code].body }}</textarea>
+                <textarea name="body_{{ code }}" rows="7"
+                          placeholder="{{ msg_defaults_data[mt][code].body }}">{{ msg_templates_data[mt][code].body }}</textarea>
               </label>
             </fieldset>
           {% endfor %}
