@@ -16,3 +16,5 @@ DEFAULT_USERNAME = os.getenv("UTILITATI_USERNAME", "admin")
 DEFAULT_PASSWORD = os.getenv("UTILITATI_PASSWORD", "admin")
 # Username that is granted access to the /admin dashboard. Set in utilitati.env.
 ADMIN_USERNAME = os.getenv("UTILITATI_ADMIN_USERNAME", DEFAULT_USERNAME)
+# Public base URL used to build invitation / password-reset links in emails.
+SITE_URL = os.getenv("UTILITATI_SITE_URL", "https://utilitati.nistorlazar.md")

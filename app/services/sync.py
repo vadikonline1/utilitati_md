@@ -57,6 +57,58 @@ async def sync_loop() -> None:
         await asyncio.sleep(get_sync_interval_hours() * 3600)
 
 
+def list_user_enabled_accounts(user_id: int) -> list[dict]:
+    """All enabled accounts belonging to the given user."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM accounts WHERE user_id = ? AND status = 'enabled'",
+            (user_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+async def generate_invoices_for_user(
+    user_id: int, *, account_id: int | None = None, throttle: float = 2.0
+) -> dict:
+    """Fetch invoices for a user's account(s), sequentially and rate-limited.
+
+    Throttling (a short await between accounts) plus single-account calls keeps
+    the provider traffic low and avoids flooding the Oplata endpoints. Invoices
+    already marked PAID are never overwritten.
+    """
+    if account_id is not None:
+        accounts = [
+            a for a in list_user_enabled_accounts(user_id) if a["id"] == account_id
+        ]
+    else:
+        accounts = list_user_enabled_accounts(user_id)
+
+    updated = 0
+    errors = 0
+    checked = []
+    for account in accounts:
+        try:
+            data = await utilities.fetch_account_data(account)
+            utilities.persist_invoices(account["id"], data)
+            checked.append(account["id"])
+            if data.is_connected:
+                updated += 1
+            else:
+                errors += 1
+        except Exception:  # noqa: BLE001 - continue with the next account
+            _LOGGER.exception("Invoice generation failed for account %s", account["id"])
+            errors += 1
+        if throttle > 0 and account is not accounts[-1]:
+            await asyncio.sleep(throttle)
+
+    return {
+        "checked_accounts": len(accounts),
+        "updated_accounts": updated,
+        "errors": errors,
+        "invoice_count": 0,
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Dashboard statistics
 # --------------------------------------------------------------------------- #

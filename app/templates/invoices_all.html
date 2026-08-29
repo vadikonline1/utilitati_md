@@ -14,8 +14,16 @@
       {% else %}
         <button type="button" class="btn" disabled aria-disabled="true" title="{{ t('connect_utility_select_home') }}">+ {{ t('home_connect_utility') }}</button>
       {% endif %}
+      {% if accounts %}
+        <form method="post" action="/invoices/generate" class="inline-form">
+          <input type="hidden" name="account_id" value="all">
+          <input type="hidden" name="back" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+          <button type="submit" class="btn">{{ t('invoices_generate') }}</button>
+        </form>
+      {% endif %}
     </div>
   </div>
+  {% if generated_msg %}<p class="notice">{{ generated_msg }}</p>{% endif %}
   {% if current_home %}<p class="subtitle">{{ t('invoices_for_home') }} {{ current_home.name }}</p>
   {% elif homes %}<p class="muted">{{ t('connect_utility_select_home') }}</p>{% endif %}
 
@@ -47,6 +55,11 @@
             <td><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></td>
             <td class="row-actions">
               <a class="btn small" href="/accounts/{{ inv.account_id }}/invoices">{{ t('invoice_check') }}</a>
+              <form method="post" action="/invoices/generate" class="inline-form">
+                <input type="hidden" name="account_id" value="{{ inv.account_id }}">
+                <input type="hidden" name="back" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+                <button type="submit" class="btn small ghost">{{ t('invoices_generate') }}</button>
+              </form>
               <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
                 <input type="hidden" name="status" value="{{ 'disabled' if inv.status == 'enabled' else 'enabled' }}">
                 <button type="submit" class="btn small">{{ t('invoice_disable') if inv.status == 'enabled' else t('invoice_enable') }}</button>
@@ -68,6 +81,17 @@
         <p class="muted">{{ t('connect_utility_select_home') }}</p>
       {% endif %}
     </div>
+  {% endif %}
+  {% if total > 20 %}
+    <nav class="pagination">
+      {% if page > 1 %}
+        <a class="btn small ghost" href="/invoices?home_id={{ current_home.id if current_home else '' }}&page={{ page - 1 }}">←</a>
+      {% endif %}
+      <span class="page-info">{{ t('pagination_page') }} {{ page }} / {{ total_pages }}</span>
+      {% if page < total_pages %}
+        <a class="btn small ghost" href="/invoices?home_id={{ current_home.id if current_home else '' }}&page={{ page + 1 }}">→</a>
+      {% endif %}
+    </nav>
   {% endif %}
 </main>
 

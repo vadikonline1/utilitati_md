@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    full_name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    is_active INTEGER NOT NULL DEFAULT 0,
+    confirm_token TEXT,
+    reset_token TEXT,
+    reset_token_exp TEXT,
     notification_emails TEXT NOT NULL DEFAULT '',
     telegram_chat_ids TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -138,6 +144,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
         for col, ddl in {
             "notification_emails": "ALTER TABLE users ADD COLUMN notification_emails TEXT NOT NULL DEFAULT ''",
             "telegram_chat_ids": "ALTER TABLE users ADD COLUMN telegram_chat_ids TEXT NOT NULL DEFAULT ''",
+            "full_name": "ALTER TABLE users ADD COLUMN full_name TEXT NOT NULL DEFAULT ''",
+            "email": "ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''",
+            "is_active": "ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 0",
+            "confirm_token": "ALTER TABLE users ADD COLUMN confirm_token TEXT",
+            "reset_token": "ALTER TABLE users ADD COLUMN reset_token TEXT",
+            "reset_token_exp": "ALTER TABLE users ADD COLUMN reset_token_exp TEXT",
         }.items():
             if col not in ucols:
                 conn.execute(ddl)

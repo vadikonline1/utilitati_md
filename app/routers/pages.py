@@ -11,15 +11,23 @@ from fastapi.templating import Jinja2Templates
 from ..auth import (
     authenticate,
     change_password,
+    confirm_invitation,
+    create_invitation,
     create_session_token,
+    get_user,
     parse_session_token,
     register,
+    resolve_reset_token,
+    set_password_for_user,
+    set_reset_token,
+    user_by_email,
 )
-from ..config import ADMIN_USERNAME, TEMPLATES_DIR
+from ..config import ADMIN_USERNAME, SITE_URL, TEMPLATES_DIR
 from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
+from ..services import email as email_svc
 from ..services.settings import all_settings, get_sync_interval_hours, set_settings
-from ..services.sync import dashboard_stats
+from ..services.sync import dashboard_stats, generate_invoices_for_user
 from ..services.utilities import (
     create_home,
     delete_account,
@@ -140,31 +148,132 @@ async def register_page(request: Request, user_id: int | None = Depends(optional
 
 @router.post("/register")
 async def register_submit(request: Request):
-    form = await request.form()
     _t = make_translator(get_lang(request.cookies.get("lang")))
+    form = await request.form()
+    first_name = str(form.get("first_name", "")).strip()
+    last_name = str(form.get("last_name", "")).strip()
+    email = str(form.get("email", "")).strip()
     username = str(form.get("username", "")).strip()
-    password = str(form.get("password", ""))
-    confirm = str(form.get("confirm", ""))
-    if not username or not password:
+
+    if not first_name or not last_name or not email or not username:
         return templates.TemplateResponse(
             request, "register.html",
             _ctx(request, error=_t("register_fill")), status_code=400,
         )
-    if password != confirm:
+    if "@" not in email or "." not in email.split("@")[-1]:
         return templates.TemplateResponse(
             request, "register.html",
-            _ctx(request, error=_t("register_mismatch")), status_code=400,
+            _ctx(request, error=_t("register_bad_email")), status_code=400,
         )
+    full_name = f"{first_name} {last_name}".strip()
     try:
-        user_id = register(username, password)
+        _, token = create_invitation(username, full_name, email)
     except ValueError:
         return templates.TemplateResponse(
             request, "register.html",
             _ctx(request, error=_t("register_taken")), status_code=400,
         )
-    response = RedirectResponse("/dashboard", status_code=303)
-    response.set_cookie("session", create_session_token(user_id), httponly=True)
-    return response
+
+    confirm_url = f"{SITE_URL}/confirm/{token}"
+    email_svc.send_invitation(email, full_name, confirm_url)
+
+    return templates.TemplateResponse(
+        request, "register.html",
+        _ctx(request, sent=_t("register_sent")),
+    )
+
+
+@router.get("/confirm/{token}", response_class=HTMLResponse)
+async def confirm_page(token: str, request: Request):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    result = confirm_invitation(token)
+    if result is None:
+        return templates.TemplateResponse(
+            request, "confirm.html",
+            _ctx(request, ok=False, message=_t("confirm_invalid")),
+        )
+    user_id, generated_password = result
+    user = get_user(user_id)
+    if user and user.get("email"):
+        email_svc.send_welcome(
+            user["email"], user.get("full_name", ""), user.get("username", ""),
+            generated_password,
+        )
+    return templates.TemplateResponse(
+        request, "confirm.html",
+        _ctx(request, ok=True, message=_t("confirm_ok")),
+    )
+
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if user_id is not None:
+        return RedirectResponse("/dashboard", status_code=303)
+    return templates.TemplateResponse(
+        request, "forgot_password.html", _ctx(request, message=None),
+    )
+
+
+@router.post("/forgot-password")
+async def forgot_password_submit(request: Request):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    form = await request.form()
+    email = str(form.get("email", "")).strip()
+    user = user_by_email(email)
+    if user:
+        token = set_reset_token(user["id"])
+        reset_url = f"{SITE_URL}/reset-password/{token}"
+        email_svc.send_reset_link(email, user.get("full_name", ""), reset_url)
+    # Always show the same message to avoid leaking which emails are registered.
+    return templates.TemplateResponse(
+        request, "forgot_password.html",
+        _ctx(request, message=_t("forgot_sent")),
+    )
+
+
+@router.get("/reset-password/{token}", response_class=HTMLResponse)
+async def reset_password_page(token: str, request: Request):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    user_id = resolve_reset_token(token)
+    if user_id is None:
+        return templates.TemplateResponse(
+            request, "reset_password.html",
+            _ctx(request, token=None, error=_t("reset_invalid")),
+        )
+    return templates.TemplateResponse(
+        request, "reset_password.html", _ctx(request, token=token, error=None),
+    )
+
+
+@router.post("/reset-password/{token}")
+async def reset_password_submit(token: str, request: Request):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    user_id = resolve_reset_token(token)
+    if user_id is None:
+        return templates.TemplateResponse(
+            request, "reset_password.html",
+            _ctx(request, token=None, error=_t("reset_invalid")),
+        )
+    form = await request.form()
+    new_password = str(form.get("password", ""))
+    confirm = str(form.get("confirm", ""))
+    if len(new_password) < 6:
+        return templates.TemplateResponse(
+            request, "reset_password.html",
+            _ctx(request, token=token, error=_t("reset_weak")),
+        )
+    if new_password != confirm:
+        return templates.TemplateResponse(
+            request, "reset_password.html",
+            _ctx(request, token=token, error=_t("reset_mismatch")),
+        )
+    set_password_for_user(user_id, new_password)
+    return templates.TemplateResponse(
+        request, "reset_password.html",
+        _ctx(request, token=None, done=True, error=None),
+    )
 
 
 @router.get("/logout")
@@ -315,11 +424,30 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
 # Homes
 # --------------------------------------------------------------------------- #
 @router.get("/homes", response_class=HTMLResponse)
-async def homes_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+async def homes_page(
+    request: Request,
+    page: int = 1,
+    user_id: int | None = Depends(optional_auth_token),
+):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
+    per_page = 20
+    page = max(1, page)
+    all_homes = list_homes(user_id)
+    total = len(all_homes)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
+    start = (page - 1) * per_page
     return templates.TemplateResponse(
-        request, "homes.html", _ctx(request, homes=list_homes(user_id)),
+        request, "homes.html",
+        _ctx(
+            request,
+            homes=all_homes[start:start + per_page],
+            page=page,
+            total_pages=total_pages,
+            total=total,
+        ),
     )
 
 
@@ -523,21 +651,74 @@ async def invoice_refresh(
 async def invoices_all_page(
     request: Request,
     home_id: int | None = None,
+    page: int = 1,
     user_id: int | None = Depends(optional_auth_token),
 ):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    per_page = 20
+    page = max(1, page)
     accounts = list_accounts(user_id, home_id=home_id)
     current_home = get_home(user_id, home_id) if home_id else None
+    all_invoices = list_invoices(user_id, home_id=home_id)
+    total = len(all_invoices)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
+    start = (page - 1) * per_page
+    invoices = all_invoices[start:start + per_page]
+    generated = request.query_params.get("generated", "") == "1"
+    try:
+        generated_updated = int(request.query_params.get("updated", "0"))
+    except (TypeError, ValueError):
+        generated_updated = 0
+    try:
+        generated_errors = int(request.query_params.get("errors", "0"))
+    except (TypeError, ValueError):
+        generated_errors = 0
+    generated_msg = None
+    if generated:
+        generated_msg = _t(
+            "invoices_generated",
+        ).replace("{updated}", str(generated_updated)).replace("{errors}", str(generated_errors))
     return templates.TemplateResponse(
         request, "invoices_all.html",
         _ctx(
             request,
-            invoices=list_invoices(user_id, home_id=home_id),
+            invoices=invoices,
             accounts=accounts,
             homes=list_homes(user_id),
             current_home=current_home,
+            page=page,
+            total_pages=total_pages,
+            total=total,
+            generated=generated,
+            generated_msg=generated_msg,
         ),
+    )
+
+
+@router.post("/invoices/generate")
+async def invoices_generate(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if user_id is None:
+        return RedirectResponse("/login", status_code=303)
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    form = await request.form()
+    account_id_raw = form.get("account_id", "all")
+    try:
+        account_id = int(account_id_raw) if str(account_id_raw).isdigit() else None
+    except (TypeError, ValueError):
+        account_id = None
+    result = await generate_invoices_for_user(user_id, account_id=account_id)
+    back = str(form.get("back", "/invoices"))
+    if not back.startswith("/") or back.startswith("//"):
+        back = "/invoices"
+    return RedirectResponse(
+        f"{back}?generated=1&updated={result['updated_accounts']}&errors={result['errors']}",
+        status_code=303,
     )
 
 
