@@ -43,6 +43,7 @@ from ..services import email as email_svc
 from ..services import faq as faq_svc
 from ..services.settings import (
     MSG_TYPES,
+    MASKED,
     all_settings,
     clear_msg_templates,
     get_setting,
@@ -703,6 +704,13 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
             values["sync_hours"] = str(max(1, min(168, int(float(sync_hours)))))
         except (TypeError, ValueError):
             values["sync_hours"] = "24"
+    # Secret fields show a masked sentinel instead of the real value; a masked or
+    # empty submission means "leave it unchanged" so we never write the sentinel
+    # back or wipe a configured credential by accident.
+    for secret_key in ("smtp_user", "smtp_pass", "telegram_token"):
+        sub = str(values.get(secret_key, "")).strip()
+        if not sub or sub == MASKED:
+            values.pop(secret_key, None)
     set_settings(values)
     return templates.TemplateResponse(
         request, "admin.html",

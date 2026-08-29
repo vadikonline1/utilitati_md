@@ -1,6 +1,14 @@
-"""Settings storage (key/value) for the /admin dashboard + notification prefs."""
+"""Settings storage (key/value) for the /admin dashboard + notification prefs.
+
+SMTP and Telegram credentials can be provided either through the /admin UI
+(stored encrypted in the database) or from the process environment
+(`utilitati.env`). When an environment variable is set it takes precedence, so
+credentials are never baked into source control.
+"""
 
 from __future__ import annotations
+
+import os
 
 from ..db import _conn
 from . import crypto
@@ -8,6 +16,21 @@ from . import crypto
 # Defaults (hours between syncs; 'daily' = once per day).
 DEFAULT_SYNC_HOURS = 24
 DEFAULT_SYNC_MODE = "daily"
+
+# Secret display sentinel: the admin UI never shows real secret values.
+MASKED = "••••••••"
+
+# Settings that may be configured from the environment (replaces DB value when
+# set). Env names match what should live in utilitati.env.
+ENV_SETTING_MAP = {
+    "smtp_host": "SMTP_HOST",
+    "smtp_port": "SMTP_PORT",
+    "smtp_user": "SMTP_USER",
+    "smtp_pass": "SMTP_PASS",
+    "smtp_from": "SMTP_FROM",
+    "telegram_token": "TELEGRAM_TOKEN",
+    "telegram_botname": "TELEGRAM_BOTNAME",
+}
 
 SETTING_KEYS = {
     "smtp_host",
@@ -46,7 +69,20 @@ def _read_decrypted(raw: str) -> str:
     return raw
 
 
+def is_env_setting(key: str) -> bool:
+    """True when the given setting key is provided via the environment."""
+    env_name = ENV_SETTING_MAP.get(key)
+    return bool(env_name and os.getenv(env_name) is not None)
+
+
 def get_setting(key: str, default: str = "") -> str:
+    # Environment configuration takes precedence over the database value, so
+    # SMTP/Telegram credentials can be supplied without touching the database.
+    env_name = ENV_SETTING_MAP.get(key)
+    if env_name:
+        env_value = os.getenv(env_name)
+        if env_value is not None:
+            return env_value
     with _conn() as conn:
         row = conn.execute(
             "SELECT value FROM settings WHERE key = ?", (key,)
@@ -84,12 +120,30 @@ def set_settings(values: dict[str, str]) -> None:
 
 
 def all_settings() -> dict[str, str]:
+    """Return every stored setting for the admin UI.
+
+    Secret values (SMTP password / user, Telegram token) are never returned in
+    plaintext: they are replaced with a masked sentinel when configured. Env
+    values override DB values, and each env-provided key is flagged
+    `_env_<key>` so the template can show it came from the environment.
+    """
     with _conn() as conn:
         rows = conn.execute("SELECT key, value FROM settings").fetchall()
     out = {}
     for row in rows:
         key, value = row["key"], row["value"]
         out[key] = _read_decrypted(value) if key in _SECRET_KEYS else value
+    for key, env_name in ENV_SETTING_MAP.items():
+        env_value = os.getenv(env_name)
+        if env_value is not None:
+            if key in _SECRET_KEYS:
+                out[key] = MASKED
+            else:
+                out[key] = env_value
+            out[f"_env_{key}"] = "1"
+    for key in _SECRET_KEYS:
+        if out.get(key):
+            out[key] = MASKED
     return out
 
 

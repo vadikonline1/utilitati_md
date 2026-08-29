@@ -34,10 +34,13 @@
                 <input type="number" name="smtp_port" value="{{ settings.get('smtp_port', '587') }}" placeholder="587">
               </label>
               <label>{{ t('admin_smtp_user') }}
-                <input type="text" name="smtp_user" value="{{ settings.get('smtp_user', '') }}" autocomplete="off">
+                <input type="password" name="smtp_user" value="{{ settings.get('smtp_user', '') }}" autocomplete="new-password" placeholder="{{ t('admin_secret_ph') }}">
+                {% if settings.get('_env_smtp_user') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
               </label>
               <label>{{ t('admin_smtp_pass') }}
-                <input type="password" name="smtp_pass" value="{{ settings.get('smtp_pass', '') }}" autocomplete="new-password">
+                <input type="password" name="smtp_pass" value="{{ settings.get('smtp_pass', '') }}" autocomplete="new-password" placeholder="{{ t('admin_secret_ph') }}">
+                {% if settings.get('_env_smtp_pass') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+                {% if settings.get('smtp_pass') %}<span class="field-hint">{{ t('admin_secret_hint') }}</span>{% endif %}
               </label>
               <label>{{ t('admin_smtp_from') }}
                 <input type="email" name="smtp_from" value="{{ settings.get('smtp_from', '') }}" placeholder="no-reply@example.com">
@@ -50,6 +53,8 @@
             <div class="form-stack">
               <label>{{ t('admin_telegram_token') }}
                 <input type="password" name="telegram_token" value="{{ settings.get('telegram_token', '') }}" autocomplete="new-password" placeholder="123456:ABC-DEF...">
+                {% if settings.get('_env_telegram_token') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+                {% if settings.get('telegram_token') %}<span class="field-hint">{{ t('admin_secret_hint') }}</span>{% endif %}
               </label>
               <label>{{ t('admin_telegram_botname') }}
                 <input type="text" name="telegram_botname" value="{{ settings.get('telegram_botname', '') }}" placeholder="{{ t('admin_telegram_botname_ph') }}">

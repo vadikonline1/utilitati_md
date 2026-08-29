@@ -998,6 +998,9 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
         "admin_faq_add": "Add FAQ",
         "admin_faq_delete": "Delete",
         "admin_faq_delete_confirm": "Delete this FAQ item",
+        "admin_from_env": "From environment",
+        "admin_secret_ph": "(unchanged — leave blank to keep it)",
+        "admin_secret_hint": "Configured — hidden for security; leave blank to keep the current value.",
     },
     "ru": {
         "footer_site": "Utilitati.MD",
@@ -1125,6 +1128,9 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
         "admin_faq_add": "Добавить FAQ",
         "admin_faq_delete": "Удалить",
         "admin_faq_delete_confirm": "Удалить этот пункт FAQ",
+        "admin_from_env": "Из переменных окружения",
+        "admin_secret_ph": "(не менять — оставьте пустым, чтобы сохранить)",
+        "admin_secret_hint": "Задано — скрыто в целях безопасности; оставьте пустым, чтобы сохранить текущее значение.",
     },
     "ro": {
         "footer_site": "Utilitati.MD",
@@ -1252,6 +1258,9 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
         "admin_faq_add": "Adaugă FAQ",
         "admin_faq_delete": "Șterge",
         "admin_faq_delete_confirm": "Ștergi acest item FAQ",
+        "admin_from_env": "Din variabile de mediu",
+        "admin_secret_ph": "(nedeclarat — lasă gol pentru a păstra)",
+        "admin_secret_hint": "Configurat — ascuns din motive de securitate; lasă gol pentru a păstra valoarea actuală.",
     },
 }
 
