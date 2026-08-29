@@ -6,14 +6,17 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    # All runtime configuration lives in utilitati.env (single source of truth).
     env_file:
-      - path: utilitati.env
-        required: false
+      - utilitati.env
     volumes:
-      - ./data:/app/data
+      - utilitati-data:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=5)"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
+
+volumes:
+  utilitati-data:
