@@ -59,6 +59,10 @@
               <label>{{ t('admin_telegram_botname') }}
                 <input type="text" name="telegram_botname" value="{{ settings.get('telegram_botname', '') }}" placeholder="{{ t('admin_telegram_botname_ph') }}">
               </label>
+              <form method="post" action="/admin/telegram/set-webhook" class="inline-form">
+                <button type="submit" class="btn small">{{ t('admin_telegram_set_bot') }}</button>
+                <span class="field-hint">{{ t('admin_telegram_webhook_hint') }}</span>
+              </form>
             </div>
           </div>
 

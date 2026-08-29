@@ -9,7 +9,7 @@ import secrets
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from ..auth import (
@@ -41,6 +41,7 @@ from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import contact as contact_svc
 from ..services import email as email_svc
 from ..services import faq as faq_svc
+from ..services import telegram as telegram_svc
 from ..services.settings import (
     MSG_TYPES,
     MASKED,
@@ -407,10 +408,15 @@ async def forgot_password_submit(request: Request):
     if user:
         token = set_reset_token(user["id"])
         reset_url = f"{SITE_URL}/reset-password/{token}"
+        lang = get_user_lang(user["id"]) or get_lang(request.cookies.get("lang"))
         email_svc.send_reset_link(
-            email, user.get("full_name", ""), reset_url,
-            lang=get_user_lang(user["id"]) or get_lang(request.cookies.get("lang")),
+            email, user.get("full_name", ""), reset_url, lang=lang,
         )
+        # If the user has chat id(s) saved, also deliver the reset link via Telegram.
+        full = get_user(user["id"]) or {}
+        chat_ids = full.get("telegram_chat_ids", "")
+        if chat_ids:
+            await telegram_svc.send_reset_link_to_chats(chat_ids, reset_url, lang)
     # Always show the same message to avoid leaking which emails are registered.
     return templates.TemplateResponse(
         request, "forgot_password.html",
@@ -643,6 +649,36 @@ def _msg_defaults_data() -> dict:
     }
 
 
+def _admin_base_ctx() -> dict:
+    """Context values shared by every /admin render."""
+    return {
+        "denied": False,
+        "settings": all_settings(),
+        "retention_enabled": retention_enabled(),
+        "inactive_months": inactive_months(),
+        "warn_days_list": warn_days(),
+        "invoice_months": invoice_months(),
+        "unconfirmed_hours": unconfirmed_hours(),
+        "msg_types": MSG_TYPES,
+        "msg_templates_data": {mt: msg_templates(mt) for mt in MSG_TYPES},
+        "msg_defaults_data": _msg_defaults_data(),
+        "contact_messages": contact_svc.list_contact_messages(),
+        "users": list_users(),
+        "faq_items": faq_svc.list_faq_items(),
+        "current_uid": None,
+    }
+
+
+def _admin_render(request: Request, user_id: int | None, message: str | None = None, **extra) -> HTMLResponse:
+    """Render the admin page with the shared context plus any per-route extras."""
+    ctx = _admin_base_ctx()
+    ctx["current_uid"] = user_id
+    if message is not None:
+        ctx["message"] = message
+    ctx.update(extra)
+    return templates.TemplateResponse(request, "admin.html", _ctx(request, **ctx))
+
+
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
     _t = make_translator(get_lang(request.cookies.get("lang")))
@@ -651,26 +687,7 @@ async def admin_page(request: Request, user_id: int | None = Depends(optional_au
             request, "admin.html",
             _ctx(request, denied=True, message=_t("admin_not_admin")),
         )
-    return templates.TemplateResponse(
-        request, "admin.html",
-        _ctx(
-            request,
-            denied=False,
-            settings=all_settings(),
-            retention_enabled=retention_enabled(),
-            inactive_months=inactive_months(),
-            warn_days_list=warn_days(),
-            invoice_months=invoice_months(),
-            unconfirmed_hours=unconfirmed_hours(),
-            msg_types=MSG_TYPES,
-            msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
-            msg_defaults_data=_msg_defaults_data(),
-            contact_messages=contact_svc.list_contact_messages(),
-            users=list_users(),
-            faq_items=faq_svc.list_faq_items(),
-            current_uid=user_id,
-        ),
-    )
+    return _admin_render(request, user_id)
 
 
 @router.post("/admin")
@@ -712,26 +729,57 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         if not sub or sub == MASKED:
             values.pop(secret_key, None)
     set_settings(values)
-    return templates.TemplateResponse(
-        request, "admin.html",
-        _ctx(
-            request,
-            denied=False,
-            message=_t("admin_saved"),
-            settings=all_settings(),
-            retention_enabled=retention_enabled(),
-            inactive_months=inactive_months(),
-            warn_days_list=warn_days(),
-            invoice_months=invoice_months(),
-            unconfirmed_hours=unconfirmed_hours(),
-            msg_types=MSG_TYPES,
-            msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
-            msg_defaults_data=_msg_defaults_data(),
-            contact_messages=contact_svc.list_contact_messages(),
-            users=list_users(),
-            faq_items=faq_svc.list_faq_items(),
-            current_uid=user_id,
-        ),
+    return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+@router.post("/admin/telegram/set-webhook")
+async def admin_telegram_set_webhook(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    webhook_url = f"{SITE_URL}/telegram/webhook"
+    ok, detail = await telegram_svc.set_webhook(webhook_url)
+    if ok:
+        message = _t("admin_telegram_webhook_ok") + f" · {webhook_url}"
+    else:
+        message = _t("admin_telegram_webhook_err") + (f" · {detail}" if detail else "")
+    return _admin_render(request, user_id, message=message)
+
+
+@router.post("/telegram/webhook")
+async def telegram_webhook(request: Request):
+    """Public Telegram webhook: greet on /start and hand out the user's chat id."""
+    try:
+        data = await request.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"ok": False}, status_code=400)
+    update = data if isinstance(data, dict) else {}
+    message = update.get("message") or {}
+    chat = message.get("chat") or {}
+    chat_id = chat.get("id")
+    text = str(message.get("text", "")).strip()
+    first_name = chat.get("first_name") or ""
+    command = text.split()[0] if text else ""
+    if chat_id is not None and command.startswith("/start"):
+        welcome = _t_start_welcome(chat_id, first_name)
+        await telegram_svc.send_message(chat_id, welcome)
+    return JSONResponse({"ok": True})
+
+
+def _t_start_welcome(chat_id, first_name: str) -> str:
+    """Welcome message for /start, greeting the user and exposing their chat id."""
+    greeting = f"Salut{', ' + first_name if first_name else ''}!"
+    return (
+        f"{greeting}! Bun venit la Utilități.MD!\n\n"
+        f"Your chat ID / ID-ul tău de chat / Ваш chat ID:\n"
+        f"{chat_id}\n\n"
+        f"Adaugă acest ID în profilul tău (Cont → Telegram) ca să primești "
+        f"notificări și linkuri de resetare aici."
     )
 
 
