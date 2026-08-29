@@ -15,6 +15,7 @@
       <a href="/homes">{{ t('nav_homes') }}</a>
       <a href="/invoices">{{ t('nav_invoices') }}</a>
       <a href="/profile">{{ t('nav_profile') }}</a>
+      {% if is_admin %}<a href="/admin">{{ t('nav_admin') }}</a>{% endif %}
       <a href="/logout">{{ t('nav_logout') }}</a>
       {% endblock %}
     </nav>

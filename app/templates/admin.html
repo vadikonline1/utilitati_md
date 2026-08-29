@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ t('admin_title') }} · UTILITĂȚI.MD{% endblock %}
+{% block body %}
+<main class="dashboard">
+  <h1>{{ t('admin_title') }}</h1>
+  {% if denied %}
+    <p class="notice">{{ message }}</p>
+  {% else %}
+    <p class="subtitle">{{ t('admin_subtitle') }}</p>
+    {% if message %}<p class="notice">{{ message }}</p>{% endif %}
+
+    <form method="post" action="/admin">
+      <div class="config-grid">
+        <div class="card">
+          <h2>{{ t('admin_smtp') }}</h2>
+          <div class="form-stack">
+            <label>{{ t('admin_smtp_host') }}
+              <input type="text" name="smtp_host" value="{{ settings.get('smtp_host', '') }}" placeholder="smtp.example.com">
+            </label>
+            <label>{{ t('admin_smtp_port') }}
+              <input type="number" name="smtp_port" value="{{ settings.get('smtp_port', '587') }}" placeholder="587">
+            </label>
+            <label>{{ t('admin_smtp_user') }}
+              <input type="text" name="smtp_user" value="{{ settings.get('smtp_user', '') }}" autocomplete="off">
+            </label>
+            <label>{{ t('admin_smtp_pass') }}
+              <input type="password" name="smtp_pass" value="{{ settings.get('smtp_pass', '') }}" autocomplete="new-password">
+            </label>
+            <label>{{ t('admin_smtp_from') }}
+              <input type="email" name="smtp_from" value="{{ settings.get('smtp_from', '') }}" placeholder="no-reply@example.com">
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>{{ t('admin_telegram') }}</h2>
+          <div class="form-stack">
+            <label>{{ t('admin_telegram_token') }}
+              <input type="password" name="telegram_token" value="{{ settings.get('telegram_token', '') }}" autocomplete="new-password" placeholder="123456:ABC-DEF...">
+            </label>
+            <label>{{ t('admin_telegram_botname') }}
+              <input type="text" name="telegram_botname" value="{{ settings.get('telegram_botname', '') }}" placeholder="{{ t('admin_telegram_botname_ph') }}">
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>{{ t('admin_sync') }}</h2>
+          <div class="form-stack">
+            <label class="radio">
+              <input type="radio" name="sync_mode" value="daily"
+                {{ 'checked' if settings.get('sync_mode', 'daily') != 'interval' }}>
+              {{ t('admin_syncdaily') }}
+            </label>
+            <label class="radio">
+              <input type="radio" name="sync_mode" value="interval"
+                {{ 'checked' if settings.get('sync_mode') == 'interval' }}>
+              {{ t('admin_every') }}
+              <input type="number" name="sync_hours" min="1" max="168" value="{{ settings.get('sync_hours', '24') }}" style="width:80px">
+              {{ t('admin_hours') }}
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn">{{ t('admin_save') }}</button>
+      </div>
+    </form>
+  {% endif %}
+</main>
+{% endblock %}

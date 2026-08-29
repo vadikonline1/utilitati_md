@@ -8,10 +8,18 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from ..auth import authenticate, change_password, create_session_token, register
-from ..config import TEMPLATES_DIR
+from ..auth import (
+    authenticate,
+    change_password,
+    create_session_token,
+    parse_session_token,
+    register,
+)
+from ..config import ADMIN_USERNAME, TEMPLATES_DIR
 from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
+from ..services.settings import all_settings, get_sync_interval_hours, set_settings
+from ..services.sync import dashboard_stats
 from ..services.utilities import (
     create_home,
     delete_account,
@@ -21,6 +29,8 @@ from ..services.utilities import (
     get_account_row,
     get_home,
     get_invoice,
+    get_notification_prefs,
+    get_username,
     list_accounts,
     list_homes,
     list_invoice_history,
@@ -29,6 +39,7 @@ from ..services.utilities import (
     set_account_status,
     set_home_status,
     set_invoice_status,
+    set_notification_prefs,
     update_home,
     update_invoice,
     upsert_account,
@@ -41,7 +52,6 @@ PROVIDER_META = {
     "infosapr": {"icon": "💧", "name": "InfoSapr", "fields": ["contract"], "account_label": "Numărul contului personal", "placeholder": "ex: 123456789"},
     "premier_energy": {"icon": "⚡", "name": "Premier Energy", "fields": ["contract"], "account_label": "Cod NLC", "placeholder": "ex: 123456789"},
     "energocom": {"icon": "🔥", "name": "Energocom", "fields": ["contract"], "account_label": "Contul personal", "placeholder": "14 caractere (ex: 123/0123456789)"},
-    "moldovagaz": {"icon": "🔥", "name": "Moldovagaz", "fields": ["contract"], "account_label": "Contul personal", "placeholder": "14 caractere (ex: 123/0123456789)"},
     "infocom": {"icon": "📡", "name": "INFOCOM", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "ex: 123456"},
     "termoelectrica": {"icon": "🔥", "name": "Termoelectrica", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "14 cifre (ex: 12345678901234)"},
     "apa_canal_chisinau": {"icon": "💧", "name": "Apă-Canal Chișinău", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "5-9 caractere (A, P, cifre)"},
@@ -53,6 +63,7 @@ PROVIDER_META = {
 
 def _ctx(request, **extra):
     lang = get_lang(request.cookies.get("lang"))
+    uid = parse_session_token(request.cookies.get("session") or "")
     ctx = {
         "request": request,
         "now": datetime.now(),
@@ -60,6 +71,8 @@ def _ctx(request, **extra):
         "lang": lang,
         "t": make_translator(lang),
         "langs": LANG_NAMES,
+        "logged_in": uid is not None,
+        "is_admin": uid is not None and get_username(uid) == ADMIN_USERNAME,
     }
     ctx.update(extra)
     return ctx
@@ -165,7 +178,18 @@ async def logout():
 async def profile_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
-    return templates.TemplateResponse(request, "profile.html", _ctx(request, message=None))
+    prefs = get_notification_prefs(user_id)
+    return templates.TemplateResponse(
+        request, "profile.html",
+        _ctx(
+            request,
+            message=None,
+            username=get_username(user_id),
+            emails=prefs["emails"],
+            telegram_chat_ids=prefs["telegram"],
+            is_admin=(get_username(user_id) == ADMIN_USERNAME),
+        ),
+    )
 
 
 @router.post("/profile")
@@ -190,6 +214,33 @@ async def profile_submit(request: Request, user_id: int | None = Depends(optiona
     )
 
 
+@router.post("/profile/notifications")
+async def profile_notifications_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if user_id is None:
+        return RedirectResponse("/login", status_code=303)
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    form = await request.form()
+    set_notification_prefs(
+        user_id,
+        str(form.get("emails", "")),
+        str(form.get("telegram_chat_ids", "")),
+    )
+    prefs = get_notification_prefs(user_id)
+    return templates.TemplateResponse(
+        request, "profile.html",
+        _ctx(
+            request,
+            message=_t("profile_notif_saved"),
+            username=get_username(user_id),
+            emails=prefs["emails"],
+            telegram_chat_ids=prefs["telegram"],
+            is_admin=(get_username(user_id) == ADMIN_USERNAME),
+        ),
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Dashboard
 # --------------------------------------------------------------------------- #
@@ -198,7 +249,65 @@ async def dashboard(request: Request, user_id: int | None = Depends(optional_aut
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse(
-        request, "dashboard.html", _ctx(request, homes=list_homes(user_id)),
+        request, "dashboard.html",
+        _ctx(
+            request,
+            homes=list_homes(user_id),
+            stats=dashboard_stats(user_id),
+        ),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Admin dashboard (SMTP / Telegram / sync settings)
+# --------------------------------------------------------------------------- #
+def _is_admin(user_id: int | None) -> bool:
+    return user_id is not None and get_username(user_id) == ADMIN_USERNAME
+
+
+@router.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    return templates.TemplateResponse(
+        request, "admin.html", _ctx(request, denied=False, settings=all_settings()),
+    )
+
+
+@router.post("/admin")
+async def admin_submit(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    sync_mode = str(form.get("sync_mode", "daily"))
+    sync_hours = form.get("sync_hours", "24")
+    values = {
+        "smtp_host": str(form.get("smtp_host", "")),
+        "smtp_port": str(form.get("smtp_port", "")),
+        "smtp_user": str(form.get("smtp_user", "")),
+        "smtp_pass": str(form.get("smtp_pass", "")),
+        "smtp_from": str(form.get("smtp_from", "")),
+        "telegram_token": str(form.get("telegram_token", "")),
+        "telegram_botname": str(form.get("telegram_botname", "")),
+        "sync_mode": sync_mode,
+    }
+    if sync_mode == "interval":
+        try:
+            values["sync_hours"] = str(max(1, min(168, int(float(sync_hours)))))
+        except (TypeError, ValueError):
+            values["sync_hours"] = "24"
+    set_settings(values)
+    return templates.TemplateResponse(
+        request, "admin.html", _ctx(request, denied=False, message=_t("admin_saved"),
+                                    settings=all_settings()),
     )
 
 

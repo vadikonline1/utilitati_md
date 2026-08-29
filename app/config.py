@@ -14,3 +14,5 @@ APP_NAME = "Utilități.MD"
 SECRET_KEY = os.getenv("UTILITATI_SECRET_KEY", "change-me-in-production")
 DEFAULT_USERNAME = os.getenv("UTILITATI_USERNAME", "admin")
 DEFAULT_PASSWORD = os.getenv("UTILITATI_PASSWORD", "admin")
+# Username that is granted access to the /admin dashboard. Set in utilitati.env.
+ADMIN_USERNAME = os.getenv("UTILITATI_ADMIN_USERNAME", DEFAULT_USERNAME)

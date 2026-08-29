@@ -30,7 +30,6 @@ _LOGGER = logging.getLogger(__name__)
 OPLATA_SERVICE_IDS: dict[str, int] = {
     "premier_energy": 604,
     "energocom": 1333,
-    "moldovagaz": 603,
     "infocom": 0,
     "termoelectrica": 815,
     "apa_canal_chisinau": 605,
@@ -43,7 +42,6 @@ OPLATA_SERVICE_IDS: dict[str, int] = {
 OPLATA_NAMES: dict[str, str] = {
     "premier_energy": "Premier Energy",
     "energocom": "Energocom",
-    "moldovagaz": "Moldovagaz",
     "infocom": "INFOCOM",
     "termoelectrica": "Termoelectrica",
     "apa_canal_chisinau": "Apă-Canal Chișinău",
@@ -57,7 +55,6 @@ OPLATA_NAMES: dict[str, str] = {
 OPLATA_ACCOUNT_NAMES: dict[str, str] = {
     "premier_energy": "Codul NLC",
     "energocom": "Cont personal ",
-    "moldovagaz": "Cont personal (Ex.123/0123456789)",
     "infocom": "Numărul contului",
     "termoelectrica": "Cod ID",
     "apa_canal_chisinau": "Numărul facturii",

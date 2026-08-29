@@ -16,7 +16,6 @@ PROVIDER_CLASSES: dict[str, type[BaseUtilityProvider]] = {
     # Generic oplata.md-backed providers (single account reference, no cabinet).
     "premier_energy": OplataUtilityProvider,
     "energocom": OplataUtilityProvider,
-    "moldovagaz": OplataUtilityProvider,
     "infocom": OplataUtilityProvider,
     "termoelectrica": OplataUtilityProvider,
     "apa_canal_chisinau": OplataUtilityProvider,

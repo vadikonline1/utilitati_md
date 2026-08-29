@@ -14,7 +14,14 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    notification_emails TEXT NOT NULL DEFAULT '',
+    telegram_chat_ids TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS homes (
@@ -124,3 +131,19 @@ def _migrate(conn: sqlite3.Connection) -> None:
         }.items():
             if col not in cols:
                 conn.execute(ddl)
+
+    # Users: notification preferences (email list + telegram chat ids).
+    if "users" in tables:
+        ucols = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
+        for col, ddl in {
+            "notification_emails": "ALTER TABLE users ADD COLUMN notification_emails TEXT NOT NULL DEFAULT ''",
+            "telegram_chat_ids": "ALTER TABLE users ADD COLUMN telegram_chat_ids TEXT NOT NULL DEFAULT ''",
+        }.items():
+            if col not in ucols:
+                conn.execute(ddl)
+
+    # Moldovagaz is Energocom: migrate legacy accounts/contracts to energocom.
+    if "accounts" in tables:
+        conn.execute(
+            "UPDATE accounts SET provider = 'energocom' WHERE provider = 'moldovagaz'"
+        )

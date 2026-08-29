@@ -2,22 +2,39 @@
 {% block title %}{{ t('profile_title') }} · UTILITĂȚI.MD{% endblock %}
 {% block body %}
 <main class="dashboard">
-  <h1>{{ t('profile_title') }}</h1>
+  <h1>{{ t('profile_title') }} <span class="muted">· {{ username }}</span></h1>
   {% if message %}<p class="notice">{{ message }}</p>{% endif %}
-  <div class="card">
-    <h2>{{ t('profile_change_password') }}</h2>
-    <form method="post" action="/profile" class="form-stack">
-      <label>{{ t('profile_old_password') }}
-        <input type="password" name="old_password" autocomplete="current-password" required>
-      </label>
-      <label>{{ t('profile_new_password') }}
-        <input type="password" name="new_password" autocomplete="new-password" required>
-      </label>
-      <label>{{ t('profile_confirm_new') }}
-        <input type="password" name="confirm" autocomplete="new-password" required>
-      </label>
-      <button type="submit">{{ t('profile_save') }}</button>
-    </form>
+
+  <div class="config-grid">
+    <div class="card">
+      <h2>{{ t('profile_change_password') }}</h2>
+      <form method="post" action="/profile" class="form-stack">
+        <label>{{ t('profile_old_password') }}
+          <input type="password" name="old_password" autocomplete="current-password" required>
+        </label>
+        <label>{{ t('profile_new_password') }}
+          <input type="password" name="new_password" autocomplete="new-password" required>
+        </label>
+        <label>{{ t('profile_confirm_new') }}
+          <input type="password" name="confirm" autocomplete="new-password" required>
+        </label>
+        <button type="submit">{{ t('profile_save') }}</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>{{ t('profile_notifications') }}</h2>
+      <form method="post" action="/profile/notifications" class="form-stack">
+        <label>{{ t('profile_emails') }}
+          <input type="text" name="emails" value="{{ emails }}" placeholder="{{ t('profile_emails_hint') }}">
+        </label>
+        <label>{{ t('profile_telegram') }}
+          <input type="text" name="telegram_chat_ids" value="{{ telegram_chat_ids }}" placeholder="{{ t('profile_telegram_hint') }}">
+        </label>
+        <p class="field-hint">{{ t('profile_telegram_note') }}</p>
+        <button type="submit">{{ t('profile_save_notif') }}</button>
+      </form>
+    </div>
   </div>
 </main>
 {% endblock %}

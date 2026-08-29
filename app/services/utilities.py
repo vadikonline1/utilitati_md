@@ -41,6 +41,33 @@ _NETWORK_ERRORS = (
 # --------------------------------------------------------------------------- #
 # Homes
 # --------------------------------------------------------------------------- #
+def get_username(user_id: int) -> str | None:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT username FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    return row["username"] if row else None
+
+
+def get_notification_prefs(user_id: int) -> dict[str, str]:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT notification_emails, telegram_chat_ids FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    if row is None:
+        return {"emails": "", "telegram": ""}
+    return {"emails": row["notification_emails"] or "", "telegram": row["telegram_chat_ids"] or ""}
+
+
+def set_notification_prefs(user_id: int, emails: str, telegram: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET notification_emails = ?, telegram_chat_ids = ? WHERE id = ?",
+            (emails.strip(), telegram.strip(), user_id),
+        )
+
+
 def list_homes(user_id: int) -> list[dict[str, Any]]:
     with _conn() as conn:
         rows = conn.execute(
