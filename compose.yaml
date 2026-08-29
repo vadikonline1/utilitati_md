@@ -7,8 +7,12 @@ services:
     ports:
       - "8000:8000"
     # All runtime configuration lives in utilitati.env (single source of truth).
+    # The file is optional: if it does not exist, the app falls back to the
+    # defaults baked into config.py / the Dockerfile (change-me-in-production,
+    # admin/admin, /app/data DB, etc.).
     env_file:
-      - utilitati.env
+      - path: utilitati.env
+        required: false
     volumes:
       - utilitati-data:/app/data
     healthcheck:
