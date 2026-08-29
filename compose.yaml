@@ -6,21 +6,14 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    # All runtime configuration lives in utilitati.env (single source of truth).
-    # The file is optional: if it does not exist, the app falls back to the
-    # defaults baked into config.py / the Dockerfile (change-me-in-production,
-    # admin/admin, /app/data DB, etc.).
     env_file:
       - path: utilitati.env
         required: false
     volumes:
-      - utilitati-data:/app/data
+      - ./data:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=5)"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
-
-volumes:
-  utilitati-data:
