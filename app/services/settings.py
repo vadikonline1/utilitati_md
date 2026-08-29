@@ -19,7 +19,20 @@ SETTING_KEYS = {
     "telegram_botname",
     "sync_mode",   # 'daily' or 'interval'
     "sync_hours",  # int, used when sync_mode == 'interval'
+    # Data-retention / cleanup policy (managed from /admin).
+    "retention_enabled",   # '1' or '0'
+    "inactive_months",     # months of no login before deleting a user
+    "warn_days",           # comma-separated days-before-deletion to send warnings
+    "invoice_months",      # delete invoices older than this many months
+    "unconfirmed_hours",   # delete unconfirmed accounts older than this many hours
 }
+
+# Per-type, per-language email templates edited from /admin (message management).
+MSG_TYPES = ("invite", "welcome", "reset", "inactive")
+for _mt in MSG_TYPES:
+    for _lg in ("ro", "ru", "en"):
+        SETTING_KEYS.add(f"msg_{_mt}_subj_{_lg}")
+        SETTING_KEYS.add(f"msg_{_mt}_body_{_lg}")
 
 # Values that must be stored encrypted so a database leak cannot reveal them.
 _SECRET_KEYS = {"smtp_user", "smtp_pass", "telegram_token"}
@@ -104,3 +117,72 @@ def parse_csv_list(raw: str | None) -> list[str]:
         if p:
             items.append(p)
     return items
+
+
+# --------------------------------------------------------------------------- #
+# Data-retention policy (configurable from /admin)
+# --------------------------------------------------------------------------- #
+def retention_enabled() -> bool:
+    return get_setting("retention_enabled", "1") == "1"
+
+
+def get_int_setting(key: str, default: int) -> int:
+    try:
+        return int(float(get_setting(key, str(default))) or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def inactive_months() -> int:
+    return get_int_setting("inactive_months", 12)
+
+
+def invoice_months() -> int:
+    return get_int_setting("invoice_months", 24)
+
+
+def unconfirmed_hours() -> int:
+    return get_int_setting("unconfirmed_hours", 24)
+
+
+def warn_days() -> list[int]:
+    """Days-before-deletion at which to send an inactivity warning email."""
+    out = []
+    for part in parse_csv_list(get_setting("warn_days", "90,60,30")):
+        try:
+            out.append(max(1, int(float(part))))
+        except (TypeError, ValueError):
+            continue
+    return sorted(set(out), reverse=True)
+
+
+# --------------------------------------------------------------------------- #
+# Email message templates (managed from /admin, per language)
+# --------------------------------------------------------------------------- #
+def get_msg_subject(msg_type: str, lang: str) -> str:
+    return get_setting(f"msg_{msg_type}_subj_{lang}", "")
+
+
+def get_msg_body(msg_type: str, lang: str) -> str:
+    return get_setting(f"msg_{msg_type}_body_{lang}", "")
+
+
+def set_msg_templates(msg_type: str, subjects: dict, bodies: dict) -> None:
+    """Persist subject+body for a message type across all languages."""
+    values = {}
+    for lang in ("ro", "ru", "en"):
+        values[f"msg_{msg_type}_subj_{lang}"] = subjects.get(lang, "")
+        values[f"msg_{msg_type}_body_{lang}"] = bodies.get(lang, "")
+    set_settings(values)
+
+
+def msg_templates(msg_type: str) -> dict[str, dict[str, str]]:
+    """Return {lang: {subj, body}} for a message type, for the admin editor."""
+    return {
+        lang: {
+            "subj": get_msg_subject(msg_type, lang),
+            "body": get_msg_body(msg_type, lang),
+        }
+        for lang in ("ro", "ru", "en")
+    }
+

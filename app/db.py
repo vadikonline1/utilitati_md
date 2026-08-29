@@ -150,9 +150,18 @@ def _migrate(conn: sqlite3.Connection) -> None:
             "confirm_token": "ALTER TABLE users ADD COLUMN confirm_token TEXT",
             "reset_token": "ALTER TABLE users ADD COLUMN reset_token TEXT",
             "reset_token_exp": "ALTER TABLE users ADD COLUMN reset_token_exp TEXT",
+            "lang": "ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT ''",
+            "last_login": "ALTER TABLE users ADD COLUMN last_login TEXT",
+            "last_inactivity_email": "ALTER TABLE users ADD COLUMN last_inactivity_email TEXT",
         }.items():
             if col not in ucols:
                 conn.execute(ddl)
+        # For existing users with no record of a login, treat account creation as
+        # their last login so the inactivity retention window starts from now.
+        conn.execute(
+            "UPDATE users SET last_login = COALESCE(last_login, created_at) "
+            "WHERE is_active = 1"
+        )
 
     # Moldovagaz is Energocom: migrate legacy accounts/contracts to energocom.
     if "accounts" in tables:

@@ -13,7 +13,7 @@ import logging
 from datetime import datetime
 
 from ..db import _conn
-from . import utilities
+from . import maintenance, utilities
 from .settings import get_sync_interval_hours
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,6 +54,11 @@ async def sync_loop() -> None:
             _LOGGER.info("Background sync: %s", result)
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Background sync failed")
+        try:
+            # Data-retention / inactivity cleanup runs on the same schedule.
+            maintenance.run_maintenance()
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Maintenance run failed")
         await asyncio.sleep(get_sync_interval_hours() * 3600)
 
 

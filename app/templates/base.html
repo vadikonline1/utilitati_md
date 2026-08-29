@@ -27,6 +27,14 @@
     </div>
   </header>
   {% block body %}{% endblock %}
+  <footer class="site-footer">
+    <span>🇲🇩 {{ t('footer_site') }}</span>
+    <nav class="footer-nav">
+      <a href="/">{{ t('nav_home') }}</a>
+      <a href="/privacy">{{ t('nav_privacy') }}</a>
+      <a href="/contact">{{ t('nav_contact') }}</a>
+    </nav>
+  </footer>
   {% block scripts %}{% endblock %}
 </body>
 </html>

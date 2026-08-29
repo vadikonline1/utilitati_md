@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ t('contact_title') }} · UTILITĂȚI.MD{% endblock %}
+{% block nav %}
+  <a href="/">{{ t('nav_home') }}</a>
+  {% if logged_in %}
+    <a href="/dashboard">{{ t('nav_dashboard') }}</a>
+    <a href="/logout">{{ t('nav_logout') }}</a>
+  {% else %}
+    <a href="/login">{{ t('nav_login') }}</a>
+    <a href="/register">{{ t('nav_register') }}</a>
+  {% endif %}
+{% endblock %}
+{% block body %}
+<main class="landing">
+  <section class="legal">
+    <h1>{{ t('contact_title') }}</h1>
+    <p>{{ t('contact_intro') }}</p>
+
+    <h2>{{ t('contact_email_t') }}</h2>
+    <p><a href="mailto:contact@utilitati.nistorlazar.md">contact@utilitati.nistorlazar.md</a></p>
+
+    <h2>{{ t('contact_telegram_t') }}</h2>
+    <p><a href="https://t.me/utilitati_md_bot" target="_blank" rel="noopener">@utilitati_md_bot</a></p>
+
+    <h2>{{ t('contact_privacy_t') }}</h2>
+    <p><a href="/privacy">{{ t('privacy_title') }}</a></p>
+  </section>
+</main>
+{% endblock %}

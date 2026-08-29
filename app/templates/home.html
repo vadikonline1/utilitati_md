@@ -109,6 +109,16 @@
     </div>
   </section>
 
+  <section class="faq" id="faq">
+    <h2>{{ t('faq_title') }}</h2>
+    {% for i in range(1, 11) %}
+      <details class="faq-item">
+        <summary>{{ t('faq_q' ~ i) }}</summary>
+        <p>{{ t('faq_a' ~ i) }}</p>
+      </details>
+    {% endfor %}
+  </section>
+
   <section class="cta">
     <h2>{{ t('cta_title') }}</h2>
     {% if not logged_in %}

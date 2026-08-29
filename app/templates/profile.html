@@ -23,6 +23,20 @@
     </div>
 
     <div class="card">
+      <h2>{{ t('profile_language') }}</h2>
+      <form method="post" action="/profile/language" class="form-stack">
+        <label>{{ t('profile_language_hint') }}
+          <select name="lang">
+            {% for code, name in langs.items() %}
+              <option value="{{ code }}" {% if code == (user_lang or lang) %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">{{ t('profile_save') }}</button>
+      </form>
+    </div>
+
+    <div class="card">
       <h2>{{ t('profile_notifications') }}</h2>
       <form method="post" action="/profile/notifications" class="form-stack">
         {% if email_configured %}

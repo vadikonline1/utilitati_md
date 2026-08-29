@@ -196,7 +196,30 @@ def authenticate(username: str, password: str) -> int | None:
         return None
     if not _verify_password(password, row["password_hash"]):
         return None
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET last_login = datetime('now') WHERE id = ?", (row["id"],)
+        )
     return row["id"]
+
+
+def get_user_lang(user_id: int) -> str | None:
+    """Return the user's preferred platform language code, or None if unset."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT lang FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    lang = (row["lang"] if row else "") or ""
+    return lang if lang in ("ro", "ru", "en") else None
+
+
+def set_user_lang(user_id: int, lang: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET lang = ? WHERE id = ?",
+            (lang if lang in ("ro", "ru", "en") else "", user_id),
+        )
+
 
 
 def create_session_token(user_id: int) -> str:

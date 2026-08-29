@@ -15,18 +15,33 @@ from ..auth import (
     create_invitation,
     create_session_token,
     get_user,
+    get_user_lang,
     parse_session_token,
     register,
     resolve_reset_token,
     set_password_for_user,
     set_reset_token,
+    set_user_lang,
     user_by_email,
 )
-from ..config import ADMIN_USERNAME, SITE_URL, TEMPLATES_DIR
+from ..config import is_admin_username, SITE_URL, TEMPLATES_DIR
 from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import email as email_svc
-from ..services.settings import all_settings, get_setting, get_sync_interval_hours, set_settings
+from ..services.settings import (
+    MSG_TYPES,
+    all_settings,
+    get_setting,
+    get_sync_interval_hours,
+    inactive_months,
+    invoice_months,
+    msg_templates,
+    retention_enabled,
+    set_msg_templates,
+    set_settings,
+    unconfirmed_hours,
+    warn_days,
+)
 from ..services.sync import dashboard_stats, generate_invoices_for_user
 from ..services.utilities import (
     create_home,
@@ -86,8 +101,11 @@ PROVIDER_META = {
 
 
 def _ctx(request, **extra):
-    lang = get_lang(request.cookies.get("lang"))
     uid = parse_session_token(request.cookies.get("session") or "")
+    # Per-user platform language takes priority over the browser/cookie choice.
+    lang = get_user_lang(uid) if uid is not None else None
+    if lang is None:
+        lang = get_lang(request.cookies.get("lang"))
     ctx = {
         "request": request,
         "now": datetime.now(),
@@ -96,7 +114,7 @@ def _ctx(request, **extra):
         "t": make_translator(lang),
         "langs": LANG_NAMES,
         "logged_in": uid is not None,
-        "is_admin": uid is not None and get_username(uid) == ADMIN_USERNAME,
+        "is_admin": uid is not None and is_admin_username(get_username(uid)),
     }
     ctx.update(extra)
     return ctx
@@ -125,7 +143,29 @@ async def set_language(
     response = RedirectResponse(str(back), status_code=303)
     if lang in LANGS:
         response.set_cookie("lang", lang, samesite="lax")
+        # Remember the user's preferred platform language on their profile.
+        if user_id is not None:
+            set_user_lang(user_id, lang)
     return response
+
+
+# --------------------------------------------------------------------------- #
+# Legal / contact public pages
+# --------------------------------------------------------------------------- #
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    return templates.TemplateResponse(
+        request, "privacy.html",
+        _ctx(request, logged_in=user_id is not None),
+    )
+
+
+@router.get("/contact", response_class=HTMLResponse)
+async def contact_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    return templates.TemplateResponse(
+        request, "contact.html",
+        _ctx(request, logged_in=user_id is not None),
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -191,7 +231,10 @@ async def register_submit(request: Request):
         )
 
     confirm_url = f"{SITE_URL}/confirm/{token}"
-    email_svc.send_invitation(email, full_name, confirm_url)
+    email_svc.send_invitation(
+        email, full_name, confirm_url,
+        lang=get_lang(request.cookies.get("lang")),
+    )
 
     return templates.TemplateResponse(
         request, "register.html",
@@ -214,6 +257,7 @@ async def confirm_page(token: str, request: Request):
         email_svc.send_welcome(
             user["email"], user.get("full_name", ""), user.get("username", ""),
             generated_password,
+            lang=get_user_lang(user_id) or get_lang(request.cookies.get("lang")),
         )
     return templates.TemplateResponse(
         request, "confirm.html",
@@ -241,7 +285,10 @@ async def forgot_password_submit(request: Request):
     if user:
         token = set_reset_token(user["id"])
         reset_url = f"{SITE_URL}/reset-password/{token}"
-        email_svc.send_reset_link(email, user.get("full_name", ""), reset_url)
+        email_svc.send_reset_link(
+            email, user.get("full_name", ""), reset_url,
+            lang=get_user_lang(user["id"]) or get_lang(request.cookies.get("lang")),
+        )
     # Always show the same message to avoid leaking which emails are registered.
     return templates.TemplateResponse(
         request, "forgot_password.html",
@@ -310,12 +357,13 @@ async def profile_page(request: Request, user_id: int | None = Depends(optional_
             request,
             message=None,
             username=get_username(user_id),
+            user_lang=get_user_lang(user_id) or lang,
             emails=prefs["emails"],
             telegram_chat_ids=prefs["telegram"],
             email_configured=_email_cfg(),
             telegram_configured=_telegram_cfg(),
             telegram_bot_url=_telegram_bot_url(),
-            is_admin=(get_username(user_id) == ADMIN_USERNAME),
+            is_admin=_is_admin(user_id),
         ),
     )
 
@@ -362,14 +410,30 @@ async def profile_notifications_submit(
             request,
             message=_t("profile_notif_saved"),
             username=get_username(user_id),
+            user_lang=get_user_lang(user_id) or lang,
             emails=prefs["emails"],
             telegram_chat_ids=prefs["telegram"],
             email_configured=_email_cfg(),
             telegram_configured=_telegram_cfg(),
             telegram_bot_url=_telegram_bot_url(),
-            is_admin=(get_username(user_id) == ADMIN_USERNAME),
+            is_admin=_is_admin(user_id),
         ),
     )
+
+
+@router.post("/profile/language")
+async def profile_language_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if user_id is None:
+        return RedirectResponse("/login", status_code=303)
+    form = await request.form()
+    lang = str(form.get("lang", "")).strip()
+    if lang in LANGS:
+        set_user_lang(user_id, lang)
+    response = RedirectResponse("/profile", status_code=303)
+    response.set_cookie("lang", lang if lang in LANGS else "ro", samesite="lax")
+    return response
 
 
 # --------------------------------------------------------------------------- #
@@ -393,7 +457,7 @@ async def dashboard(request: Request, user_id: int | None = Depends(optional_aut
 # Admin dashboard (SMTP / Telegram / sync settings)
 # --------------------------------------------------------------------------- #
 def _is_admin(user_id: int | None) -> bool:
-    return user_id is not None and get_username(user_id) == ADMIN_USERNAME
+    return user_id is not None and is_admin_username(get_username(user_id))
 
 
 @router.get("/admin", response_class=HTMLResponse)
@@ -405,7 +469,19 @@ async def admin_page(request: Request, user_id: int | None = Depends(optional_au
             _ctx(request, denied=True, message=_t("admin_not_admin")),
         )
     return templates.TemplateResponse(
-        request, "admin.html", _ctx(request, denied=False, settings=all_settings()),
+        request, "admin.html",
+        _ctx(
+            request,
+            denied=False,
+            settings=all_settings(),
+            retention_enabled=retention_enabled(),
+            inactive_months=inactive_months(),
+            warn_days_list=warn_days(),
+            invoice_months=invoice_months(),
+            unconfirmed_hours=unconfirmed_hours(),
+            msg_types=MSG_TYPES,
+            msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
+        ),
     )
 
 
@@ -429,6 +505,11 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         "telegram_token": str(form.get("telegram_token", "")),
         "telegram_botname": str(form.get("telegram_botname", "")),
         "sync_mode": sync_mode,
+        "retention_enabled": "1" if form.get("retention_enabled") else "0",
+        "inactive_months": str(form.get("inactive_months", "12")),
+        "warn_days": str(form.get("warn_days", "90,60,30")),
+        "invoice_months": str(form.get("invoice_months", "24")),
+        "unconfirmed_hours": str(form.get("unconfirmed_hours", "24")),
     }
     if sync_mode == "interval":
         try:
@@ -437,9 +518,44 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
             values["sync_hours"] = "24"
     set_settings(values)
     return templates.TemplateResponse(
-        request, "admin.html", _ctx(request, denied=False, message=_t("admin_saved"),
-                                    settings=all_settings()),
+        request, "admin.html",
+        _ctx(
+            request,
+            denied=False,
+            message=_t("admin_saved"),
+            settings=all_settings(),
+            retention_enabled=retention_enabled(),
+            inactive_months=inactive_months(),
+            warn_days_list=warn_days(),
+            invoice_months=invoice_months(),
+            unconfirmed_hours=unconfirmed_hours(),
+            msg_types=MSG_TYPES,
+            msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
+        ),
     )
+
+
+@router.post("/admin/messages/{msg_type}")
+async def admin_messages_submit(
+    msg_type: str, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    if msg_type not in MSG_TYPES:
+        return RedirectResponse("/admin", status_code=303)
+    form = await request.form()
+    subjects = {
+        lang: str(form.get(f"subj_{lang}", "")).strip() for lang in ("ro", "ru", "en")
+    }
+    bodies = {
+        lang: str(form.get(f"body_{lang}", "")).strip() for lang in ("ro", "ru", "en")
+    }
+    set_msg_templates(msg_type, subjects, bodies)
+    return RedirectResponse(f"/admin?tab=messages&saved={msg_type}", status_code=303)
 
 
 # --------------------------------------------------------------------------- #
