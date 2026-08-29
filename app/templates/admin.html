@@ -12,6 +12,7 @@
     <div class="admin-tabs">
       <button type="button" class="tab-btn active" data-tab="tab-settings">{{ t('admin_tab_settings') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-messages">{{ t('admin_tab_messages') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-contact">{{ t('admin_tab_contact') }}</button>
     </div>
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
@@ -133,6 +134,45 @@
       </div>
     </section>
 
+    {# ---------------- Contact messages inbox ---------------- #}
+    <section id="tab-contact" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_contact_hint') }}</p>
+      {% if contact_messages %}
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>{{ t('admin_contact_date') }}</th>
+                <th>{{ t('admin_contact_from') }}</th>
+                <th>{{ t('admin_contact_message') }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in contact_messages %}
+                <tr>
+                  <td class="muted">{{ m.created_at }}</td>
+                  <td>
+                    <b>{{ m.name }}</b><br>
+                    <span class="muted">{{ m.email }}</span>
+                  </td>
+                  <td style="white-space: pre-wrap;">{{ m.message }}</td>
+                  <td class="col-actions">
+                    <form method="post" action="/admin/contact/{{ m.id }}/delete"
+                          onsubmit="return confirm('{{ t('admin_contact_delete_confirm') }}');">
+                      <button type="submit" class="btn ghost small">{{ t('admin_contact_delete') }}</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty">{{ t('admin_contact_empty') }}</p>
+      {% endif %}
+    </section>
+
     {# Each message-type modal with subject+body editors for all 3 languages #}
     {% for mt in msg_types %}
     <div class="modal-overlay" id="modal-msg-{{ mt }}" hidden>
@@ -181,14 +221,17 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       if (target === "tab-messages") {
         history.replaceState(null, "", "/admin?tab=messages");
+      } else if (target === "tab-contact") {
+        history.replaceState(null, "", "/admin?tab=contact");
       } else {
         history.replaceState(null, "", "/admin");
       }
     });
   });
   var params = new URLSearchParams(window.location.search);
-  if (params.get("tab") === "messages" || params.get("saved")) {
-    var msgBtn = document.querySelector('[data-tab="tab-messages"]');
+  if (params.get("tab") === "messages" || params.get("tab") === "contact" || params.get("saved")) {
+    var tabKey = params.get("saved") ? "messages" : params.get("tab");
+    var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
     if (msgBtn) msgBtn.click();
   }
 });

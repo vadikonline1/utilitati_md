@@ -87,7 +87,7 @@ def _run_inactivity(conn) -> dict:
     warned = 0
     rows = conn.execute(
         "SELECT id, last_login, last_inactivity_email FROM users "
-        "WHERE is_active = 1"
+        "WHERE is_active = 1 AND deactivated = 0"
     ).fetchall()
     for row in rows:
         last_login = row["last_login"] or row["last_login"]
@@ -147,14 +147,40 @@ def _run_unconfirmed(conn) -> dict:
     return {"deleted_unconfirmed": cur.rowcount}
 
 
+def _run_deactivated(conn) -> dict:
+    """Permanently delete users whose deactivation grace period has passed.
+
+    This runs on every maintenance pass regardless of the retention toggle,
+    because the deletion was explicitly requested by the user (GDPR erase).
+    """
+    now = datetime.now().isoformat()
+    rows = conn.execute(
+        "SELECT id FROM users WHERE deactivated = 1 AND delete_after IS NOT NULL "
+        "AND delete_after <= ?",
+        (now,),
+    ).fetchall()
+    deleted = 0
+    for row in rows:
+        _delete_user(conn, row["id"])
+        deleted += 1
+    return {"deleted_deactivated": deleted}
+
+
 def run_maintenance() -> dict:
-    """Run all enabled cleanup jobs once. Returns a summary dict."""
-    if not retention_enabled():
-        return {"disabled": True}
+    """Run all enabled cleanup jobs once. Returns a summary dict.
+
+    User-requested deletions (deactivated accounts past their grace period) are
+    always executed. The automated retention jobs (inactivity / old invoices /
+    unconfirmed) only run when data retention is enabled in /admin.
+    """
     result: dict = {"disabled": False}
     with _conn() as conn:
-        result["inactivity"] = _run_inactivity(conn)
-        result["invoices"] = _run_invoices(conn)
-        result["unconfirmed"] = _run_unconfirmed(conn)
+        result["deactivated"] = _run_deactivated(conn)
+        if not retention_enabled():
+            result["disabled"] = True
+        else:
+            result["inactivity"] = _run_inactivity(conn)
+            result["invoices"] = _run_invoices(conn)
+            result["unconfirmed"] = _run_unconfirmed(conn)
     _LOGGER.info("Maintenance run: %s", result)
     return result

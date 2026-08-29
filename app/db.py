@@ -22,7 +22,17 @@ CREATE TABLE IF NOT EXISTS users (
     reset_token_exp TEXT,
     notification_emails TEXT NOT NULL DEFAULT '',
     telegram_chat_ids TEXT NOT NULL DEFAULT '',
+    deactivated INTEGER NOT NULL DEFAULT 0,
+    delete_after TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS contact_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -153,6 +163,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
             "lang": "ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT ''",
             "last_login": "ALTER TABLE users ADD COLUMN last_login TEXT",
             "last_inactivity_email": "ALTER TABLE users ADD COLUMN last_inactivity_email TEXT",
+            "deactivated": "ALTER TABLE users ADD COLUMN deactivated INTEGER NOT NULL DEFAULT 0",
+            "delete_after": "ALTER TABLE users ADD COLUMN delete_after TEXT",
         }.items():
             if col not in ucols:
                 conn.execute(ddl)
