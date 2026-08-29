@@ -9,7 +9,7 @@ import secrets
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from ..auth import (
@@ -41,6 +41,7 @@ from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import contact as contact_svc
 from ..services import email as email_svc
 from ..services import faq as faq_svc
+from ..services import telegram as telegram_svc
 from ..services.settings import (
     MSG_TYPES,
     MASKED,
@@ -298,8 +299,8 @@ async def login_page(request: Request, user_id: int | None = Depends(optional_au
 @router.post("/login")
 async def login_submit(request: Request):
     form = await request.form()
-    username = str(form.get("username", ""))
-    password = str(form.get("password", ""))
+    username = str(form.get("username", "")).strip()
+    password = str(form.get("password", "")).strip()
     user_id = authenticate(username, password)
     if user_id is None:
         _t = make_translator(get_lang(request.cookies.get("lang")))
@@ -407,10 +408,15 @@ async def forgot_password_submit(request: Request):
     if user:
         token = set_reset_token(user["id"])
         reset_url = f"{SITE_URL}/reset-password/{token}"
+        lang = get_user_lang(user["id"]) or get_lang(request.cookies.get("lang"))
         email_svc.send_reset_link(
-            email, user.get("full_name", ""), reset_url,
-            lang=get_user_lang(user["id"]) or get_lang(request.cookies.get("lang")),
+            email, user.get("full_name", ""), reset_url, lang=lang,
         )
+        # If the user has chat id(s) saved, also deliver the reset link via Telegram.
+        full = get_user(user["id"]) or {}
+        chat_ids = full.get("telegram_chat_ids", "")
+        if chat_ids:
+            await telegram_svc.send_reset_link_to_chats(chat_ids, reset_url, lang)
     # Always show the same message to avoid leaking which emails are registered.
     return templates.TemplateResponse(
         request, "forgot_password.html",
@@ -442,8 +448,8 @@ async def reset_password_submit(token: str, request: Request):
             _ctx(request, token=None, error=_t("reset_invalid")),
         )
     form = await request.form()
-    new_password = str(form.get("password", ""))
-    confirm = str(form.get("confirm", ""))
+    new_password = str(form.get("password", "")).strip()
+    confirm = str(form.get("confirm", "")).strip()
     if len(new_password) < 6:
         return templates.TemplateResponse(
             request, "reset_password.html",
@@ -497,9 +503,9 @@ async def profile_submit(request: Request, user_id: int | None = Depends(optiona
         return RedirectResponse("/login", status_code=303)
     _t = make_translator(get_lang(request.cookies.get("lang")))
     form = await request.form()
-    old = str(form.get("old_password", ""))
-    new = str(form.get("new_password", ""))
-    confirm = str(form.get("confirm", ""))
+    old = str(form.get("old_password", "")).strip()
+    new = str(form.get("new_password", "")).strip()
+    confirm = str(form.get("confirm", "")).strip()
     if new != confirm:
         return templates.TemplateResponse(
             request, "profile.html", _ctx(request, message=_t("profile_mismatch")),
@@ -523,8 +529,8 @@ async def profile_notifications_submit(
     form = await request.form()
     set_notification_prefs(
         user_id,
-        str(form.get("emails", "")),
-        str(form.get("telegram_chat_ids", "")),
+        str(form.get("emails", "")).strip(),
+        str(form.get("telegram_chat_ids", "")).strip(),
     )
     prefs = get_notification_prefs(user_id)
     lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
@@ -568,7 +574,7 @@ async def profile_deactivate_submit(
         return RedirectResponse("/login", status_code=303)
     _t = make_translator(get_user_lang(user_id) or get_lang(request.cookies.get("lang")))
     form = await request.form()
-    password = str(form.get("password", ""))
+    password = str(form.get("password", "")).strip()
     if not verify_password(user_id, password):
         prefs = get_notification_prefs(user_id)
         lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
@@ -643,6 +649,36 @@ def _msg_defaults_data() -> dict:
     }
 
 
+def _admin_base_ctx() -> dict:
+    """Context values shared by every /admin render."""
+    return {
+        "denied": False,
+        "settings": all_settings(),
+        "retention_enabled": retention_enabled(),
+        "inactive_months": inactive_months(),
+        "warn_days_list": warn_days(),
+        "invoice_months": invoice_months(),
+        "unconfirmed_hours": unconfirmed_hours(),
+        "msg_types": MSG_TYPES,
+        "msg_templates_data": {mt: msg_templates(mt) for mt in MSG_TYPES},
+        "msg_defaults_data": _msg_defaults_data(),
+        "contact_messages": contact_svc.list_contact_messages(),
+        "users": list_users(),
+        "faq_items": faq_svc.list_faq_items(),
+        "current_uid": None,
+    }
+
+
+def _admin_render(request: Request, user_id: int | None, message: str | None = None, **extra) -> HTMLResponse:
+    """Render the admin page with the shared context plus any per-route extras."""
+    ctx = _admin_base_ctx()
+    ctx["current_uid"] = user_id
+    if message is not None:
+        ctx["message"] = message
+    ctx.update(extra)
+    return templates.TemplateResponse(request, "admin.html", _ctx(request, **ctx))
+
+
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
     _t = make_translator(get_lang(request.cookies.get("lang")))
@@ -651,26 +687,7 @@ async def admin_page(request: Request, user_id: int | None = Depends(optional_au
             request, "admin.html",
             _ctx(request, denied=True, message=_t("admin_not_admin")),
         )
-    return templates.TemplateResponse(
-        request, "admin.html",
-        _ctx(
-            request,
-            denied=False,
-            settings=all_settings(),
-            retention_enabled=retention_enabled(),
-            inactive_months=inactive_months(),
-            warn_days_list=warn_days(),
-            invoice_months=invoice_months(),
-            unconfirmed_hours=unconfirmed_hours(),
-            msg_types=MSG_TYPES,
-            msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
-            msg_defaults_data=_msg_defaults_data(),
-            contact_messages=contact_svc.list_contact_messages(),
-            users=list_users(),
-            faq_items=faq_svc.list_faq_items(),
-            current_uid=user_id,
-        ),
-    )
+    return _admin_render(request, user_id)
 
 
 @router.post("/admin")
@@ -685,19 +702,19 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
     sync_mode = str(form.get("sync_mode", "daily"))
     sync_hours = form.get("sync_hours", "24")
     values = {
-        "smtp_host": str(form.get("smtp_host", "")),
-        "smtp_port": str(form.get("smtp_port", "")),
-        "smtp_user": str(form.get("smtp_user", "")),
-        "smtp_pass": str(form.get("smtp_pass", "")),
-        "smtp_from": str(form.get("smtp_from", "")),
-        "telegram_token": str(form.get("telegram_token", "")),
-        "telegram_botname": str(form.get("telegram_botname", "")),
+        "smtp_host": str(form.get("smtp_host", "")).strip(),
+        "smtp_port": str(form.get("smtp_port", "")).strip(),
+        "smtp_user": str(form.get("smtp_user", "")).strip(),
+        "smtp_pass": str(form.get("smtp_pass", "")).strip(),
+        "smtp_from": str(form.get("smtp_from", "")).strip(),
+        "telegram_token": str(form.get("telegram_token", "")).strip(),
+        "telegram_botname": str(form.get("telegram_botname", "")).strip(),
         "sync_mode": sync_mode,
         "retention_enabled": "1" if form.get("retention_enabled") else "0",
-        "inactive_months": str(form.get("inactive_months", "12")),
-        "warn_days": str(form.get("warn_days", "90,60,30")),
-        "invoice_months": str(form.get("invoice_months", "24")),
-        "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")),
+        "inactive_months": str(form.get("inactive_months", "12")).strip(),
+        "warn_days": str(form.get("warn_days", "90,60,30")).strip(),
+        "invoice_months": str(form.get("invoice_months", "24")).strip(),
+        "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")).strip(),
     }
     if sync_mode == "interval":
         try:
@@ -712,27 +729,149 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         if not sub or sub == MASKED:
             values.pop(secret_key, None)
     set_settings(values)
-    return templates.TemplateResponse(
-        request, "admin.html",
-        _ctx(
-            request,
-            denied=False,
-            message=_t("admin_saved"),
-            settings=all_settings(),
-            retention_enabled=retention_enabled(),
-            inactive_months=inactive_months(),
-            warn_days_list=warn_days(),
-            invoice_months=invoice_months(),
-            unconfirmed_hours=unconfirmed_hours(),
-            msg_types=MSG_TYPES,
-            msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
-            msg_defaults_data=_msg_defaults_data(),
-            contact_messages=contact_svc.list_contact_messages(),
-            users=list_users(),
-            faq_items=faq_svc.list_faq_items(),
-            current_uid=user_id,
-        ),
+    return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+@router.post("/admin/telegram/set-webhook")
+async def admin_telegram_set_webhook(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    webhook_url = f"{SITE_URL}/telegram/webhook"
+    ok, detail = await telegram_svc.set_webhook(webhook_url)
+    if ok:
+        message = _t("admin_telegram_webhook_ok") + f" · {webhook_url}"
+    else:
+        message = _t("admin_telegram_webhook_err") + (f" · {detail}" if detail else "")
+    return _admin_render(request, user_id, message=message)
+
+
+@router.post("/telegram/webhook")
+async def telegram_webhook(request: Request):
+    """Public Telegram webhook: greet on /start and expose the chat id on command."""
+    try:
+        data = await request.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"ok": False}, status_code=400)
+    update = data if isinstance(data, dict) else {}
+    message = update.get("message") or {}
+    chat = message.get("chat") or {}
+    frm = message.get("from") or {}
+    chat_id = chat.get("id")
+    text = str(message.get("text", "")).strip()
+    first_name = frm.get("first_name") or ""
+    lang_code = frm.get("language_code") or ""
+    command = text.split()[0] if text else ""
+    if chat_id is not None and (command.startswith("/start") or command.startswith("/chat_id")):
+        reply = _tg_command_reply(command, chat_id, first_name, lang_code)
+        await telegram_svc.send_message(chat_id, reply)
+    return JSONResponse({"ok": True})
+
+
+_TG_LANGS = {"ro", "ru", "en"}
+_DEFAULT_TG_LANG = "ro"
+
+_TG_START = {
+    "ro": "Salut{comma_name}! Bun venit la Utilități.MD.\n\n"
+          "Chat ID-ul tău: {chat_id}\n\n"
+          "Adaugă acest ID în profilul tău, la Notificări, ca să primești "
+          "notificări și linkuri de resetare aici.",
+    "ru": "Привет{comma_name}! Добро пожаловать в Utilități.MD.\n\n"
+          "Ваш chat ID: {chat_id}\n\n"
+          "Добавьте этот ID в свой профиль (в раздел Notificări / Уведомления), "
+          "чтобы получать уведомления и ссылки для сброса здесь.",
+    "en": "Hi{comma_name}! Welcome to Utilități.MD.\n\n"
+          "Your chat ID: {chat_id}\n\n"
+          "Add this ID to your profile, under Notifications, to receive "
+          "notifications and password-reset links here.",
+}
+
+_TG_CHAT_ID = {
+    "ro": "Chat ID-ul tău: {chat_id}",
+    "ru": "Ваш chat ID: {chat_id}",
+    "en": "Your chat ID: {chat_id}",
+}
+
+
+def _tg_command_reply(command: str, chat_id, first_name: str, lang_code: str) -> str:
+    """Build the bot reply (in the user's Telegram language) for a bot command."""
+    lang = lang_code.lower().split("-")[0]
+    if lang not in _TG_LANGS:
+        lang = _DEFAULT_TG_LANG
+    comma_name = f", {first_name}" if first_name else ""
+    if command.startswith("/chat_id"):
+        return _TG_CHAT_ID[lang].format(chat_id=chat_id)
+    return _TG_START[lang].format(chat_id=chat_id, comma_name=comma_name)
+
+
+# --------------------------------------------------------------------------- #
+# New-invoices notification (sent when a provider account connects & finds bills)
+# --------------------------------------------------------------------------- #
+_INVOICES_NOTICE = {
+    "ro": ("Facturi noi găsite",
+           "Utilități.MD — Facturi noi\n\n"
+           "Furnizor: {provider}\nContract: {contract}\n\n"
+           "Sistemul a găsit {count} factură(e) noi, în valoare totală de {total} MDL.\n"
+           "Vezi-le în contul tău: {site}"),
+    "ru": ("Найдены новые счета",
+           "Utilități.MD — Новые счета\n\n"
+           "Поставщик: {provider}\nДоговор: {contract}\n\n"
+           "Система нашла {count} новый(ых) счёт(ов) на общую сумму {total} MDL.\n"
+           "Посмотрите их в своём аккаунте: {site}"),
+    "en": ("New invoices found",
+           "Utilități.MD — New invoices\n\n"
+           "Provider: {provider}\nContract: {contract}\n\n"
+           "The system found {count} new invoice(s) totalling {total} MDL.\n"
+           "See them in your account: {site}"),
+}
+_DEFAULT_NOTICE_LANG = "ro"
+
+
+def _invoice_notice(lang: str, provider: str, contract: str, count: int, total: float, site: str) -> tuple[str, str]:
+    """Return (subject, body) of the new-invoices notification in the user's language."""
+    subj_t, body_t = _INVOICES_NOTICE.get(lang, _INVOICES_NOTICE[_DEFAULT_NOTICE_LANG])
+    total_s = f"{total:g}"
+    return (
+        subj_t,
+        body_t.format(provider=provider, contract=contract, count=count,
+                      total=total_s, site=site),
     )
+
+
+def _split_csv(value: str) -> list[str]:
+    """Split a comma/newline-separated value into non-empty stripped parts."""
+    return [p for p in str(value or "").replace(",", "\n").split() if p]
+
+
+async def _notify_invoices_found(
+    user_id: int, account: dict, fetched, saved_ids: list[int], site_url: str
+) -> None:
+    """Notify the user (email + Telegram, per their profile prefs) about new invoices."""
+    prefs = get_notification_prefs(user_id)
+    emails = prefs.get("emails", "")
+    chats = prefs.get("telegram", "")
+    if not emails and not chats:
+        return
+    count = len(saved_ids)
+    invoices = list(getattr(fetched, "invoices", None) or [])
+    if not invoices and getattr(fetched, "last_invoice", None) is not None:
+        invoices = [fetched.last_invoice]
+    total = sum(
+        float(getattr(inv, "amount_mdl", 0) or 0) for inv in invoices if inv is not None
+    )
+    provider = getattr(fetched, "provider_name", None) or account.get("label", account.get("provider", ""))
+    contract = account.get("contract_number", "")
+    lang = get_user_lang(user_id) or "ro"
+    subject, body = _invoice_notice(lang, provider, contract, count, total, site_url)
+    for email in _split_csv(emails):
+        email_svc.send_email(email, subject, body)
+    for chat in _split_csv(chats):
+        await telegram_svc.send_message(chat, body)
 
 
 @router.post("/admin/messages/{msg_type}")
@@ -901,10 +1040,10 @@ async def homes_create(request: Request, user_id: int | None = Depends(optional_
         return RedirectResponse("/login", status_code=303)
     form = await request.form()
     create_home(user_id, {
-        "name": form.get("name", ""),
-        "address": form.get("address", ""),
-        "floor": form.get("floor", ""),
-        "metro_area": form.get("metro_area", ""),
+        "name": str(form.get("name", "")).strip(),
+        "address": str(form.get("address", "")).strip(),
+        "floor": str(form.get("floor", "")).strip(),
+        "metro_area": str(form.get("metro_area", "")).strip(),
     })
     return RedirectResponse("/homes", status_code=303)
 
@@ -932,11 +1071,11 @@ async def home_edit_submit(
         return RedirectResponse("/login", status_code=303)
     form = await request.form()
     update_home(user_id, home_id, {
-        "name": form.get("name", ""),
-        "address": form.get("address", ""),
-        "floor": form.get("floor", ""),
-        "metro_area": form.get("metro_area", ""),
-        "status": form.get("status", "enabled"),
+        "name": str(form.get("name", "")).strip(),
+        "address": str(form.get("address", "")).strip(),
+        "floor": str(form.get("floor", "")).strip(),
+        "metro_area": str(form.get("metro_area", "")).strip(),
+        "status": str(form.get("status", "enabled")).strip(),
     })
     return RedirectResponse(f"/homes/{home_id}", status_code=303)
 
@@ -974,8 +1113,8 @@ async def utility_connect(
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
     form = await request.form()
-    provider = str(form.get("provider", ""))
-    contract_number = str(form.get("contract_number", ""))
+    provider = str(form.get("provider", "")).strip()
+    contract_number = str(form.get("contract_number", "")).strip()
     if not provider or not contract_number:
         return RedirectResponse(f"/homes/{home_id}", status_code=303)
 
@@ -992,15 +1131,17 @@ async def utility_connect(
         "place_of_consumption": None,
     }
     if "username" in fields:
-        data["username"] = form.get("username") or None
+        data["username"] = str(form.get("username") or "").strip() or None
     if "password" in fields:
-        data["password"] = form.get("password") or None
+        data["password"] = str(form.get("password") or "").strip() or None
 
     acc_id = upsert_account(user_id, data)
     new_account = get_account_row(user_id, acc_id)
     if new_account is not None:
         fetched = await fetch_account_data(new_account)
-        persist_invoices(acc_id, fetched)
+        saved_ids = persist_invoices(acc_id, fetched)
+        if saved_ids:
+            await _notify_invoices_found(user_id, new_account, fetched, saved_ids, SITE_URL)
     return RedirectResponse(f"/homes/{home_id}?added={acc_id}", status_code=303)
 
 
@@ -1195,9 +1336,9 @@ async def invoice_edit_submit(
     inv = get_invoice(user_id, invoice_id)
     if inv is not None:
         update_invoice(user_id, invoice_id, {
-            "amount_mdl": form.get("amount_mdl", inv["amount_mdl"] or 0),
-            "issue_date": form.get("issue_date") or None,
-            "due_date": form.get("due_date") or None,
+            "amount_mdl": str(form.get("amount_mdl", inv["amount_mdl"] or 0)).strip(),
+            "issue_date": str(form.get("issue_date") or "").strip() or None,
+            "due_date": str(form.get("due_date") or "").strip() or None,
             "is_paid": bool(form.get("is_paid")),
         })
         return RedirectResponse(
