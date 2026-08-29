@@ -57,6 +57,18 @@
       </form>
     </div>
     {% endif %}
+
+    <div class="card danger-zone">
+      <h2>{{ t('profile_deactivate_title') }}</h2>
+      <p class="field-hint">{{ t('profile_deactivate_hint') }}</p>
+      <form method="post" action="/profile/deactivate" class="form-stack"
+            onsubmit="return confirm('{{ t('profile_deactivate_confirm') }}');">
+        <label>{{ t('profile_deactivate_password') }}
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit" class="btn-danger">{{ t('profile_deactivate_btn') }}</button>
+      </form>
+    </div>
   </div>
 </main>
 {% endblock %}

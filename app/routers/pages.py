@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+import base64
+import hashlib
+import hmac
+import secrets
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -10,26 +14,36 @@ from fastapi.templating import Jinja2Templates
 
 from ..auth import (
     authenticate,
+    cancel_deactivation,
     change_password,
     confirm_invitation,
     create_invitation,
     create_session_token,
+    deactivate_user,
     get_user,
     get_user_lang,
+    is_usable_user,
+    list_users,
     parse_session_token,
     register,
     resolve_reset_token,
     set_password_for_user,
     set_reset_token,
+    set_user_active,
     set_user_lang,
     user_by_email,
+    user_state,
+    verify_password,
 )
-from ..config import is_admin_username, SITE_URL, TEMPLATES_DIR
+from ..config import SECRET_KEY, is_admin_username, SITE_URL, TEMPLATES_DIR
 from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
+from ..services import contact as contact_svc
 from ..services import email as email_svc
+from ..services import faq as faq_svc
 from ..services.settings import (
     MSG_TYPES,
+    MASKED,
     all_settings,
     clear_msg_templates,
     get_setting,
@@ -114,11 +128,49 @@ def _ctx(request, **extra):
         "lang": lang,
         "t": make_translator(lang),
         "langs": LANG_NAMES,
-        "logged_in": uid is not None,
-        "is_admin": uid is not None and is_admin_username(get_username(uid)),
+        "logged_in": uid is not None and is_usable_user(uid),
+        "is_admin": uid is not None and is_usable_user(uid)
+        and is_admin_username(get_username(uid)),
     }
     ctx.update(extra)
     return ctx
+
+
+# --------------------------------------------------------------------------- #
+# Anti-spam math captcha (stateless: operands + answer inside a signed token)
+# --------------------------------------------------------------------------- #
+def _new_captcha() -> dict[str, str]:
+    """Return {question, token} for a simple 'a + b = ?' challenge.
+
+    The token is an HMAC signature over the base64-encoded operands, so the
+    server can verify the submitted answer without any server-side state or
+    session cookie.
+    """
+    a = secrets.randbelow(8) + 2
+    b = secrets.randbelow(8) + 2
+    payload = base64.urlsafe_b64encode(f"{a}+{b}".encode()).decode()
+    sig = hmac.new(SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return {
+        "question": f"{a} + {b} = ?",
+        "token": f"{payload}.{sig}",
+    }
+
+
+def _check_captcha(token: str, answer: str) -> bool:
+    """Validate a captcha submission: token well-formed + answer correct."""
+    try:
+        payload, sig = token.rsplit(".", 1)
+        if not hmac.compare_digest(
+            sig,
+            hmac.new(
+                SECRET_KEY.encode(), payload.encode(), hashlib.sha256
+            ).hexdigest(),
+        ):
+            return False
+        a_s, b_s = base64.urlsafe_b64decode(payload.encode()).decode().split("+")
+        return int(answer.strip()) == int(a_s) + int(b_s)
+    except (ValueError, TypeError, AttributeError):
+        return False
 
 
 # --------------------------------------------------------------------------- #
@@ -127,7 +179,12 @@ def _ctx(request, **extra):
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request, user_id: int | None = Depends(optional_auth_token)):
     return templates.TemplateResponse(
-        request, "home.html", _ctx(request, logged_in=user_id is not None)
+        request, "home.html",
+        _ctx(
+            request,
+            logged_in=user_id is not None,
+            faq_items=faq_svc.list_faq_items(),
+        ),
     )
 
 
@@ -165,7 +222,66 @@ async def privacy_page(request: Request, user_id: int | None = Depends(optional_
 async def contact_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
     return templates.TemplateResponse(
         request, "contact.html",
-        _ctx(request, logged_in=user_id is not None),
+        _ctx(
+            request,
+            logged_in=user_id is not None,
+            captcha=_new_captcha(),
+            error=None,
+            done=None,
+        ),
+    )
+
+
+@router.post("/contact")
+async def contact_submit(request: Request):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    form = await request.form()
+    name = str(form.get("name", "")).strip()
+    email = str(form.get("email", "")).strip()
+    message = str(form.get("message", "")).strip()
+    token = str(form.get("captcha_token", ""))
+    answer = str(form.get("captcha_answer", ""))
+
+    if not _check_captcha(token, answer):
+        return templates.TemplateResponse(
+            request, "contact.html",
+            _ctx(request, captcha=_new_captcha(), error=_t("contact_captcha_bad"), done=None),
+            status_code=400,
+        )
+    if not name or not email or not message:
+        return templates.TemplateResponse(
+            request, "contact.html",
+            _ctx(request, captcha=_new_captcha(), error=_t("contact_fill_all"), done=None),
+            status_code=400,
+        )
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return templates.TemplateResponse(
+            request, "contact.html",
+            _ctx(request, captcha=_new_captcha(), error=_t("contact_email_bad"), done=None),
+            status_code=400,
+        )
+
+    contact_svc.save_contact_message(name, email, message)
+
+    # Notify the admin (smtp_from is the site's own mailbox) when SMTP is set up.
+    if email_svc.smtp_configured():
+        try:
+            email_svc.send_email(
+                get_setting("smtp_from"),
+                f"Contact: {name}",
+                f"De la: {name} <{email}>\n\n{message}",
+            )
+        except Exception:  # noqa: BLE001 - notification must never break the form
+            pass
+
+    return templates.TemplateResponse(
+        request, "contact.html",
+        _ctx(
+            request,
+            captcha=_new_captcha(),
+            error=None,
+            done=_t("contact_done"),
+        ),
     )
 
 
@@ -187,8 +303,13 @@ async def login_submit(request: Request):
     user_id = authenticate(username, password)
     if user_id is None:
         _t = make_translator(get_lang(request.cookies.get("lang")))
+        state = user_state(username)
+        if state is not None and state["deactivated"]:
+            message = _t("login_deactivated")
+        else:
+            message = _t("login_invalid")
         return templates.TemplateResponse(
-            request, "login.html", _ctx(request, error=_t("login_invalid")),
+            request, "login.html", _ctx(request, error=message),
             status_code=401,
         )
     response = RedirectResponse("/dashboard", status_code=303)
@@ -439,6 +560,53 @@ async def profile_language_submit(
     return response
 
 
+@router.post("/profile/deactivate")
+async def profile_deactivate_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if user_id is None:
+        return RedirectResponse("/login", status_code=303)
+    _t = make_translator(get_user_lang(user_id) or get_lang(request.cookies.get("lang")))
+    form = await request.form()
+    password = str(form.get("password", ""))
+    if not verify_password(user_id, password):
+        prefs = get_notification_prefs(user_id)
+        lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
+        return templates.TemplateResponse(
+            request, "profile.html",
+            _ctx(
+                request,
+                message=_t("profile_deactivate_wrong_password"),
+                username=get_username(user_id),
+                user_lang=lang,
+                emails=prefs["emails"],
+                telegram_chat_ids=prefs["telegram"],
+                email_configured=_email_cfg(),
+                telegram_configured=_telegram_cfg(),
+                telegram_bot_url=_telegram_bot_url(),
+                is_admin=_is_admin(user_id),
+            ),
+        )
+    delete_after = deactivate_user(user_id)
+    # Log the user out: their session is no longer usable.
+    display_date = delete_after
+    try:
+        display_date = datetime.fromisoformat(delete_after).strftime("%d.%m.%Y")
+    except ValueError:
+        pass
+    response = templates.TemplateResponse(
+        request, "deactivated.html",
+        _ctx(
+            request,
+            logged_in=False,
+            delete_after=display_date,
+            message=_t("profile_deactivated"),
+        ),
+    )
+    response.delete_cookie("session")
+    return response
+
+
 # --------------------------------------------------------------------------- #
 # Dashboard
 # --------------------------------------------------------------------------- #
@@ -497,6 +665,10 @@ async def admin_page(request: Request, user_id: int | None = Depends(optional_au
             msg_types=MSG_TYPES,
             msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
             msg_defaults_data=_msg_defaults_data(),
+            contact_messages=contact_svc.list_contact_messages(),
+            users=list_users(),
+            faq_items=faq_svc.list_faq_items(),
+            current_uid=user_id,
         ),
     )
 
@@ -525,13 +697,20 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         "inactive_months": str(form.get("inactive_months", "12")),
         "warn_days": str(form.get("warn_days", "90,60,30")),
         "invoice_months": str(form.get("invoice_months", "24")),
-        "unconfirmed_hours": str(form.get("unconfirmed_hours", "24")),
+        "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")),
     }
     if sync_mode == "interval":
         try:
             values["sync_hours"] = str(max(1, min(168, int(float(sync_hours)))))
         except (TypeError, ValueError):
             values["sync_hours"] = "24"
+    # Secret fields show a masked sentinel instead of the real value; a masked or
+    # empty submission means "leave it unchanged" so we never write the sentinel
+    # back or wipe a configured credential by accident.
+    for secret_key in ("smtp_user", "smtp_pass", "telegram_token"):
+        sub = str(values.get(secret_key, "")).strip()
+        if not sub or sub == MASKED:
+            values.pop(secret_key, None)
     set_settings(values)
     return templates.TemplateResponse(
         request, "admin.html",
@@ -548,6 +727,10 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
             msg_types=MSG_TYPES,
             msg_templates_data={mt: msg_templates(mt) for mt in MSG_TYPES},
             msg_defaults_data=_msg_defaults_data(),
+            contact_messages=contact_svc.list_contact_messages(),
+            users=list_users(),
+            faq_items=faq_svc.list_faq_items(),
+            current_uid=user_id,
         ),
     )
 
@@ -589,6 +772,96 @@ async def admin_messages_reset(
         return RedirectResponse("/admin", status_code=303)
     clear_msg_templates(msg_type)
     return RedirectResponse(f"/admin?tab=messages&saved={msg_type}", status_code=303)
+
+
+@router.post("/admin/contact/{message_id}/delete")
+async def admin_contact_delete_submit(
+    message_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    contact_svc.delete_contact_message(message_id)
+    return RedirectResponse("/admin?tab=contact", status_code=303)
+
+
+@router.post("/admin/users/{target_id}/status")
+async def admin_user_status_submit(
+    target_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    # Never disable yourself (would lock yourself out of the admin panel).
+    if target_id != user_id:
+        form = await request.form()
+        enabled = str(form.get("enabled", "")) == "1"
+        set_user_active(target_id, enabled)
+    return RedirectResponse("/admin?tab=users", status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+# FAQ management (admin)
+# --------------------------------------------------------------------------- #
+def _faq_from_form(form, faq_id: int | None = None) -> dict[str, str]:
+    return {
+        "question_ro": str(form.get("question_ro", "")).strip(),
+        "question_ru": str(form.get("question_ru", "")).strip(),
+        "question_en": str(form.get("question_en", "")).strip(),
+        "answer_ro": str(form.get("answer_ro", "")).strip(),
+        "answer_ru": str(form.get("answer_ru", "")).strip(),
+        "answer_en": str(form.get("answer_en", "")).strip(),
+    }
+
+
+@router.post("/admin/faq")
+async def admin_faq_add_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    faq_svc.add_faq_item(_faq_from_form(form))
+    return RedirectResponse("/admin?tab=faq", status_code=303)
+
+
+@router.post("/admin/faq/{faq_id}")
+async def admin_faq_edit_submit(
+    faq_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    faq_svc.update_faq_item(faq_id, _faq_from_form(form))
+    return RedirectResponse("/admin?tab=faq", status_code=303)
+
+
+@router.post("/admin/faq/{faq_id}/delete")
+async def admin_faq_delete_submit(
+    faq_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    faq_svc.delete_faq_item(faq_id)
+    return RedirectResponse("/admin?tab=faq", status_code=303)
 
 
 # --------------------------------------------------------------------------- #

@@ -103,6 +103,63 @@ def user_by_email(email: str) -> dict | None:
     return dict(row) if row else None
 
 
+def deactivate_user(user_id: int, days: int = 30) -> str:
+    """Deactivate an account and schedule permanent deletion after `days`.
+
+    Returns the scheduled deletion date as an ISO-8601 string. The account can
+    not be used (login rejected) during the grace period; a maintenance job
+    removes it (with all invoices) once the date is reached.
+    """
+    delete_after = (datetime.now() + timedelta(days=days)).isoformat()
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET deactivated = 1, delete_after = ? WHERE id = ?",
+            (delete_after, user_id),
+        )
+    return delete_after
+
+
+def cancel_deactivation(user_id: int) -> None:
+    """Restore a deactivated account (usable again, deletion cancelled)."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET deactivated = 0, delete_after = NULL WHERE id = ?",
+            (user_id,),
+        )
+
+
+def get_deletion_info(user_id: int) -> tuple[bool, str | None]:
+    """Return (deactivated, delete_after ISO string) for a user."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT deactivated, delete_after FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    if row is None:
+        return False, None
+    return bool(row["deactivated"]), row["delete_after"]
+
+
+def user_state(username: str) -> dict | None:
+    """Return {is_active, deactivated, delete_after} for the username, if any."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT is_active, deactivated, delete_after FROM users WHERE username = ?",
+            (username.strip(),),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def is_usable_user(user_id: int) -> bool:
+    """True when the user exists, is confirmed and is not deactivated."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT is_active, deactivated FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    return (
+        row is not None and bool(row["is_active"]) and not bool(row["deactivated"])
+    )
+
+
 def resolve_reset_token(token: str) -> int | None:
     """Return the user id if the reset token is valid and not expired."""
     with _conn() as conn:
@@ -139,6 +196,26 @@ def get_user(user_id: int) -> dict | None:
     return dict(row) if row else None
 
 
+def list_users() -> list[dict]:
+    """Return all users (for the admin Users tab), newest first."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT id, username, full_name, email, is_active, created_at, "
+            "datetime(last_login) AS last_login "
+            "FROM users ORDER BY id DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def set_user_active(user_id: int, is_active: bool) -> None:
+    """Enable / disable a user account (is_active 1 or 0)."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET is_active = ? WHERE id = ?",
+            (1 if is_active else 0, user_id),
+        )
+
+
 def change_password(user_id: int, old_password: str, new_password: str) -> bool:
     """Change a user's password, verifying the old one first."""
     with _conn() as conn:
@@ -153,6 +230,17 @@ def change_password(user_id: int, old_password: str, new_password: str) -> bool:
             (_hash_password(new_password), user_id),
         )
     return True
+
+
+def verify_password(user_id: int, password: str) -> bool:
+    """Check a user's current password without changing it."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    if row is None:
+        return False
+    return _verify_password(password, row["password_hash"])
 
 
 def _hash_password(password: str, salt: str | None = None) -> str:
@@ -190,9 +278,11 @@ def ensure_default_user() -> None:
 def authenticate(username: str, password: str) -> int | None:
     with _conn() as conn:
         row = conn.execute(
-            "SELECT id, password_hash, is_active FROM users WHERE username = ?", (username,)
+            "SELECT id, password_hash, is_active, deactivated "
+            "FROM users WHERE username = ?",
+            (username,),
         ).fetchone()
-    if row is None or not row["is_active"]:
+    if row is None or not row["is_active"] or row["deactivated"]:
         return None
     if not _verify_password(password, row["password_hash"]):
         return None

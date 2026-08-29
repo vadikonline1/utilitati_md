@@ -22,7 +22,28 @@ CREATE TABLE IF NOT EXISTS users (
     reset_token_exp TEXT,
     notification_emails TEXT NOT NULL DEFAULT '',
     telegram_chat_ids TEXT NOT NULL DEFAULT '',
+    deactivated INTEGER NOT NULL DEFAULT 0,
+    delete_after TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS contact_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS faq_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    question_ro TEXT NOT NULL DEFAULT '',
+    question_ru TEXT NOT NULL DEFAULT '',
+    question_en TEXT NOT NULL DEFAULT '',
+    answer_ro TEXT NOT NULL DEFAULT '',
+    answer_ru TEXT NOT NULL DEFAULT '',
+    answer_en TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -153,6 +174,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
             "lang": "ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT ''",
             "last_login": "ALTER TABLE users ADD COLUMN last_login TEXT",
             "last_inactivity_email": "ALTER TABLE users ADD COLUMN last_inactivity_email TEXT",
+            "deactivated": "ALTER TABLE users ADD COLUMN deactivated INTEGER NOT NULL DEFAULT 0",
+            "delete_after": "ALTER TABLE users ADD COLUMN delete_after TEXT",
         }.items():
             if col not in ucols:
                 conn.execute(ddl)
@@ -168,3 +191,22 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute(
             "UPDATE accounts SET provider = 'energocom' WHERE provider = 'moldovagaz'"
         )
+
+    # FAQ: seed the default Q&A on first creation (idempotent).
+    if "faq_items" not in tables:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS faq_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                question_ro TEXT NOT NULL DEFAULT '',
+                question_ru TEXT NOT NULL DEFAULT '',
+                question_en TEXT NOT NULL DEFAULT '',
+                answer_ro TEXT NOT NULL DEFAULT '',
+                answer_ru TEXT NOT NULL DEFAULT '',
+                answer_en TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
+    from .services.faq import seed_default_faq
+    seed_default_faq(conn)

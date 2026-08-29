@@ -15,12 +15,29 @@
   <section class="legal">
     <h1>{{ t('contact_title') }}</h1>
     <p>{{ t('contact_intro') }}</p>
+    <p class="muted">{{ t('contact_form_note') }}</p>
 
-    <h2>{{ t('contact_email_t') }}</h2>
-    <p><a href="mailto:contact@utilitati.nistorlazar.md">contact@utilitati.nistorlazar.md</a></p>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    {% if done %}<p class="notice">{{ done }}</p>{% endif %}
 
-    <h2>{{ t('contact_telegram_t') }}</h2>
-    <p><a href="https://t.me/utilitati_md_bot" target="_blank" rel="noopener">@utilitati_md_bot</a></p>
+    <form method="post" action="/contact" class="form-stack contact-form">
+      <label>{{ t('contact_name_label') }}
+        <input type="text" name="name" required maxlength="120" autocomplete="name">
+      </label>
+      <label>{{ t('contact_email_label') }}
+        <input type="email" name="email" required maxlength="200" autocomplete="email">
+      </label>
+      <label>{{ t('contact_message_label') }}
+        <textarea name="message" rows="6" required maxlength="5000"></textarea>
+      </label>
+      <label>{{ t('contact_captcha_label') }}
+        <span class="captcha-question">{{ captcha.question }}</span>
+        <input type="text" name="captcha_answer" required inputmode="numeric" maxlength="4"
+               placeholder="{{ t('contact_captcha_placeholder') }}">
+        <input type="hidden" name="captcha_token" value="{{ captcha.token }}">
+      </label>
+      <button type="submit">{{ t('contact_submit') }}</button>
+    </form>
 
     <h2>{{ t('contact_privacy_t') }}</h2>
     <p><a href="/privacy">{{ t('privacy_title') }}</a></p>

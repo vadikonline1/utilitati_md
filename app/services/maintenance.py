@@ -1,14 +1,19 @@
 """Automatic data-retention + inactivity cleanup jobs.
 
 Runs alongside the background sync loop (once per scheduled run when enabled in
-/admin). Three jobs:
+/admin). Jobs:
 
 1. Inactivity: users who have not authenticated for more than `inactive_months`
    are warned by email `warn_days` before the 1-year mark, then permanently
    deleted once the limit is exceeded (unless they sign in again).
 2. Old invoices: invoices older than `invoice_months` are permanently deleted.
-3. Unconfirmed accounts: accounts that were never confirmed (is_active = 0) are
-   deleted after `unconfirmed_hours`.
+3. Unconfirmed accounts: accounts that were never confirmed are deleted after
+   `unconfirmed_hours` (default 1 hour).
+4. Deactivated accounts: user-requested deletions are executed once their
+   30-day grace period passes.
+
+Jobs 3 and 4 are explicit business rules and always run, even when the general
+retention toggle is off.
 """
 
 from __future__ import annotations
@@ -87,7 +92,7 @@ def _run_inactivity(conn) -> dict:
     warned = 0
     rows = conn.execute(
         "SELECT id, last_login, last_inactivity_email FROM users "
-        "WHERE is_active = 1"
+        "WHERE is_active = 1 AND deactivated = 0"
     ).fetchall()
     for row in rows:
         last_login = row["last_login"] or row["last_login"]
@@ -139,22 +144,57 @@ def _run_invoices(conn) -> dict:
 
 
 def _run_unconfirmed(conn) -> dict:
+    """Permanently delete accounts that were never confirmed after N hours.
+
+    Only users who never confirmed their email (a confirm_token is still set)
+    are removed, so manually-disabled confirmed users are never affected.
+    """
     hours = unconfirmed_hours()
     cutoff = _iso_seconds_ago(hours)
     cur = conn.execute(
-        "DELETE FROM users WHERE is_active = 0 AND created_at < ?", (cutoff,)
+        "DELETE FROM users WHERE is_active = 0 AND confirm_token IS NOT NULL "
+        "AND created_at < ?",
+        (cutoff,),
     )
     return {"deleted_unconfirmed": cur.rowcount}
 
 
+def _run_deactivated(conn) -> dict:
+    """Permanently delete users whose deactivation grace period has passed.
+
+    This runs on every maintenance pass regardless of the retention toggle,
+    because the deletion was explicitly requested by the user (GDPR erase).
+    """
+    now = datetime.now().isoformat()
+    rows = conn.execute(
+        "SELECT id FROM users WHERE deactivated = 1 AND delete_after IS NOT NULL "
+        "AND delete_after <= ?",
+        (now,),
+    ).fetchall()
+    deleted = 0
+    for row in rows:
+        _delete_user(conn, row["id"])
+        deleted += 1
+    return {"deleted_deactivated": deleted}
+
+
 def run_maintenance() -> dict:
-    """Run all enabled cleanup jobs once. Returns a summary dict."""
-    if not retention_enabled():
-        return {"disabled": True}
+    """Run all enabled cleanup jobs once. Returns a summary dict.
+
+    User-requested deletions (deactivated accounts past their grace period) are
+    always executed. The automated retention jobs (inactivity / old invoices /
+    unconfirmed) only run when data retention is enabled in /admin.
+    """
     result: dict = {"disabled": False}
     with _conn() as conn:
-        result["inactivity"] = _run_inactivity(conn)
-        result["invoices"] = _run_invoices(conn)
+        # User-requested deletions (deactivated grace period) and unconfirmed
+        # account cleanups are explicit business rules and always run.
+        result["deactivated"] = _run_deactivated(conn)
         result["unconfirmed"] = _run_unconfirmed(conn)
+        if not retention_enabled():
+            result["disabled"] = True
+        else:
+            result["inactivity"] = _run_inactivity(conn)
+            result["invoices"] = _run_invoices(conn)
     _LOGGER.info("Maintenance run: %s", result)
     return result

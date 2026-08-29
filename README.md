@@ -42,6 +42,15 @@ the container).
 | `UTILITATI_USERNAME`      | `admin`                 | Default admin username         |
 | `UTILITATI_PASSWORD`      | `admin`                 | Default admin password         |
 | `UTILITATI_DB`            | `./utilitati.db`        | SQLite database path           |
+| `SMTP_HOST` / `SMTP_PORT` | _(unset)_              | Mail server for notifications  |
+| `SMTP_USER` / `SMTP_PASS` | _(unset)_              | SMTP login (password hidden in UI) |
+| `SMTP_FROM`               | _(unset)_              | Sender address                 |
+| `TELEGRAM_TOKEN`          | _(unset)_              | Telegram bot token (hidden in UI) |
+| `TELEGRAM_BOTNAME`        | _(unset)_              | Telegram bot short name        |
+
+> SMTP/Telegram credentials can be set either in `/admin` (stored encrypted in
+> the database) or via the environment variables above. Env takes precedence and
+> the fields are shown masked (never in plaintext) in the admin panel.
 
 ## Run locally (dev)
 

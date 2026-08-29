@@ -12,6 +12,9 @@
     <div class="admin-tabs">
       <button type="button" class="tab-btn active" data-tab="tab-settings">{{ t('admin_tab_settings') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-messages">{{ t('admin_tab_messages') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-contact">{{ t('admin_tab_contact') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-users">{{ t('admin_tab_users') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-faq">{{ t('admin_tab_faq') }}</button>
     </div>
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
@@ -31,10 +34,13 @@
                 <input type="number" name="smtp_port" value="{{ settings.get('smtp_port', '587') }}" placeholder="587">
               </label>
               <label>{{ t('admin_smtp_user') }}
-                <input type="text" name="smtp_user" value="{{ settings.get('smtp_user', '') }}" autocomplete="off">
+                <input type="password" name="smtp_user" value="{{ settings.get('smtp_user', '') }}" autocomplete="new-password" placeholder="{{ t('admin_secret_ph') }}">
+                {% if settings.get('_env_smtp_user') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
               </label>
               <label>{{ t('admin_smtp_pass') }}
-                <input type="password" name="smtp_pass" value="{{ settings.get('smtp_pass', '') }}" autocomplete="new-password">
+                <input type="password" name="smtp_pass" value="{{ settings.get('smtp_pass', '') }}" autocomplete="new-password" placeholder="{{ t('admin_secret_ph') }}">
+                {% if settings.get('_env_smtp_pass') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+                {% if settings.get('smtp_pass') %}<span class="field-hint">{{ t('admin_secret_hint') }}</span>{% endif %}
               </label>
               <label>{{ t('admin_smtp_from') }}
                 <input type="email" name="smtp_from" value="{{ settings.get('smtp_from', '') }}" placeholder="no-reply@example.com">
@@ -47,6 +53,8 @@
             <div class="form-stack">
               <label>{{ t('admin_telegram_token') }}
                 <input type="password" name="telegram_token" value="{{ settings.get('telegram_token', '') }}" autocomplete="new-password" placeholder="123456:ABC-DEF...">
+                {% if settings.get('_env_telegram_token') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+                {% if settings.get('telegram_token') %}<span class="field-hint">{{ t('admin_secret_hint') }}</span>{% endif %}
               </label>
               <label>{{ t('admin_telegram_botname') }}
                 <input type="text" name="telegram_botname" value="{{ settings.get('telegram_botname', '') }}" placeholder="{{ t('admin_telegram_botname_ph') }}">
@@ -133,6 +141,158 @@
       </div>
     </section>
 
+    {# ---------------- Contact messages inbox ---------------- #}
+    <section id="tab-contact" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_contact_hint') }}</p>
+      {% if contact_messages %}
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>{{ t('admin_contact_date') }}</th>
+                <th>{{ t('admin_contact_from') }}</th>
+                <th>{{ t('admin_contact_message') }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in contact_messages %}
+                <tr>
+                  <td class="muted">{{ m.created_at }}</td>
+                  <td>
+                    <b>{{ m.name }}</b><br>
+                    <span class="muted">{{ m.email }}</span>
+                  </td>
+                  <td style="white-space: pre-wrap;">{{ m.message }}</td>
+                  <td class="col-actions">
+                    <form method="post" action="/admin/contact/{{ m.id }}/delete"
+                          onsubmit="return confirm('{{ t('admin_contact_delete_confirm') }}');">
+                      <button type="submit" class="btn ghost small">{{ t('admin_contact_delete') }}</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty">{{ t('admin_contact_empty') }}</p>
+      {% endif %}
+    </section>
+
+    {# ---------------- Users management ---------------- #}
+    <section id="tab-users" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_users_hint') }}</p>
+      {% if users %}
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>{{ t('admin_users_id') }}</th>
+                <th>{{ t('admin_users_username') }}</th>
+                <th>{{ t('admin_users_fullname') }}</th>
+                <th>{{ t('admin_users_email') }}</th>
+                <th>{{ t('admin_users_status') }}</th>
+                <th>{{ t('admin_users_created') }}</th>
+                <th class="col-actions">{{ t('admin_users_actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in users %}
+                <tr class="{{ 'row-disabled' if not u.is_active }}">
+                  <td class="muted">#{{ u.id }}</td>
+                  <td><b>{{ u.username }}</b></td>
+                  <td>{{ u.full_name or '—' }}</td>
+                  <td>{{ u.email or '—' }}</td>
+                  <td>
+                    {% if u.is_active %}
+                      <span class="badge enabled">{{ t('admin_users_active') }}</span>
+                    {% else %}
+                      <span class="badge disabled">{{ t('admin_users_inactive') }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="muted">{{ u.created_at }}</td>
+                  <td class="col-actions">
+                    {% if u.id != current_uid %}
+                      {% if u.is_active %}
+                        <form method="post" action="/admin/users/{{ u.id }}/status"
+                              onsubmit="return confirm('{{ t('admin_users_disable_confirm') }} · {{ u.username }}?');">
+                          <input type="hidden" name="enabled" value="0">
+                          <button type="submit" class="btn ghost small">{{ t('admin_users_disable') }}</button>
+                        </form>
+                      {% else %}
+                        <form method="post" action="/admin/users/{{ u.id }}/status">
+                          <input type="hidden" name="enabled" value="1">
+                          <button type="submit" class="btn small">{{ t('admin_users_enable') }}</button>
+                        </form>
+                      {% endif %}
+                    {% else %}
+                      <span class="muted">{{ t('admin_users_self') }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty">{{ t('admin_users_empty') }}</p>
+      {% endif %}
+    </section>
+
+    {# ---------------- FAQ management ---------------- #}
+    <section id="tab-faq" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_faq_hint') }}</p>
+
+      <div class="card">
+        <h2>{{ t('admin_faq_add_title') }}</h2>
+        <form method="post" action="/admin/faq" class="form-stack">
+          {% for code in ['ro', 'ru', 'en'] %}
+            <fieldset class="msg-lang">
+              <legend>{{ t('msg_lang_' ~ code) }}</legend>
+              <label>{{ t('admin_faq_question') }}
+                <input type="text" name="question_{{ code }}">
+              </label>
+              <label>{{ t('admin_faq_answer') }}
+                <textarea name="answer_{{ code }}" rows="3"></textarea>
+              </label>
+            </fieldset>
+          {% endfor %}
+          <div class="form-actions">
+            <button type="submit" class="btn">{{ t('admin_faq_add') }}</button>
+          </div>
+        </form>
+      </div>
+
+      {% for item in faq_items %}
+        <div class="card msg-card">
+          <div class="row-actions">
+            <h2 style="flex:1">{{ item['question_ro'] or item['question_en'] or ('#' ~ item.id) }}</h2>
+            <form method="post" action="/admin/faq/{{ item.id }}/delete"
+                  onsubmit="return confirm('{{ t('admin_faq_delete_confirm') }}?');">
+              <button type="submit" class="btn ghost small">{{ t('admin_faq_delete') }}</button>
+            </form>
+          </div>
+          <form method="post" action="/admin/faq/{{ item.id }}" class="form-stack">
+            {% for code in ['ro', 'ru', 'en'] %}
+              <fieldset class="msg-lang">
+                <legend>{{ t('msg_lang_' ~ code) }}</legend>
+                <label>{{ t('admin_faq_question') }}
+                  <input type="text" name="question_{{ code }}" value="{{ item['question_' ~ code] }}">
+                </label>
+                <label>{{ t('admin_faq_answer') }}
+                  <textarea name="answer_{{ code }}" rows="3">{{ item['answer_' ~ code] }}</textarea>
+                </label>
+              </fieldset>
+            {% endfor %}
+            <div class="form-actions">
+              <button type="submit" class="btn">{{ t('admin_save') }}</button>
+            </div>
+          </form>
+        </div>
+      {% endfor %}
+    </section>
+
     {# Each message-type modal with subject+body editors for all 3 languages #}
     {% for mt in msg_types %}
     <div class="modal-overlay" id="modal-msg-{{ mt }}" hidden>
@@ -181,14 +341,22 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       if (target === "tab-messages") {
         history.replaceState(null, "", "/admin?tab=messages");
+      } else if (target === "tab-contact") {
+        history.replaceState(null, "", "/admin?tab=contact");
+      } else if (target === "tab-users") {
+        history.replaceState(null, "", "/admin?tab=users");
+      } else if (target === "tab-faq") {
+        history.replaceState(null, "", "/admin?tab=faq");
       } else {
         history.replaceState(null, "", "/admin");
       }
     });
   });
   var params = new URLSearchParams(window.location.search);
-  if (params.get("tab") === "messages" || params.get("saved")) {
-    var msgBtn = document.querySelector('[data-tab="tab-messages"]');
+  var known = ["messages", "contact", "users", "faq"];
+  if (known.includes(params.get("tab")) || params.get("saved")) {
+    var tabKey = params.get("saved") ? "messages" : params.get("tab");
+    var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
     if (msgBtn) msgBtn.click();
   }
 });

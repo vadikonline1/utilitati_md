@@ -167,6 +167,16 @@ def delete_home(user_id: int, home_id: int) -> bool:
 # --------------------------------------------------------------------------- #
 # Accounts (utilities)
 # --------------------------------------------------------------------------- #
+def _with_creds(account: dict[str, Any]) -> dict[str, Any]:
+    """Return the account dict with username/password decrypted (safe copy)."""
+    out = dict(account)
+    for key in ("username", "password"):
+        raw = out.get(key)
+        if crypto.is_encrypted(raw):
+            out[key] = crypto.decrypt(raw)
+    return out
+
+
 def list_accounts(user_id: int, home_id: int | None = None) -> list[dict[str, Any]]:
     with _conn() as conn:
         if home_id is not None:
@@ -178,7 +188,7 @@ def list_accounts(user_id: int, home_id: int | None = None) -> list[dict[str, An
             rows = conn.execute(
                 "SELECT * FROM accounts WHERE user_id = ? ORDER BY label", (user_id,)
             ).fetchall()
-    return [dict(r) for r in rows]
+    return [_with_creds(dict(r)) for r in rows]
 
 
 def get_account_row(user_id: int, account_id: int) -> dict[str, Any] | None:
@@ -187,7 +197,7 @@ def get_account_row(user_id: int, account_id: int) -> dict[str, Any] | None:
             "SELECT * FROM accounts WHERE id = ? AND user_id = ?",
             (account_id, user_id),
         ).fetchone()
-    return dict(row) if row else None
+    return _with_creds(dict(row)) if row else None
 
 
 def upsert_account(
@@ -195,6 +205,9 @@ def upsert_account(
 ) -> int:
     home_id = data.get("home_id")
     status = data.get("status", "enabled")
+    # Credentials are encrypted at rest; every read path decrypts them on use.
+    enc_username = crypto.safe_encrypt(data.get("username") or None)
+    enc_password = crypto.safe_encrypt(data.get("password") or None)
     with _conn() as conn:
         if account_id:
             conn.execute(
@@ -204,9 +217,8 @@ def upsert_account(
                    WHERE id = ? AND user_id = ?""",
                 (
                     data["provider"], data.get("label", ""), data["contract_number"],
-                    data.get("place_of_consumption"), data.get("username"),
-                    data.get("password"), data.get("icon"), home_id, status,
-                    account_id, user_id,
+                    data.get("place_of_consumption"), enc_username, enc_password,
+                    data.get("icon"), home_id, status, account_id, user_id,
                 ),
             )
             return account_id
@@ -218,7 +230,7 @@ def upsert_account(
             (
                 user_id, home_id, data["provider"], data.get("label", ""),
                 data["contract_number"], data.get("place_of_consumption"),
-                data.get("username"), data.get("password"), data.get("icon"), status,
+                enc_username, enc_password, data.get("icon"), status,
             ),
         )
         return cur.lastrowid
@@ -490,6 +502,7 @@ def delete_invoice(user_id: int, invoice_id: int) -> bool:
 # Provider access
 # --------------------------------------------------------------------------- #
 def _build_client(account: dict[str, Any]):
+    account = _with_creds(account)
     return get_provider_instance(
         provider_id=account["provider"],
         contract_number=account["contract_number"],
