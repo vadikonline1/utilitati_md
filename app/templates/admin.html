@@ -194,6 +194,7 @@
                 <th>{{ t('admin_users_email') }}</th>
                 <th>{{ t('admin_users_status') }}</th>
                 <th>{{ t('admin_users_created') }}</th>
+                <th>{{ t('admin_users_last_login') }}</th>
                 <th class="col-actions">{{ t('admin_users_actions') }}</th>
               </tr>
             </thead>
@@ -212,6 +213,7 @@
                     {% endif %}
                   </td>
                   <td class="muted">{{ u.created_at }}</td>
+                  <td class="muted">{{ u.last_login or '—' }}</td>
                   <td class="col-actions">
                     {% if u.id != current_uid %}
                       {% if u.is_active %}
@@ -242,10 +244,52 @@
 
     {# ---------------- FAQ management ---------------- #}
     <section id="tab-faq" class="admin-tab-panel" hidden>
-      <p class="subtitle">{{ t('admin_faq_hint') }}</p>
+      <div class="tab-toolbar">
+        <p class="subtitle" style="flex:1">{{ t('admin_faq_hint') }}</p>
+        <button type="button" class="btn" onclick="openModal('modal-faq-add')">+ {{ t('admin_faq_add_title') }}</button>
+      </div>
 
-      <div class="card">
-        <h2>{{ t('admin_faq_add_title') }}</h2>
+      {% if faq_items %}
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>{{ t('admin_users_id') }}</th>
+                <th>{{ t('admin_faq_question') }}</th>
+                <th class="col-actions">{{ t('admin_users_actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in faq_items %}
+                <tr>
+                  <td class="muted">#{{ item.id }}</td>
+                  <td>{{ item['question_ro'] or item['question_en'] or item['question_ru'] or ('—') }}</td>
+                  <td class="col-actions">
+                    <div class="row-actions">
+                      <button type="button" class="btn small" onclick="openModal('modal-faq-edit-{{ item.id }}')">{{ t('admin_faq_edit') }}</button>
+                      <form method="post" action="/admin/faq/{{ item.id }}/delete"
+                            onsubmit="return confirm('{{ t('admin_faq_delete_confirm') }}?');">
+                        <button type="submit" class="btn ghost small">{{ t('admin_faq_delete') }}</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty">{{ t('admin_faq_empty') }}</p>
+      {% endif %}
+    </section>
+
+    {# Add-FAQ modal #}
+    <div class="modal-overlay" id="modal-faq-add" hidden>
+      <div class="modal modal-wide">
+        <div class="modal-head">
+          <h2>{{ t('admin_faq_add_title') }}</h2>
+          <button type="button" class="modal-close" onclick="closeModal('modal-faq-add')">×</button>
+        </div>
         <form method="post" action="/admin/faq" class="form-stack">
           {% for code in ['ro', 'ru', 'en'] %}
             <fieldset class="msg-lang">
@@ -259,39 +303,41 @@
             </fieldset>
           {% endfor %}
           <div class="form-actions">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-faq-add')">{{ t('admin_cancel') }}</button>
             <button type="submit" class="btn">{{ t('admin_faq_add') }}</button>
           </div>
         </form>
       </div>
+    </div>
 
-      {% for item in faq_items %}
-        <div class="card msg-card">
-          <div class="row-actions">
-            <h2 style="flex:1">{{ item['question_ro'] or item['question_en'] or ('#' ~ item.id) }}</h2>
-            <form method="post" action="/admin/faq/{{ item.id }}/delete"
-                  onsubmit="return confirm('{{ t('admin_faq_delete_confirm') }}?');">
-              <button type="submit" class="btn ghost small">{{ t('admin_faq_delete') }}</button>
-            </form>
-          </div>
-          <form method="post" action="/admin/faq/{{ item.id }}" class="form-stack">
-            {% for code in ['ro', 'ru', 'en'] %}
-              <fieldset class="msg-lang">
-                <legend>{{ t('msg_lang_' ~ code) }}</legend>
-                <label>{{ t('admin_faq_question') }}
-                  <input type="text" name="question_{{ code }}" value="{{ item['question_' ~ code] }}">
-                </label>
-                <label>{{ t('admin_faq_answer') }}
-                  <textarea name="answer_{{ code }}" rows="3">{{ item['answer_' ~ code] }}</textarea>
-                </label>
-              </fieldset>
-            {% endfor %}
-            <div class="form-actions">
-              <button type="submit" class="btn">{{ t('admin_save') }}</button>
-            </div>
-          </form>
+    {# Edit-FAQ modals #}
+    {% for item in faq_items %}
+    <div class="modal-overlay" id="modal-faq-edit-{{ item.id }}" hidden>
+      <div class="modal modal-wide">
+        <div class="modal-head">
+          <h2>{{ t('admin_faq_edit') }} #{{ item.id }}</h2>
+          <button type="button" class="modal-close" onclick="closeModal('modal-faq-edit-{{ item.id }}')">×</button>
         </div>
-      {% endfor %}
-    </section>
+        <form method="post" action="/admin/faq/{{ item.id }}" class="form-stack">
+          {% for code in ['ro', 'ru', 'en'] %}
+            <fieldset class="msg-lang">
+              <legend>{{ t('msg_lang_' ~ code) }}</legend>
+              <label>{{ t('admin_faq_question') }}
+                <input type="text" name="question_{{ code }}" value="{{ item['question_' ~ code] }}">
+              </label>
+              <label>{{ t('admin_faq_answer') }}
+                <textarea name="answer_{{ code }}" rows="3">{{ item['answer_' ~ code] }}</textarea>
+              </label>
+            </fieldset>
+          {% endfor %}
+          <div class="form-actions">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-faq-edit-{{ item.id }}')">{{ t('admin_cancel') }}</button>
+            <button type="submit" class="btn">{{ t('admin_save') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
 
     {# Each message-type modal with subject+body editors for all 3 languages #}
     {% for mt in msg_types %}

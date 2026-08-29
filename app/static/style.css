@@ -241,6 +241,7 @@ textarea {
 .data-table tr:last-child td { border-bottom: none; }
 .row-disabled { opacity: 0.5; }
 .row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tab-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .inline-form { display: inline; }
 
 /* Badges */
