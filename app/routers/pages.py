@@ -299,8 +299,8 @@ async def login_page(request: Request, user_id: int | None = Depends(optional_au
 @router.post("/login")
 async def login_submit(request: Request):
     form = await request.form()
-    username = str(form.get("username", ""))
-    password = str(form.get("password", ""))
+    username = str(form.get("username", "")).strip()
+    password = str(form.get("password", "")).strip()
     user_id = authenticate(username, password)
     if user_id is None:
         _t = make_translator(get_lang(request.cookies.get("lang")))
@@ -503,9 +503,9 @@ async def profile_submit(request: Request, user_id: int | None = Depends(optiona
         return RedirectResponse("/login", status_code=303)
     _t = make_translator(get_lang(request.cookies.get("lang")))
     form = await request.form()
-    old = str(form.get("old_password", ""))
-    new = str(form.get("new_password", ""))
-    confirm = str(form.get("confirm", ""))
+    old = str(form.get("old_password", "")).strip()
+    new = str(form.get("new_password", "")).strip()
+    confirm = str(form.get("confirm", "")).strip()
     if new != confirm:
         return templates.TemplateResponse(
             request, "profile.html", _ctx(request, message=_t("profile_mismatch")),
@@ -529,8 +529,8 @@ async def profile_notifications_submit(
     form = await request.form()
     set_notification_prefs(
         user_id,
-        str(form.get("emails", "")),
-        str(form.get("telegram_chat_ids", "")),
+        str(form.get("emails", "")).strip(),
+        str(form.get("telegram_chat_ids", "")).strip(),
     )
     prefs = get_notification_prefs(user_id)
     lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
@@ -574,7 +574,7 @@ async def profile_deactivate_submit(
         return RedirectResponse("/login", status_code=303)
     _t = make_translator(get_user_lang(user_id) or get_lang(request.cookies.get("lang")))
     form = await request.form()
-    password = str(form.get("password", ""))
+    password = str(form.get("password", "")).strip()
     if not verify_password(user_id, password):
         prefs = get_notification_prefs(user_id)
         lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
@@ -765,7 +765,7 @@ async def telegram_webhook(request: Request):
     text = str(message.get("text", "")).strip()
     first_name = chat.get("first_name") or ""
     command = text.split()[0] if text else ""
-    if chat_id is not None and command.startswith("/start"):
+    if chat_id is not None and command.startswith(("/start", "/chat_id")):
         welcome = _t_start_welcome(chat_id, first_name)
         await telegram_svc.send_message(chat_id, welcome)
     return JSONResponse({"ok": True})
@@ -949,10 +949,10 @@ async def homes_create(request: Request, user_id: int | None = Depends(optional_
         return RedirectResponse("/login", status_code=303)
     form = await request.form()
     create_home(user_id, {
-        "name": form.get("name", ""),
-        "address": form.get("address", ""),
-        "floor": form.get("floor", ""),
-        "metro_area": form.get("metro_area", ""),
+        "name": str(form.get("name", "")).strip(),
+        "address": str(form.get("address", "")).strip(),
+        "floor": str(form.get("floor", "")).strip(),
+        "metro_area": str(form.get("metro_area", "")).strip(),
     })
     return RedirectResponse("/homes", status_code=303)
 
@@ -980,11 +980,11 @@ async def home_edit_submit(
         return RedirectResponse("/login", status_code=303)
     form = await request.form()
     update_home(user_id, home_id, {
-        "name": form.get("name", ""),
-        "address": form.get("address", ""),
-        "floor": form.get("floor", ""),
-        "metro_area": form.get("metro_area", ""),
-        "status": form.get("status", "enabled"),
+        "name": str(form.get("name", "")).strip(),
+        "address": str(form.get("address", "")).strip(),
+        "floor": str(form.get("floor", "")).strip(),
+        "metro_area": str(form.get("metro_area", "")).strip(),
+        "status": str(form.get("status", "enabled")).strip(),
     })
     return RedirectResponse(f"/homes/{home_id}", status_code=303)
 
@@ -1022,8 +1022,8 @@ async def utility_connect(
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
     form = await request.form()
-    provider = str(form.get("provider", ""))
-    contract_number = str(form.get("contract_number", ""))
+    provider = str(form.get("provider", "")).strip()
+    contract_number = str(form.get("contract_number", "")).strip()
     if not provider or not contract_number:
         return RedirectResponse(f"/homes/{home_id}", status_code=303)
 
@@ -1040,9 +1040,9 @@ async def utility_connect(
         "place_of_consumption": None,
     }
     if "username" in fields:
-        data["username"] = form.get("username") or None
+        data["username"] = str(form.get("username") or "").strip() or None
     if "password" in fields:
-        data["password"] = form.get("password") or None
+        data["password"] = str(form.get("password") or "").strip() or None
 
     acc_id = upsert_account(user_id, data)
     new_account = get_account_row(user_id, acc_id)

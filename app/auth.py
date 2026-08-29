@@ -75,6 +75,7 @@ def confirm_invitation(token: str) -> tuple[int, str] | None:
 
 
 def set_password_for_user(user_id: int, new_password: str) -> None:
+    new_password = new_password.strip()
     with _conn() as conn:
         conn.execute(
             "UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_exp = NULL "
@@ -218,6 +219,8 @@ def set_user_active(user_id: int, is_active: bool) -> None:
 
 def change_password(user_id: int, old_password: str, new_password: str) -> bool:
     """Change a user's password, verifying the old one first."""
+    old_password = old_password.strip()
+    new_password = new_password.strip()
     with _conn() as conn:
         row = conn.execute(
             "SELECT password_hash FROM users WHERE id = ?", (user_id,)
@@ -276,6 +279,7 @@ def ensure_default_user() -> None:
 
 
 def authenticate(username: str, password: str) -> int | None:
+    username = username.strip()
     with _conn() as conn:
         row = conn.execute(
             "SELECT id, password_hash, is_active, deactivated "
