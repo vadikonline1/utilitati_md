@@ -448,8 +448,8 @@ async def reset_password_submit(token: str, request: Request):
             _ctx(request, token=None, error=_t("reset_invalid")),
         )
     form = await request.form()
-    new_password = str(form.get("password", ""))
-    confirm = str(form.get("confirm", ""))
+    new_password = str(form.get("password", "")).strip()
+    confirm = str(form.get("confirm", "")).strip()
     if len(new_password) < 6:
         return templates.TemplateResponse(
             request, "reset_password.html",
@@ -702,19 +702,19 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
     sync_mode = str(form.get("sync_mode", "daily"))
     sync_hours = form.get("sync_hours", "24")
     values = {
-        "smtp_host": str(form.get("smtp_host", "")),
-        "smtp_port": str(form.get("smtp_port", "")),
-        "smtp_user": str(form.get("smtp_user", "")),
-        "smtp_pass": str(form.get("smtp_pass", "")),
-        "smtp_from": str(form.get("smtp_from", "")),
-        "telegram_token": str(form.get("telegram_token", "")),
-        "telegram_botname": str(form.get("telegram_botname", "")),
+        "smtp_host": str(form.get("smtp_host", "")).strip(),
+        "smtp_port": str(form.get("smtp_port", "")).strip(),
+        "smtp_user": str(form.get("smtp_user", "")).strip(),
+        "smtp_pass": str(form.get("smtp_pass", "")).strip(),
+        "smtp_from": str(form.get("smtp_from", "")).strip(),
+        "telegram_token": str(form.get("telegram_token", "")).strip(),
+        "telegram_botname": str(form.get("telegram_botname", "")).strip(),
         "sync_mode": sync_mode,
         "retention_enabled": "1" if form.get("retention_enabled") else "0",
-        "inactive_months": str(form.get("inactive_months", "12")),
-        "warn_days": str(form.get("warn_days", "90,60,30")),
-        "invoice_months": str(form.get("invoice_months", "24")),
-        "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")),
+        "inactive_months": str(form.get("inactive_months", "12")).strip(),
+        "warn_days": str(form.get("warn_days", "90,60,30")).strip(),
+        "invoice_months": str(form.get("invoice_months", "24")).strip(),
+        "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")).strip(),
     }
     if sync_mode == "interval":
         try:
@@ -753,7 +753,7 @@ async def admin_telegram_set_webhook(
 
 @router.post("/telegram/webhook")
 async def telegram_webhook(request: Request):
-    """Public Telegram webhook: greet on /start and hand out the user's chat id."""
+    """Public Telegram webhook: greet on /start and expose the chat id on command."""
     try:
         data = await request.json()
     except Exception:  # noqa: BLE001
@@ -761,26 +761,52 @@ async def telegram_webhook(request: Request):
     update = data if isinstance(data, dict) else {}
     message = update.get("message") or {}
     chat = message.get("chat") or {}
+    frm = message.get("from") or {}
     chat_id = chat.get("id")
     text = str(message.get("text", "")).strip()
-    first_name = chat.get("first_name") or ""
+    first_name = frm.get("first_name") or ""
+    lang_code = frm.get("language_code") or ""
     command = text.split()[0] if text else ""
-    if chat_id is not None and command.startswith(("/start", "/chat_id")):
-        welcome = _t_start_welcome(chat_id, first_name)
-        await telegram_svc.send_message(chat_id, welcome)
+    if chat_id is not None and (command.startswith("/start") or command.startswith("/chat_id")):
+        reply = _tg_command_reply(command, chat_id, first_name, lang_code)
+        await telegram_svc.send_message(chat_id, reply)
     return JSONResponse({"ok": True})
 
 
-def _t_start_welcome(chat_id, first_name: str) -> str:
-    """Welcome message for /start, greeting the user and exposing their chat id."""
-    greeting = f"Salut{', ' + first_name if first_name else ''}!"
-    return (
-        f"{greeting}! Bun venit la Utilități.MD!\n\n"
-        f"Your chat ID / ID-ul tău de chat / Ваш chat ID:\n"
-        f"{chat_id}\n\n"
-        f"Adaugă acest ID în profilul tău (Cont → Telegram) ca să primești "
-        f"notificări și linkuri de resetare aici."
-    )
+_TG_LANGS = {"ro", "ru", "en"}
+_DEFAULT_TG_LANG = "ro"
+
+_TG_START = {
+    "ro": "Salut{comma_name}! Bun venit la Utilități.MD.\n\n"
+          "Chat ID-ul tău: {chat_id}\n\n"
+          "Adaugă acest ID în profilul tău, la Notificări, ca să primești "
+          "notificări și linkuri de resetare aici.",
+    "ru": "Привет{comma_name}! Добро пожаловать в Utilități.MD.\n\n"
+          "Ваш chat ID: {chat_id}\n\n"
+          "Добавьте этот ID в свой профиль (в раздел Notificări / Уведомления), "
+          "чтобы получать уведомления и ссылки для сброса здесь.",
+    "en": "Hi{comma_name}! Welcome to Utilități.MD.\n\n"
+          "Your chat ID: {chat_id}\n\n"
+          "Add this ID to your profile, under Notifications, to receive "
+          "notifications and password-reset links here.",
+}
+
+_TG_CHAT_ID = {
+    "ro": "Chat ID-ul tău: {chat_id}",
+    "ru": "Ваш chat ID: {chat_id}",
+    "en": "Your chat ID: {chat_id}",
+}
+
+
+def _tg_command_reply(command: str, chat_id, first_name: str, lang_code: str) -> str:
+    """Build the bot reply (in the user's Telegram language) for a bot command."""
+    lang = lang_code.lower().split("-")[0]
+    if lang not in _TG_LANGS:
+        lang = _DEFAULT_TG_LANG
+    comma_name = f", {first_name}" if first_name else ""
+    if command.startswith("/chat_id"):
+        return _TG_CHAT_ID[lang].format(chat_id=chat_id)
+    return _TG_START[lang].format(chat_id=chat_id, comma_name=comma_name)
 
 
 @router.post("/admin/messages/{msg_type}")
@@ -1243,9 +1269,9 @@ async def invoice_edit_submit(
     inv = get_invoice(user_id, invoice_id)
     if inv is not None:
         update_invoice(user_id, invoice_id, {
-            "amount_mdl": form.get("amount_mdl", inv["amount_mdl"] or 0),
-            "issue_date": form.get("issue_date") or None,
-            "due_date": form.get("due_date") or None,
+            "amount_mdl": str(form.get("amount_mdl", inv["amount_mdl"] or 0)).strip(),
+            "issue_date": str(form.get("issue_date") or "").strip() or None,
+            "due_date": str(form.get("due_date") or "").strip() or None,
             "is_paid": bool(form.get("is_paid")),
         })
         return RedirectResponse(
