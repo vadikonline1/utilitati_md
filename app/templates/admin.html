@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}{{ t('admin_title') }} · UTILITĂȚI.MD{% endblock %}
+{% block body %}
+<main class="dashboard">
+  <h1>{{ t('admin_title') }}</h1>
+  {% if denied %}
+    <p class="notice">{{ message }}</p>
+  {% else %}
+    <p class="subtitle">{{ t('admin_subtitle') }}</p>
+    {% if message %}<p class="notice">{{ message }}</p>{% endif %}
+
+    <div class="admin-tabs">
+      <button type="button" class="tab-btn active" data-tab="tab-settings">{{ t('admin_tab_settings') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-messages">{{ t('admin_tab_messages') }}</button>
+    </div>
+    {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
+      <p class="notice">{{ t('admin_msg_saved') }}</p>
+    {% endif %}
+
+    {# ---------------- Settings: SMTP / Telegram / sync / retention ---------------- #}
+    <section id="tab-settings" class="admin-tab-panel">
+      <form method="post" action="/admin">
+        <div class="config-grid">
+          <div class="card">
+            <h2>{{ t('admin_smtp') }}</h2>
+            <div class="form-stack">
+              <label>{{ t('admin_smtp_host') }}
+                <input type="text" name="smtp_host" value="{{ settings.get('smtp_host', '') }}" placeholder="smtp.example.com">
+              </label>
+              <label>{{ t('admin_smtp_port') }}
+                <input type="number" name="smtp_port" value="{{ settings.get('smtp_port', '587') }}" placeholder="587">
+              </label>
+              <label>{{ t('admin_smtp_user') }}
+                <input type="text" name="smtp_user" value="{{ settings.get('smtp_user', '') }}" autocomplete="off">
+              </label>
+              <label>{{ t('admin_smtp_pass') }}
+                <input type="password" name="smtp_pass" value="{{ settings.get('smtp_pass', '') }}" autocomplete="new-password">
+              </label>
+              <label>{{ t('admin_smtp_from') }}
+                <input type="email" name="smtp_from" value="{{ settings.get('smtp_from', '') }}" placeholder="no-reply@example.com">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_telegram') }}</h2>
+            <div class="form-stack">
+              <label>{{ t('admin_telegram_token') }}
+                <input type="password" name="telegram_token" value="{{ settings.get('telegram_token', '') }}" autocomplete="new-password" placeholder="123456:ABC-DEF...">
+              </label>
+              <label>{{ t('admin_telegram_botname') }}
+                <input type="text" name="telegram_botname" value="{{ settings.get('telegram_botname', '') }}" placeholder="{{ t('admin_telegram_botname_ph') }}">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_sync') }}</h2>
+            <div class="form-stack">
+              <label class="radio">
+                <input type="radio" name="sync_mode" value="daily"
+                  {{ 'checked' if settings.get('sync_mode', 'daily') != 'interval' }}>
+                {{ t('admin_syncdaily') }}
+              </label>
+              <label class="radio">
+                <input type="radio" name="sync_mode" value="interval"
+                  {{ 'checked' if settings.get('sync_mode') == 'interval' }}>
+                {{ t('admin_every') }}
+                <input type="number" name="sync_hours" min="1" max="168" value="{{ settings.get('sync_hours', '24') }}" style="width:80px">
+                {{ t('admin_hours') }}
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_retention') }}</h2>
+            <div class="form-stack">
+              <label class="radio">
+                <input type="checkbox" name="retention_enabled" value="1" {{ 'checked' if retention_enabled }}>
+                {{ t('admin_retention_enable') }}
+              </label>
+              <label>{{ t('admin_retention_inactive_months') }}
+                <input type="number" name="inactive_months" min="1" max="120" value="{{ inactive_months }}">
+              </label>
+              <label>{{ t('admin_retention_warn_days') }}
+                <input type="text" name="warn_days" value="{{ warn_days_list|join(', ') }}" placeholder="90, 60, 30">
+              </label>
+              <label>{{ t('admin_retention_invoice_months') }}
+                <input type="number" name="invoice_months" min="1" max="120" value="{{ invoice_months }}">
+              </label>
+              <label>{{ t('admin_retention_unconfirmed_hours') }}
+                <input type="number" name="unconfirmed_hours" min="1" max="720" value="{{ unconfirmed_hours }}">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn">{{ t('admin_save') }}</button>
+        </div>
+      </form>
+    </section>
+
+    {# ---------------- Message management ---------------- #}
+    <section id="tab-messages" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_messages_hint') }}</p>
+      <div class="config-grid">
+        {% for mt in msg_types %}
+          <div class="card msg-card">
+            <h2>{{ t('msg_' ~ mt ~ '_title') }}</h2>
+            <p class="field-hint">{{ t('msg_' ~ mt ~ '_placeholders') }}</p>
+            <div class="msg-defaults">
+              <p class="msg-defaults-title">{{ t('admin_defaults_title') }}:</p>
+              {% for code in ['ro', 'ru', 'en'] %}
+                <div class="msg-default">
+                  <span class="msg-default-lang">{{ t('msg_lang_' ~ code) }}</span>
+                  <div class="msg-default-text">
+                    <b>{{ msg_defaults_data[mt][code].subj }}</b>
+                    <span>{{ msg_defaults_data[mt][code].body }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="row-actions msg-actions">
+              <button type="button" class="btn" onclick="openModal('modal-msg-{{ mt }}')">{{ t('admin_edit_msg') }}</button>
+              <form method="post" action="/admin/messages/{{ mt }}/reset"
+                    onsubmit="return confirm('{{ t('admin_reset_msg') }}?');">
+                <button type="submit" class="btn ghost">{{ t('admin_reset_msg') }}</button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    {# Each message-type modal with subject+body editors for all 3 languages #}
+    {% for mt in msg_types %}
+    <div class="modal-overlay" id="modal-msg-{{ mt }}" hidden>
+      <div class="modal modal-wide">
+        <div class="modal-head">
+          <h2>{{ t('msg_' ~ mt ~ '_title') }}</h2>
+          <button type="button" class="modal-close" onclick="closeModal('modal-msg-{{ mt }}')">×</button>
+        </div>
+        <form method="post" action="/admin/messages/{{ mt }}" class="form-stack">
+          {% for code in ['ro', 'ru', 'en'] %}
+            <fieldset class="msg-lang">
+              <legend>{{ t('msg_lang_' ~ code) }}</legend>
+              <label>{{ t('msg_subject') }}
+                <input type="text" name="subj_{{ code }}"
+                       value="{{ msg_templates_data[mt][code].subj }}"
+                       placeholder="{{ msg_defaults_data[mt][code].subj }}">
+              </label>
+              <label>{{ t('msg_body') }}
+                <textarea name="body_{{ code }}" rows="7"
+                          placeholder="{{ msg_defaults_data[mt][code].body }}">{{ msg_templates_data[mt][code].body }}</textarea>
+              </label>
+            </fieldset>
+          {% endfor %}
+          <div class="form-actions">
+            <button type="submit" class="btn">{{ t('admin_save') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+</main>
+{% endblock %}
+{% block scripts %}
+<script>
+function openModal(id) { document.getElementById(id).hidden = false; }
+function closeModal(id) { document.getElementById(id).hidden = true; }
+document.addEventListener("DOMContentLoaded", function () {
+  var tabs = document.querySelectorAll(".tab-btn");
+  tabs.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      tabs.forEach(function (b) { b.classList.toggle("active", b === btn); });
+      var target = btn.dataset.tab;
+      document.querySelectorAll(".admin-tab-panel").forEach(function (p) {
+        p.hidden = p.id !== target;
+      });
+      if (target === "tab-messages") {
+        history.replaceState(null, "", "/admin?tab=messages");
+      } else {
+        history.replaceState(null, "", "/admin");
+      }
+    });
+  });
+  var params = new URLSearchParams(window.location.search);
+  if (params.get("tab") === "messages" || params.get("saved")) {
+    var msgBtn = document.querySelector('[data-tab="tab-messages"]');
+    if (msgBtn) msgBtn.click();
+  }
+});
+</script>
+{% endblock %}

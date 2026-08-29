@@ -6,9 +6,9 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    # All runtime configuration lives in utilitati.env (single source of truth).
     env_file:
-      - utilitati.env
+      - path: utilitati.env
+        required: false
     volumes:
       - utilitati-data:/app/data
     healthcheck:

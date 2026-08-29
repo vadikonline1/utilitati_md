@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ t('privacy_title') }} · UTILITĂȚI.MD{% endblock %}
+{% block nav %}
+  <a href="/">{{ t('nav_home') }}</a>
+  {% if logged_in %}
+    <a href="/dashboard">{{ t('nav_dashboard') }}</a>
+    <a href="/logout">{{ t('nav_logout') }}</a>
+  {% else %}
+    <a href="/login">{{ t('nav_login') }}</a>
+    <a href="/register">{{ t('nav_register') }}</a>
+  {% endif %}
+{% endblock %}
+{% block body %}
+<main class="landing">
+  <section class="legal">
+    <h1>{{ t('privacy_title') }}</h1>
+    <p class="muted">{{ t('privacy_updated') }}</p>
+
+    <h2>1. {{ t('privacy_intro_t') }}</h2>
+    <p>{{ t('privacy_intro') }}</p>
+
+    <h2>2. {{ t('privacy_data_t') }}</h2>
+    <p>{{ t('privacy_data') }}</p>
+
+    <h2>3. {{ t('privacy_use_t') }}</h2>
+    <p>{{ t('privacy_use') }}</p>
+
+    <h2>4. {{ t('privacy_retention_t') }}</h2>
+    <p>{{ t('privacy_retention') }}</p>
+
+    <h2>5. {{ t('privacy_rights_t') }}</h2>
+    <p>{{ t('privacy_rights') }}</p>
+
+    <h2>6. {{ t('privacy_contact_t') }}</h2>
+    <p>{{ t('privacy_contact') }} <a href="/contact">{{ t('nav_contact') }}</a></p>
+  </section>
+</main>
+{% endblock %}

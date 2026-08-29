@@ -2,22 +2,61 @@
 {% block title %}{{ t('profile_title') }} · UTILITĂȚI.MD{% endblock %}
 {% block body %}
 <main class="dashboard">
-  <h1>{{ t('profile_title') }}</h1>
+  <h1>{{ t('profile_title') }} <span class="muted">· {{ username }}</span></h1>
   {% if message %}<p class="notice">{{ message }}</p>{% endif %}
-  <div class="card">
-    <h2>{{ t('profile_change_password') }}</h2>
-    <form method="post" action="/profile" class="form-stack">
-      <label>{{ t('profile_old_password') }}
-        <input type="password" name="old_password" autocomplete="current-password" required>
-      </label>
-      <label>{{ t('profile_new_password') }}
-        <input type="password" name="new_password" autocomplete="new-password" required>
-      </label>
-      <label>{{ t('profile_confirm_new') }}
-        <input type="password" name="confirm" autocomplete="new-password" required>
-      </label>
-      <button type="submit">{{ t('profile_save') }}</button>
-    </form>
+
+  <div class="config-grid">
+    <div class="card">
+      <h2>{{ t('profile_change_password') }}</h2>
+      <form method="post" action="/profile" class="form-stack">
+        <label>{{ t('profile_old_password') }}
+          <input type="password" name="old_password" autocomplete="current-password" required>
+        </label>
+        <label>{{ t('profile_new_password') }}
+          <input type="password" name="new_password" autocomplete="new-password" required>
+        </label>
+        <label>{{ t('profile_confirm_new') }}
+          <input type="password" name="confirm" autocomplete="new-password" required>
+        </label>
+        <button type="submit">{{ t('profile_save') }}</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>{{ t('profile_language') }}</h2>
+      <form method="post" action="/profile/language" class="form-stack">
+        <label>{{ t('profile_language_hint') }}
+          <select name="lang">
+            {% for code, name in langs.items() %}
+              <option value="{{ code }}" {% if code == (user_lang or lang) %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">{{ t('profile_save') }}</button>
+      </form>
+    </div>
+
+    {% if email_configured or telegram_configured %}
+    <div class="card">
+      <h2>{{ t('profile_notifications') }}</h2>
+      <form method="post" action="/profile/notifications" class="form-stack">
+        {% if email_configured %}
+          <label>{{ t('profile_emails') }}
+            <textarea name="emails" rows="3" placeholder="{{ t('profile_emails_hint') }}">{{ emails }}</textarea>
+          </label>
+        {% endif %}
+        {% if telegram_configured %}
+          <label>{{ t('profile_telegram') }}
+            <textarea name="telegram_chat_ids" rows="3" placeholder="{{ t('profile_telegram_hint') }}">{{ telegram_chat_ids }}</textarea>
+          </label>
+          {% if telegram_bot_url %}
+            <p class="field-hint">{{ t('profile_telegram_note') }} <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener">{{ telegram_bot_url }}</a></p>
+          {% endif %}
+        {% endif %}
+        <button type="submit">{{ t('profile_save_notif') }}</button>
+      </form>
+    </div>
+    {% endif %}
   </div>
 </main>
 {% endblock %}

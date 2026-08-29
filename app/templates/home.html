@@ -66,6 +66,57 @@
       <li>📡 INFOCOM</li>
       <li>🚪 Stroy Master Domofon</li>
     </ul>
+    <p class="muted" style="text-align:center; margin-top:12px;">{{ t('home_note_moldovagaz') }}</p>
+  </section>
+
+  <section class="how">
+    <h2>{{ t('how_title') }}</h2>
+    <ol class="steps">
+      <li><b>1.</b> {{ t('how_step1') }}</li>
+      <li><b>2.</b> {{ t('how_step2') }}</li>
+      <li><b>3.</b> {{ t('how_step3') }}</li>
+      <li><b>4.</b> {{ t('how_step4') }}</li>
+    </ol>
+  </section>
+
+  <section class="features" id="demo">
+    <h2>{{ t('demo_title') }}</h2>
+    <p class="muted" style="text-align:center;">{{ t('demo_subtitle') }}</p>
+    <div class="home-grid">
+      <article class="home-card">
+        <div class="home-card-head">
+          <span class="home-icon">🏠</span>
+          <div><h2>{{ t('demo_home') }}</h2><span class="muted">{{ t('demo_address') }}</span></div>
+        </div>
+        <div class="home-stats"><span>5 {{ t('dash_utilities') }}</span><span>2 {{ t('dash_unpaid') }}</span></div>
+        <hr class="demo-sep">
+        <div class="demo-inv"><span>⚡ {{ t('demo_inv1') }}</span><span class="money">{{ t('demo_amt1') }}</span></div>
+        <div class="demo-inv"><span>🔥 {{ t('demo_inv2') }}</span><span class="money">{{ t('demo_amt2') }}</span></div>
+        <div class="demo-inv paid"><span>💧 {{ t('demo_inv3') }}</span><span class="money">0.00 MDL</span></div>
+      </article>
+      <article class="home-card">
+        <p><b>{{ t('demo_card_title') }}</b></p>
+        <ul class="demo-list">
+          <li>✓ {{ t('demo_feat1') }}</li>
+          <li>✓ {{ t('demo_feat2') }}</li>
+          <li>✓ {{ t('demo_feat3') }}</li>
+          <li>✓ {{ t('demo_feat4') }}</li>
+        </ul>
+        {% if not logged_in %}
+          <a class="btn" href="/register">{{ t('cta_action') }}</a>
+        {% endif %}
+      </article>
+    </div>
+  </section>
+
+  <section class="faq" id="faq">
+    <h2>{{ t('faq_title') }}</h2>
+    {% for i in range(1, 11) %}
+      <details class="faq-item">
+        <summary>{{ t('faq_q' ~ i) }}</summary>
+        <p>{{ t('faq_a' ~ i) }}</p>
+      </details>
+    {% endfor %}
   </section>
 
   <section class="cta">

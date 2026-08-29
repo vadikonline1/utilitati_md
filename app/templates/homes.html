@@ -53,6 +53,18 @@
       <button type="button" class="btn" onclick="openModal('modal-home')">{{ t('homes_add_first') }}</button>
     </div>
   {% endif %}
+
+  {% if total > 20 %}
+    <nav class="pagination">
+      {% if page > 1 %}
+        <a class="btn small ghost" href="/homes?page={{ page - 1 }}">←</a>
+      {% endif %}
+      <span class="page-info">{{ t('pagination_page') }} {{ page }} / {{ total_pages }}</span>
+      {% if page < total_pages %}
+        <a class="btn small ghost" href="/homes?page={{ page + 1 }}">→</a>
+      {% endif %}
+    </nav>
+  {% endif %}
 </main>
 
 <div class="modal-overlay" id="modal-home" hidden>

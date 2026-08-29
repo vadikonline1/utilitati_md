@@ -14,7 +14,20 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    full_name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    is_active INTEGER NOT NULL DEFAULT 0,
+    confirm_token TEXT,
+    reset_token TEXT,
+    reset_token_exp TEXT,
+    notification_emails TEXT NOT NULL DEFAULT '',
+    telegram_chat_ids TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS homes (
@@ -124,3 +137,34 @@ def _migrate(conn: sqlite3.Connection) -> None:
         }.items():
             if col not in cols:
                 conn.execute(ddl)
+
+    # Users: notification preferences (email list + telegram chat ids).
+    if "users" in tables:
+        ucols = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
+        for col, ddl in {
+            "notification_emails": "ALTER TABLE users ADD COLUMN notification_emails TEXT NOT NULL DEFAULT ''",
+            "telegram_chat_ids": "ALTER TABLE users ADD COLUMN telegram_chat_ids TEXT NOT NULL DEFAULT ''",
+            "full_name": "ALTER TABLE users ADD COLUMN full_name TEXT NOT NULL DEFAULT ''",
+            "email": "ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''",
+            "is_active": "ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 0",
+            "confirm_token": "ALTER TABLE users ADD COLUMN confirm_token TEXT",
+            "reset_token": "ALTER TABLE users ADD COLUMN reset_token TEXT",
+            "reset_token_exp": "ALTER TABLE users ADD COLUMN reset_token_exp TEXT",
+            "lang": "ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT ''",
+            "last_login": "ALTER TABLE users ADD COLUMN last_login TEXT",
+            "last_inactivity_email": "ALTER TABLE users ADD COLUMN last_inactivity_email TEXT",
+        }.items():
+            if col not in ucols:
+                conn.execute(ddl)
+        # For existing users with no record of a login, treat account creation as
+        # their last login so the inactivity retention window starts from now.
+        conn.execute(
+            "UPDATE users SET last_login = COALESCE(last_login, created_at) "
+            "WHERE is_active = 1"
+        )
+
+    # Moldovagaz is Energocom: migrate legacy accounts/contracts to energocom.
+    if "accounts" in tables:
+        conn.execute(
+            "UPDATE accounts SET provider = 'energocom' WHERE provider = 'moldovagaz'"
+        )

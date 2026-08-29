@@ -4,9 +4,52 @@
 <main class="dashboard">
   <div class="dash-head">
     <h1>{{ t('dash_welcome') }}</h1>
-    <a class="btn" href="/homes">{{ t('dash_add_home') }}</a>
+    <div class="row-actions">
+      {% if homes %}
+        <a class="btn ghost" href="/invoices">+ {{ t('home_connect_utility') }}</a>
+      {% endif %}
+      <a class="btn" href="/homes">{{ t('dash_add_home') }}</a>
+    </div>
   </div>
   <p class="subtitle">{{ t('dash_subtitle') }}</p>
+
+  <div class="stat-grid">
+    <div class="stat-card accent">
+      <div class="stat-value">{{ "%.2f"|format(stats.unpaid_total) }} <span class="muted" style="font-size:0.8rem;">MDL</span></div>
+      <div class="stat-label">{{ t('dash_total_balance') }}</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-value">{{ stats.open_count }}</div>
+      <div class="stat-label">{{ t('dash_open_invoices') }}</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-value">{{ stats.paid_count }}</div>
+      <div class="stat-label">{{ t('dash_paid_invoices') }}</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-value">{{ stats.overdue_count }}</div>
+      <div class="stat-label">{{ t('dash_overdue') }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ stats.homes }}</div>
+      <div class="stat-label">{{ t('dash_homes_count') }}</div>
+    </div>
+  </div>
+
+  {% if stats.by_provider or stats.open_count %}
+  <div class="chart-row">
+    <div class="card">
+      <h2>{{ t('dash_invoices_by_provider') }}</h2>
+      <canvas id="providerChart" height="220"></canvas>
+    </div>
+    <div class="card">
+      <h2>{{ t('dash_invoices_by_status') }}</h2>
+      <canvas id="statusChart" height="220"></canvas>
+    </div>
+  </div>
+  {% else %}
+    <div class="empty"><p>{{ t('dash_connect_first') }}</p></div>
+  {% endif %}
 
   {% if homes %}
     <div class="home-grid">
@@ -38,4 +81,39 @@
   {% endif %}
   <p class="updated">{{ t('updated_at') }}: {{ now.strftime("%d.%m.%Y %H:%M") }}</p>
 </main>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const providerData = {{ stats.by_provider | tojson }};
+  const providerLabels = Object.keys(providerData);
+  const providerValues = Object.values(providerData);
+
+  if (providerLabels.length) {
+    new Chart(document.getElementById('providerChart'), {
+      type: 'doughnut',
+      data: {
+        labels: providerLabels,
+        datasets: [{ data: providerValues, borderWidth: 1 }]
+      },
+      options: { plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+
+  const statusColors = { 'PAID': '#16a34a', 'UNPAID': '#f59e0b', 'OVERDUE': '#ef4444', 'PARTIALLY_PAID': '#2563eb', 'UNKNOWN': '#94a3b8', 'ERROR': '#475569' };
+  const statusLabels = Object.keys(statusColors).filter(k => ({{ stats.by_status | tojson }})[k]);
+  const statusValues = statusLabels.map(k => ({{ stats.by_status | tojson }})[k]);
+  const mappedColors = statusLabels.map(k => statusColors[k] || '#94a3b8');
+
+  if (statusLabels.length) {
+    new Chart(document.getElementById('statusChart'), {
+      type: 'bar',
+      data: {
+        labels: statusLabels,
+        datasets: [{ data: statusValues, backgroundColor: mappedColors }]
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+</script>
 {% endblock %}
