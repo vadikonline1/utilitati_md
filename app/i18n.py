@@ -166,6 +166,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
         "home_back": "Homes",
         "home_edit_title": "Edit home",
+        "home_edit_btn": "Edit",
         "home_name": "Name",
         "home_floor": "Floor",
         "home_area_field": "Area / District",
@@ -239,6 +240,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "invoices_generate": "Generate invoice",
         "invoices_generated": "Generation finished: {updated} account(s) updated, {errors} errors.",
         "pagination_page": "Page",
+        "invoices_filter_home": "All homes",
+        "home_apply": "Filter",
 
         "account_number": "Personal account number",
         "account_number_ph": "e.g. 115/398401/7",
@@ -442,6 +445,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
         "home_back": "Жильё",
         "home_edit_title": "Изменить жильё",
+        "home_edit_btn": "Изменить",
         "home_name": "Название",
         "home_floor": "Этаж",
         "home_area_field": "Район / Сектор",
@@ -515,6 +519,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "invoices_generate": "Сформировать счёт",
         "invoices_generated": "Генерация завершена: обновлено {updated} счёт(ов), ошибок {errors}.",
         "pagination_page": "Страница",
+        "invoices_filter_home": "Все жилья",
+        "home_apply": "Фильтровать",
 
         "account_number": "Номер лицевого счёта",
         "account_number_ph": "напр. 115/398401/7",
@@ -720,6 +726,7 @@ TRANSLATIONS["ro"] = {
 
     "home_back": "Locuințe",
     "home_edit_title": "Editează locuința",
+    "home_edit_btn": "Editează",
     "home_name": "Nume",
     "home_floor": "Etaj",
     "home_area_field": "Zonă / Sector",
@@ -793,6 +800,8 @@ TRANSLATIONS["ro"] = {
     "invoices_generate": "Generare factură",
     "invoices_generated": "Generare finalizată: {updated} cont(uri) actualizate, {errors} erori.",
     "pagination_page": "Pagina",
+    "invoices_filter_home": "Toate locuințele",
+    "home_apply": "Filtrează",
 
     "account_number": "Numărul contului personal",
     "account_number_ph": "ex: 115/398401/7",

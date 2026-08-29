@@ -67,6 +67,10 @@ h2 { font-size: 1.15rem; margin: 0 0 0.5em; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 18px 0; }
 .pagination .page-info { color: var(--muted); font-size: 0.9rem; }
 
+.filter-bar { flex-wrap: wrap; align-items: center; }
+.filter-form { display: inline-flex; align-items: center; gap: 8px; }
+.select { padding: 6px 10px; border: 1px solid var(--border, #ccc); border-radius: 6px; background: #fff; color: var(--text); font-size: 0.92rem; max-width: 220px; }
+
 /* Buttons */
 .btn {
   display: inline-block;

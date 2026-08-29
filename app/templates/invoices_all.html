@@ -4,11 +4,19 @@
 <main class="dashboard">
   <div class="dash-head">
     <h1>{{ t('invoices_title') }}</h1>
-    <div class="row-actions">
+    <div class="row-actions filter-bar">
       <a class="btn ghost" href="/invoices">{{ t('invoices_all') }}</a>
-      {% for h in homes %}
-        <a class="btn ghost {{ 'active-link' if current_home and current_home.id == h.id }}" href="/invoices?home_id={{ h.id }}">{{ h.name }}</a>
-      {% endfor %}
+      {% if homes %}
+        <form method="get" action="/invoices" class="inline-form filter-form">
+          <select name="home_id" class="select" onchange="this.form.submit()">
+            <option value="">{{ t('invoices_filter_home') }}</option>
+            {% for h in homes %}
+              <option value="{{ h.id }}" {{ 'selected' if current_home and current_home.id == h.id }}>{{ h.name }}</option>
+            {% endfor %}
+          </select>
+          <noscript><button type="submit" class="btn ghost">{{ t('home_apply') }}</button></noscript>
+        </form>
+      {% endif %}
       {% if homes %}
         <button type="button" class="btn" onclick="openModal('modal-connect-utility')">+ {{ t('home_connect_utility') }}</button>
       {% else %}

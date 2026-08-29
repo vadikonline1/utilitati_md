@@ -10,50 +10,23 @@
   </div>
   <p class="subtitle">{{ home.address }}{% if home.floor %}, et. {{ home.floor }}{% endif %}{% if home.metro_area %} · {{ home.metro_area }}{% endif %}</p>
 
-  <div class="card">
+  <div class="dash-head" style="margin-top: 4px;">
     <h2>{{ t('home_edit_title') }}</h2>
-    <form method="post" action="/homes/{{ home.id }}/edit" class="form-stack">
-      <div class="form-row">
-        <label>{{ t('home_name') }}
-          <input type="text" name="name" value="{{ home.name }}" required>
-        </label>
-        <label>{{ t('homes_address') }}
-          <input type="text" name="address" value="{{ home.address }}">
-        </label>
-      </div>
-      <div class="form-row">
-        <label>{{ t('home_floor') }}
-          <input type="text" name="floor" value="{{ home.floor }}">
-        </label>
-        <label>{{ t('home_area_field') }}
-          <input type="text" name="metro_area" value="{{ home.metro_area }}">
-        </label>
-        <label>{{ t('home_status_title') }}
-          <select name="status">
-            <option value="enabled" {% if home.status == 'enabled' %}selected{% endif %}>{{ t('home_activate_opt') }}</option>
-            <option value="disabled" {% if home.status == 'disabled' %}selected{% endif %}>{{ t('home_disable_opt') }}</option>
-          </select>
-        </label>
-      </div>
-      <div class="form-row form-actions">
-        <button type="submit">{{ t('home_save_changes') }}</button>
-        {% if home.status == 'disabled' %}
-          <button type="submit" form="delete-home-form" class="btn-danger">{{ t('home_delete_btn') }}</button>
-        {% endif %}
-      </div>
-    </form>
-    {% if home.status == 'disabled' %}
-      <div class="danger-zone">
-        <p>{{ t('home_delete_only') }}</p>
-      </div>
-    {% else %}
-      <p class="muted">{{ t('home_disable_first') }}</p>
-    {% endif %}
+    <div class="row-actions">
+      <button type="button" class="btn" onclick="openModal('modal-edit-home')">{{ t('home_edit_btn') }}</button>
+      {% if home.status == 'disabled' %}
+        <form method="post" action="/homes/{{ home.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('home_delete_warn') }}')">
+          <input type="hidden" name="confirm" value="yes">
+          <button type="submit" class="btn-danger">{{ t('home_delete_btn') }}</button>
+        </form>
+      {% endif %}
+    </div>
   </div>
-
-  <form id="delete-home-form" method="post" action="/homes/{{ home.id }}/delete" onsubmit="return confirm('{{ t('home_delete_warn') }}')">
-    <input type="hidden" name="confirm" value="yes">
-  </form>
+  {% if home.status == 'disabled' %}
+    <p class="muted">{{ t('home_delete_only') }}</p>
+  {% else %}
+    <p class="muted">{{ t('home_disable_first') }}</p>
+  {% endif %}
 
   <div class="dash-head" style="margin-top: 28px;">
     <h2>{{ t('home_utilities_title') }}</h2>
@@ -97,6 +70,40 @@
     <p class="empty">{{ t('home_no_utility') }}</p>
   {% endif %}
 </main>
+
+<div class="modal-overlay" id="modal-edit-home" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2>{{ t('home_edit_title') }}</h2>
+      <button type="button" class="modal-close" onclick="closeModal('modal-edit-home')">×</button>
+    </div>
+    <form method="post" action="/homes/{{ home.id }}/edit" class="form-stack">
+      <div class="form-row">
+        <label>{{ t('home_name') }}
+          <input type="text" name="name" value="{{ home.name }}" required>
+        </label>
+        <label>{{ t('homes_address') }}
+          <input type="text" name="address" value="{{ home.address }}">
+        </label>
+      </div>
+      <div class="form-row">
+        <label>{{ t('home_floor') }}
+          <input type="text" name="floor" value="{{ home.floor }}">
+        </label>
+        <label>{{ t('home_area_field') }}
+          <input type="text" name="metro_area" value="{{ home.metro_area }}">
+        </label>
+        <label>{{ t('home_status_title') }}
+          <select name="status">
+            <option value="enabled" {% if home.status == 'enabled' %}selected{% endif %}>{{ t('home_activate_opt') }}</option>
+            <option value="disabled" {% if home.status == 'disabled' %}selected{% endif %}>{{ t('home_disable_opt') }}</option>
+          </select>
+        </label>
+      </div>
+      <button type="submit">{{ t('home_save_changes') }}</button>
+    </form>
+  </div>
+</div>
 
 <div class="modal-overlay" id="modal-connect-utility" hidden>
   <div class="modal">
