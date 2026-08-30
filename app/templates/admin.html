@@ -149,35 +149,29 @@
     <section id="tab-contact" class="admin-tab-panel" hidden>
       <p class="subtitle">{{ t('admin_contact_hint') }}</p>
       {% if contact_messages %}
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>{{ t('admin_contact_date') }}</th>
-                <th>{{ t('admin_contact_from') }}</th>
-                <th>{{ t('admin_contact_message') }}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for m in contact_messages %}
-                <tr>
-                  <td class="muted">{{ m.created_at }}</td>
-                  <td>
-                    <b>{{ m.name }}</b><br>
-                    <span class="muted">{{ m.email }}</span>
-                  </td>
-                  <td style="white-space: pre-wrap;">{{ m.message }}</td>
-                  <td class="col-actions">
-                    <form method="post" action="/admin/contact/{{ m.id }}/delete"
-                          onsubmit="return confirm('{{ t('admin_contact_delete_confirm') }}');">
-                      <button type="submit" class="btn ghost small">{{ t('admin_contact_delete') }}</button>
-                    </form>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="data-list cols-4">
+          <div class="dl-head">
+            <div class="dl-cell">{{ t('admin_contact_date') }}</div>
+            <div class="dl-cell">{{ t('admin_contact_from') }}</div>
+            <div class="dl-cell">{{ t('admin_contact_message') }}</div>
+            <div class="dl-cell">{{ t('admin_users_actions') }}</div>
+          </div>
+          {% for m in contact_messages %}
+            <div class="dl-row">
+              <div class="dl-cell" data-label="{{ t('admin_contact_date') }}"><span class="muted">{{ m.created_at }}</span></div>
+              <div class="dl-cell" data-label="{{ t('admin_contact_from') }}">
+                <b>{{ m.name }}</b><br>
+                <span class="muted">{{ m.email }}</span>
+              </div>
+              <div class="dl-cell" data-label="{{ t('admin_contact_message') }}" style="white-space: pre-wrap;">{{ m.message }}</div>
+              <div class="dl-cell row-actions">
+                <form method="post" action="/admin/contact/{{ m.id }}/delete"
+                      onsubmit="return confirm('{{ t('admin_contact_delete_confirm') }}');">
+                  <button type="submit" class="btn ghost small">{{ t('admin_contact_delete') }}</button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
         </div>
       {% else %}
         <p class="empty">{{ t('admin_contact_empty') }}</p>
@@ -188,58 +182,52 @@
     <section id="tab-users" class="admin-tab-panel" hidden>
       <p class="subtitle">{{ t('admin_users_hint') }}</p>
       {% if users %}
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>{{ t('admin_users_id') }}</th>
-                <th>{{ t('admin_users_username') }}</th>
-                <th>{{ t('admin_users_fullname') }}</th>
-                <th>{{ t('admin_users_email') }}</th>
-                <th>{{ t('admin_users_status') }}</th>
-                <th>{{ t('admin_users_created') }}</th>
-                <th>{{ t('admin_users_last_login') }}</th>
-                <th class="col-actions">{{ t('admin_users_actions') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for u in users %}
-                <tr class="{{ 'row-disabled' if not u.is_active }}">
-                  <td class="muted">#{{ u.id }}</td>
-                  <td><b>{{ u.username }}</b></td>
-                  <td>{{ u.full_name or '—' }}</td>
-                  <td>{{ u.email or '—' }}</td>
-                  <td>
-                    {% if u.is_active %}
-                      <span class="badge enabled">{{ t('admin_users_active') }}</span>
-                    {% else %}
-                      <span class="badge disabled">{{ t('admin_users_inactive') }}</span>
-                    {% endif %}
-                  </td>
-                  <td class="muted">{{ u.created_at }}</td>
-                  <td class="muted">{{ u.last_login or '—' }}</td>
-                  <td class="col-actions">
-                    {% if u.id != current_uid %}
-                      {% if u.is_active %}
-                        <form method="post" action="/admin/users/{{ u.id }}/status"
-                              onsubmit="return confirm('{{ t('admin_users_disable_confirm') }} · {{ u.username }}?');">
-                          <input type="hidden" name="enabled" value="0">
-                          <button type="submit" class="btn ghost small">{{ t('admin_users_disable') }}</button>
-                        </form>
-                      {% else %}
-                        <form method="post" action="/admin/users/{{ u.id }}/status">
-                          <input type="hidden" name="enabled" value="1">
-                          <button type="submit" class="btn small">{{ t('admin_users_enable') }}</button>
-                        </form>
-                      {% endif %}
-                    {% else %}
-                      <span class="muted">{{ t('admin_users_self') }}</span>
-                    {% endif %}
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="data-list cols-8">
+          <div class="dl-head">
+            <div class="dl-cell">{{ t('admin_users_id') }}</div>
+            <div class="dl-cell">{{ t('admin_users_username') }}</div>
+            <div class="dl-cell">{{ t('admin_users_fullname') }}</div>
+            <div class="dl-cell">{{ t('admin_users_email') }}</div>
+            <div class="dl-cell">{{ t('admin_users_status') }}</div>
+            <div class="dl-cell">{{ t('admin_users_created') }}</div>
+            <div class="dl-cell">{{ t('admin_users_last_login') }}</div>
+            <div class="dl-cell">{{ t('admin_users_actions') }}</div>
+          </div>
+          {% for u in users %}
+            <div class="dl-row {{ 'row-disabled' if not u.is_active }}">
+              <div class="dl-cell" data-label="{{ t('admin_users_id') }}"><span class="muted">#{{ u.id }}</span></div>
+              <div class="dl-cell" data-label="{{ t('admin_users_username') }}"><b>{{ u.username }}</b></div>
+              <div class="dl-cell" data-label="{{ t('admin_users_fullname') }}">{{ u.full_name or '—' }}</div>
+              <div class="dl-cell" data-label="{{ t('admin_users_email') }}">{{ u.email or '—' }}</div>
+              <div class="dl-cell" data-label="{{ t('admin_users_status') }}">
+                {% if u.is_active %}
+                  <span class="badge enabled">{{ t('admin_users_active') }}</span>
+                {% else %}
+                  <span class="badge disabled">{{ t('admin_users_inactive') }}</span>
+                {% endif %}
+              </div>
+              <div class="dl-cell" data-label="{{ t('admin_users_created') }}"><span class="muted">{{ u.created_at }}</span></div>
+              <div class="dl-cell" data-label="{{ t('admin_users_last_login') }}"><span class="muted">{{ u.last_login or '—' }}</span></div>
+              <div class="dl-cell row-actions">
+                {% if u.id != current_uid %}
+                  {% if u.is_active %}
+                    <form method="post" action="/admin/users/{{ u.id }}/status"
+                          onsubmit="return confirm('{{ t('admin_users_disable_confirm') }} · {{ u.username }}?');">
+                      <input type="hidden" name="enabled" value="0">
+                      <button type="submit" class="btn ghost small">{{ t('admin_users_disable') }}</button>
+                    </form>
+                  {% else %}
+                    <form method="post" action="/admin/users/{{ u.id }}/status">
+                      <input type="hidden" name="enabled" value="1">
+                      <button type="submit" class="btn small">{{ t('admin_users_enable') }}</button>
+                    </form>
+                  {% endif %}
+                {% else %}
+                  <span class="muted">{{ t('admin_users_self') }}</span>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
         </div>
       {% else %}
         <p class="empty">{{ t('admin_users_empty') }}</p>
@@ -254,33 +242,25 @@
       </div>
 
       {% if faq_items %}
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>{{ t('admin_users_id') }}</th>
-                <th>{{ t('admin_faq_question') }}</th>
-                <th class="col-actions">{{ t('admin_users_actions') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in faq_items %}
-                <tr>
-                  <td class="muted">#{{ item.id }}</td>
-                  <td>{{ item['question_ro'] or item['question_en'] or item['question_ru'] or ('—') }}</td>
-                  <td class="col-actions">
-                    <div class="row-actions">
-                      <button type="button" class="btn small" onclick="openModal('modal-faq-edit-{{ item.id }}')">{{ t('admin_faq_edit') }}</button>
-                      <form method="post" action="/admin/faq/{{ item.id }}/delete"
-                            onsubmit="return confirm('{{ t('admin_faq_delete_confirm') }}?');">
-                        <button type="submit" class="btn ghost small">{{ t('admin_faq_delete') }}</button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="data-list cols-3">
+          <div class="dl-head">
+            <div class="dl-cell">{{ t('admin_users_id') }}</div>
+            <div class="dl-cell">{{ t('admin_faq_question') }}</div>
+            <div class="dl-cell">{{ t('admin_users_actions') }}</div>
+          </div>
+          {% for item in faq_items %}
+            <div class="dl-row">
+              <div class="dl-cell" data-label="{{ t('admin_users_id') }}"><span class="muted">#{{ item.id }}</span></div>
+              <div class="dl-cell" data-label="{{ t('admin_faq_question') }}">{{ item['question_ro'] or item['question_en'] or item['question_ru'] or ('—') }}</div>
+              <div class="dl-cell row-actions">
+                <button type="button" class="btn small" onclick="openModal('modal-faq-edit-{{ item.id }}')">{{ t('admin_faq_edit') }}</button>
+                <form method="post" action="/admin/faq/{{ item.id }}/delete"
+                      onsubmit="return confirm('{{ t('admin_faq_delete_confirm') }}?');">
+                  <button type="submit" class="btn ghost small">{{ t('admin_faq_delete') }}</button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
         </div>
       {% else %}
         <p class="empty">{{ t('admin_faq_empty') }}</p>
