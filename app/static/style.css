@@ -360,6 +360,7 @@ textarea {
 .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
 .badge.enabled, .badge.pay-paid { background: var(--badge-ok-bg); color: var(--green); }
 .badge.disabled { background: var(--badge-mut-bg); color: var(--muted); }
+.badge.warn { background: var(--badge-warn-bg); color: var(--amber); }
 .badge.pay-unpaid { background: var(--badge-warn-bg); color: var(--amber); }
 .badge.pay-overdue { background: var(--badge-bad-bg); color: var(--red); }
 .badge.pay-partially_paid { background: var(--badge-warn-bg); color: var(--amber); }
