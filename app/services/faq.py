@@ -25,11 +25,11 @@ DEFAULT_FAQ: list[dict[str, str]] = [
     },
     {
         "question_ro": "Ce furnizori sunt suportați?",
-        "answer_ro": "Premier Energy, Energocom, Termoelectrica, FEE Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr și Stroy Master Domofon.",
+        "answer_ro": "Premier Energy, Energocom, Termoelectrica, FEE Nord, CET Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr, Stroy Master Domofon, Paza a MAI, Probon, Eco-Mereni, ANTAR Salubrizare, Anintercom, Sagaidac Service și VIP Interfon.",
         "question_ru": "Какие поставщики поддерживаются?",
-        "answer_ru": "Premier Energy, Energocom, Termoelectrica, FEE Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr и Stroy Master Domofon.",
+        "answer_ru": "Premier Energy, Energocom, Termoelectrica, FEE Nord, CET Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr, Stroy Master Domofon, Paza a MAI, Probon, Eco-Mereni, ANTAR Salubrizare, Anintercom, Sagaidac Service и VIP Interfon.",
         "question_en": "Which providers are supported?",
-        "answer_en": "Premier Energy, Energocom, Termoelectrica, FEE Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr and Stroy Master Domofon.",
+        "answer_en": "Premier Energy, Energocom, Termoelectrica, FEE Nord, CET Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr, Stroy Master Domofon, Paza a MAI, Probon, Eco-Mereni, ANTAR Salubrizare, Anintercom, Sagaidac Service and VIP Interfon.",
     },
     {
         "question_ro": "Cum conectez o utilitate?",
