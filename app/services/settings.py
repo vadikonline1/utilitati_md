@@ -51,7 +51,7 @@ SETTING_KEYS = {
 }
 
 # Per-type, per-language email templates edited from /admin (message management).
-MSG_TYPES = ("invite", "welcome", "reset", "inactive")
+MSG_TYPES = ("invite", "welcome", "reset", "inactive", "invoices", "unpaid")
 for _mt in MSG_TYPES:
     for _lg in ("ro", "ru", "en"):
         SETTING_KEYS.add(f"msg_{_mt}_subj_{_lg}")

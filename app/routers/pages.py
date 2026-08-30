@@ -42,6 +42,7 @@ from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import contact as contact_svc
 from ..services import email as email_svc
 from ..services import faq as faq_svc
+from ..services import notify as notify_svc
 from ..services import telegram as telegram_svc
 from ..services.settings import (
     MSG_TYPES,
@@ -819,72 +820,17 @@ def _tg_command_reply(command: str, chat_id, first_name: str, lang_code: str) ->
 
 
 # --------------------------------------------------------------------------- #
-# New-invoices notification (sent when a provider account connects & finds bills)
+# New-invoices notification (sent when a provider account connects & finds bills,
+# and by the background sync when new invoices appear). Text is admin-editable
+# in /admin?tab=messages ("invoices" message type).
 # --------------------------------------------------------------------------- #
-_INVOICES_NOTICE = {
-    "ro": ("Facturi noi găsite",
-           "Utilități.MD — Facturi noi\n\n"
-           "Furnizor: {provider}\nContract: {contract}\n\n"
-           "Sistemul a găsit {count} factură(e) noi, în valoare totală de {total} MDL.\n"
-           "Vezi-le în contul tău: {site}"),
-    "ru": ("Найдены новые счета",
-           "Utilități.MD — Новые счета\n\n"
-           "Поставщик: {provider}\nДоговор: {contract}\n\n"
-           "Система нашла {count} новый(ых) счёт(ов) на общую сумму {total} MDL.\n"
-           "Посмотрите их в своём аккаунте: {site}"),
-    "en": ("New invoices found",
-           "Utilități.MD — New invoices\n\n"
-           "Provider: {provider}\nContract: {contract}\n\n"
-           "The system found {count} new invoice(s) totalling {total} MDL.\n"
-           "See them in your account: {site}"),
-}
-_DEFAULT_NOTICE_LANG = "ro"
-
-
-def _invoice_notice(lang: str, provider: str, contract: str, count: int, total: float, site: str) -> tuple[str, str]:
-    """Return (subject, body) of the new-invoices notification in the user's language."""
-    subj_t, body_t = _INVOICES_NOTICE.get(lang, _INVOICES_NOTICE[_DEFAULT_NOTICE_LANG])
-    total_s = f"{total:g}"
-    return (
-        subj_t,
-        body_t.format(provider=provider, contract=contract, count=count,
-                      total=total_s, site=site),
-    )
-
-
-def _split_csv(value: str) -> list[str]:
-    """Split a comma/newline-separated value into non-empty stripped parts."""
-    return [p for p in str(value or "").replace(",", "\n").split() if p]
-
-
 async def _notify_invoices_found(
     user_id: int, account: dict, fetched, saved_ids: list[int], site_url: str
 ) -> None:
-    """Notify the user (email + Telegram, per their profile prefs) about new invoices."""
-    prefs = get_notification_prefs(user_id)
-    cc_emails = prefs.get("emails", "")
-    chats = prefs.get("telegram", "")
-    user_email = (get_user(user_id) or {}).get("email", "").strip()
-    if not user_email and not cc_emails and not chats:
+    """Send the editable 'new invoices' notification (email + Telegram)."""
+    if not saved_ids:
         return
-    count = len(saved_ids)
-    invoices = list(getattr(fetched, "invoices", None) or [])
-    if not invoices and getattr(fetched, "last_invoice", None) is not None:
-        invoices = [fetched.last_invoice]
-    total = sum(
-        float(getattr(inv, "amount_mdl", 0) or 0) for inv in invoices if inv is not None
-    )
-    provider = getattr(fetched, "provider_name", None) or account.get("label", account.get("provider", ""))
-    contract = account.get("contract_number", "")
-    lang = get_user_lang(user_id) or "ro"
-    subject, body = _invoice_notice(lang, provider, contract, count, total, site_url)
-    if user_email:
-        email_svc.send_email(user_email, subject, body, cc=cc_emails or None)
-    else:
-        for email in _split_csv(cc_emails):
-            email_svc.send_email(email, subject, body)
-    for chat in _split_csv(chats):
-        await telegram_svc.send_message(chat, body)
+    await notify_svc.notify_new_invoices(user_id, account, fetched, saved_ids, site_url)
 
 
 @router.post("/admin/messages/{msg_type}")
@@ -1181,9 +1127,9 @@ async def utility_connect(
     new_account = get_account_row(user_id, acc_id)
     if new_account is not None:
         fetched = await fetch_account_data(new_account)
-        saved_ids = persist_invoices(acc_id, fetched)
-        if saved_ids:
-            await _notify_invoices_found(user_id, new_account, fetched, saved_ids, SITE_URL)
+        created_ids, _saved_ids = persist_invoices(acc_id, fetched)
+        if created_ids:
+            await _notify_invoices_found(user_id, new_account, fetched, created_ids, SITE_URL)
     return RedirectResponse(f"/homes/{home_id}?added={acc_id}", status_code=303)
 
 

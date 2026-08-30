@@ -178,7 +178,7 @@ async def account_invoices(account_id: int, user_id: int = Depends(get_auth_toke
 async def account_refresh(account_id: int, user_id: int = Depends(get_auth_token)):
     row = await _get_account(user_id, account_id)
     data = await fetch_account_data(row)
-    saved_ids = persist_invoices(account_id, data)
+    _created, saved_ids = persist_invoices(account_id, data)
     return {
         "is_connected": data.is_connected,
         "error_message": data.error_message,
