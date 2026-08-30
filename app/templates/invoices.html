@@ -18,52 +18,48 @@
   <p class="subtitle">{{ t('invoice_subtitle') }} {{ account.contract_number }}</p>
 
   {% if invoices %}
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>{{ t('invoice_number') }}</th>
-          <th>{{ t('invoice_amount') }}</th>
-          <th>{{ t('invoice_period') }}</th>
-          <th>{{ t('invoice_issued') }}</th>
-          <th>{{ t('invoice_due') }}</th>
-          <th>{{ t('homes_status') }}</th>
-          <th>{{ t('invoice_checked_at') }}</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for inv in invoices %}
-          <tr class="{{ 'row-disabled' if inv.status == 'disabled' }}">
-            <td>{{ inv.invoice_number or '—' }}</td>
-            <td>{{ inv.amount_mdl }} {{ inv.currency or 'MDL' }}</td>
-            <td>{{ inv.period or '—' }}</td>
-            <td>{{ inv.issue_date or '—' }}</td>
-            <td>{{ inv.due_date or '—' }}</td>
-            <td>
-              <span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span>
-            </td>
-            <td>{{ inv.checked_at or '—' }}</td>
-            <td class="row-actions">
-              {% if inv.status == 'enabled' %}
-                <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
-                  <input type="hidden" name="status" value="disabled">
-                  <button type="submit" class="btn small">{{ t('invoice_disable') }}</button>
-                </form>
-              {% else %}
-                <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
-                  <input type="hidden" name="status" value="enabled">
-                  <button type="submit" class="btn small">{{ t('invoice_enable') }}</button>
-                </form>
-                {% endif %}
-
-              <form method="post" action="/invoices/{{ inv.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('invoice_delete_confirm') }}')">
-                <button type="submit" class="btn-danger small">{{ t('invoice_delete') }}</button>
+    <div class="data-list cols-8">
+      <div class="dl-head">
+        <div class="dl-cell">{{ t('invoice_number') }}</div>
+        <div class="dl-cell">{{ t('invoice_amount') }}</div>
+        <div class="dl-cell">{{ t('invoice_period') }}</div>
+        <div class="dl-cell">{{ t('invoice_issued') }}</div>
+        <div class="dl-cell">{{ t('invoice_due') }}</div>
+        <div class="dl-cell">{{ t('homes_status') }}</div>
+        <div class="dl-cell">{{ t('invoice_checked_at') }}</div>
+        <div class="dl-cell"></div>
+      </div>
+      {% for inv in invoices %}
+        <div class="dl-row {{ 'row-disabled' if inv.status == 'disabled' }}">
+          <div class="dl-cell" data-label="{{ t('invoice_number') }}">{{ inv.invoice_number or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoice_amount') }}">{{ inv.amount_mdl }} {{ inv.currency or 'MDL' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoice_period') }}">{{ inv.period or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoice_issued') }}">{{ inv.issue_date or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoice_due') }}">{{ inv.due_date or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('homes_status') }}">
+            <span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span>
+          </div>
+          <div class="dl-cell" data-label="{{ t('invoice_checked_at') }}">{{ inv.checked_at or '—' }}</div>
+          <div class="dl-cell row-actions">
+            {% if inv.status == 'enabled' %}
+              <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
+                <input type="hidden" name="status" value="disabled">
+                <button type="submit" class="btn small">{{ t('invoice_disable') }}</button>
               </form>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            {% else %}
+              <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
+                <input type="hidden" name="status" value="enabled">
+                <button type="submit" class="btn small">{{ t('invoice_enable') }}</button>
+              </form>
+            {% endif %}
+
+            <form method="post" action="/invoices/{{ inv.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('invoice_delete_confirm') }}')">
+              <button type="submit" class="btn-danger small">{{ t('invoice_delete') }}</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
   {% else %}
     <div class="empty">
       <p>{{ t('invoice_empty') }}</p>
@@ -80,18 +76,20 @@
   {% if history %}
     <div class="card" style="margin-top: 24px;">
       <h2>{{ t('invoice_checked_at') }}</h2>
-      <table class="data-table">
-        <thead><tr><th>{{ t('homes_status') }}</th><th>{{ t('invoice_amount') }}</th><th>{{ t('invoice_checked_at') }}</th></tr></thead>
-        <tbody>
-          {% for h in history %}
-            <tr>
-              <td><span class="badge pay-{{ h.pay_status|lower }}">{{ t('st_' ~ h.pay_status|lower) }}</span></td>
-              <td>{{ h.amount_mdl }} MDL</td>
-              <td>{{ h.checked_at }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="data-list cols-3">
+        <div class="dl-head">
+          <div class="dl-cell">{{ t('homes_status') }}</div>
+          <div class="dl-cell">{{ t('invoice_amount') }}</div>
+          <div class="dl-cell">{{ t('invoice_checked_at') }}</div>
+        </div>
+        {% for h in history %}
+          <div class="dl-row">
+            <div class="dl-cell" data-label="{{ t('homes_status') }}"><span class="badge pay-{{ h.pay_status|lower }}">{{ t('st_' ~ h.pay_status|lower) }}</span></div>
+            <div class="dl-cell" data-label="{{ t('invoice_amount') }}">{{ h.amount_mdl }} MDL</div>
+            <div class="dl-cell" data-label="{{ t('invoice_checked_at') }}">{{ h.checked_at }}</div>
+          </div>
+        {% endfor %}
+      </div>
     </div>
   {% else %}
     <p class="muted">{{ t('invoice_no_history') }}</p>
