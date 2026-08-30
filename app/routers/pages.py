@@ -114,6 +114,10 @@ PROVIDER_META = {
     "starnet": {"icon": "🌐", "name": "StarNet", "fields": ["contract"], "account_label": "Codul personal", "placeholder": "1-12 cifre"},
     "fee_nord": {"icon": "⚡", "name": "FEE Nord", "fields": ["contract"], "account_label": "Numărul contractului", "placeholder": "ex: 12-1234567890"},
     "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract"], "account_label": "Cont Abonat", "placeholder": "ex: 123456"},
+    "cet_nord": {"icon": "🔥", "name": "CET Nord", "fields": ["contract"], "account_label": "Numărul facturii", "placeholder": "1-9 cifre (ex: 123456789)"},
+    "moldtelecom": {"icon": "📡", "name": "Moldtelecom", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "4-12 cifre (ex: 012345678901)"},
+    "orange": {"icon": "🍊", "name": "Orange", "fields": ["contract"], "account_label": "Număr telefon / Cont", "placeholder": "8 cifre, fără 0 (ex: 6xxxxxxx)"},
+    "moldcell": {"icon": "📱", "name": "Moldcell", "fields": ["contract"], "account_label": "Număr telefon / Cont", "placeholder": "8 cifre, fără 0 (ex: 6xxxxxxx)"},
 }
 
 
