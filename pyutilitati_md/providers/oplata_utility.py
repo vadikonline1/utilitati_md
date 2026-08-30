@@ -37,6 +37,13 @@ OPLATA_SERVICE_IDS: dict[str, int] = {
     "fee_nord": 1184,
     "stroy_master_domofon": 0,
     "cet_nord": 611,
+    "paza_a_mai": 1312,
+    "probon": 1343,
+    "eco_mereni": 1077,
+    "antar_salubrizare": 1189,
+    "anintercom": 1191,
+    "sagaidac_service": 1253,
+    "vipinterfon": 1047,
 }
 
 # Display names (kept in sync with the web UI provider meta).
@@ -50,6 +57,13 @@ OPLATA_NAMES: dict[str, str] = {
     "fee_nord": "FEE Nord",
     "stroy_master_domofon": "Stroy Master Domofon",
     "cet_nord": "CET Nord",
+    "paza_a_mai": "Paza a MAI",
+    "probon": "Probon",
+    "eco_mereni": "Eco-Mereni",
+    "antar_salubrizare": "ANTAR SALUBRIZARE",
+    "anintercom": "Anintercom",
+    "sagaidac_service": "Sagaidac Service",
+    "vipinterfon": "VIP Interfon",
 }
 
 # oplata.md "Pasul 1" account field name submitted in the request (Items[0].Name)
@@ -64,6 +78,13 @@ OPLATA_ACCOUNT_NAMES: dict[str, str] = {
     "fee_nord": "Numărul contractului",
     "stroy_master_domofon": "Cont Abonat",
     "cet_nord": "Numărul facturii",
+    "paza_a_mai": "Factura",
+    "probon": "ID Client",
+    "eco_mereni": "Cod LUC",
+    "antar_salubrizare": "Numarul contractului",
+    "anintercom": "Numar contract",
+    "sagaidac_service": "Numarul contractului",
+    "vipinterfon": "Numar contract",
 }
 
 # Providers that accept the generic single-account oplata flow.

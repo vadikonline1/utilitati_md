@@ -115,6 +115,13 @@ PROVIDER_META = {
     "fee_nord": {"icon": "⚡", "name": "FEE Nord", "fields": ["contract"], "account_label": "Numărul contractului", "placeholder": "ex: 12-1234567890"},
     "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract"], "account_label": "Cont Abonat", "placeholder": "ex: 123456"},
     "cet_nord": {"icon": "🔥", "name": "CET Nord", "fields": ["contract"], "account_label": "Numărul facturii", "placeholder": "1-9 cifre (ex: 123456789)"},
+    "paza_a_mai": {"icon": "🔒", "name": "Paza a MAI", "fields": ["contract"], "account_label": "Factura", "placeholder": "1-20 caractere (ex: 12345)"},
+    "probon": {"icon": "📋", "name": "Probon", "fields": ["contract"], "account_label": "ID Client", "placeholder": "1-10 caractere (ex: 1234567890)"},
+    "eco_mereni": {"icon": "🌿", "name": "Eco-Mereni", "fields": ["contract"], "account_label": "Cod LUC", "placeholder": "4 cifre (ex: 1234)"},
+    "antar_salubrizare": {"icon": "🗑️", "name": "ANTAR SALUBRIZARE", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
+    "anintercom": {"icon": "🏢", "name": "Anintercom", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "7 cifre (ex: 1234567)"},
+    "sagaidac_service": {"icon": "🏠", "name": "Sagaidac Service", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
+    "vipinterfon": {"icon": "🚪", "name": "VIP Interfon", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "4-5 cifre (ex: 1234)"},
 }
 
 

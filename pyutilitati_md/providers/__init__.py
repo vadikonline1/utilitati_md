@@ -23,6 +23,13 @@ PROVIDER_CLASSES: dict[str, type[BaseUtilityProvider]] = {
     "fee_nord": OplataUtilityProvider,
     "stroy_master_domofon": OplataUtilityProvider,
     "cet_nord": OplataUtilityProvider,
+    "paza_a_mai": OplataUtilityProvider,
+    "probon": OplataUtilityProvider,
+    "eco_mereni": OplataUtilityProvider,
+    "antar_salubrizare": OplataUtilityProvider,
+    "anintercom": OplataUtilityProvider,
+    "sagaidac_service": OplataUtilityProvider,
+    "vipinterfon": OplataUtilityProvider,
 }
 
 
