@@ -86,6 +86,11 @@
       setupToggle(document.getElementById('langToggle'), document.getElementById('langMenu'));
       document.addEventListener('click', closeAll);
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+      window.addEventListener('beforeprint', function () {
+        document.querySelectorAll('details.faq-item').forEach(function (d) {
+          d.setAttribute('open', '');
+        });
+      });
     })();
   </script>
 </body>

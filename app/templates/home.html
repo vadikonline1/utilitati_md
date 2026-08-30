@@ -15,8 +15,9 @@
 {% block body %}
 <main class="landing">
   <section class="hero">
+    <span class="eyebrow">{{ t('hero_eyebrow') }}</span>
     <h1>{{ t('hero_title') }}</h1>
-    <p>{{ t('hero_subtitle') }}</p>
+    <p class="hero-sub">{{ t('hero_subtitle') }}</p>
     <div class="hero-actions">
       {% if logged_in %}
         <a class="btn" href="/dashboard">{{ t('hero_cta_dashboard') }}</a>
@@ -25,9 +26,15 @@
         <a class="btn ghost" href="/login">{{ t('hero_cta_login') }}</a>
       {% endif %}
     </div>
+    <div class="hero-badges">
+      <span class="hero-badge">✓ {{ t('hero_badge_free') }}</span>
+      <span class="hero-badge">✓ {{ t('hero_badge_providers') }}</span>
+      <span class="hero-badge">✓ {{ t('hero_badge_notify') }}</span>
+    </div>
   </section>
 
   <section class="features">
+    <span class="eyebrow">{{ t('features_eyebrow') }}</span>
     <h2>{{ t('features_title') }}</h2>
     <div class="feature-grid">
       <article class="feature">
@@ -53,7 +60,19 @@
     </div>
   </section>
 
+  <section class="how">
+    <span class="eyebrow">{{ t('how_eyebrow') }}</span>
+    <h2>{{ t('how_title') }}</h2>
+    <ol class="steps">
+      <li class="step"><span class="step-num">1</span>{{ t('how_step1') }}</li>
+      <li class="step"><span class="step-num">2</span>{{ t('how_step2') }}</li>
+      <li class="step"><span class="step-num">3</span>{{ t('how_step3') }}</li>
+      <li class="step"><span class="step-num">4</span>{{ t('how_step4') }}</li>
+    </ol>
+  </section>
+
   <section class="providers">
+    <span class="eyebrow">{{ t('providers_eyebrow') }}</span>
     <h2>{{ t('providers_title') }}</h2>
     <ul class="provider-list">
       <li>⚡ Premier Energy</li>
@@ -66,22 +85,12 @@
       <li>📡 INFOCOM</li>
       <li>🚪 Stroy Master Domofon</li>
     </ul>
-    <p class="muted" style="text-align:center; margin-top:12px;">{{ t('home_note_moldovagaz') }}</p>
-  </section>
-
-  <section class="how">
-    <h2>{{ t('how_title') }}</h2>
-    <ol class="steps">
-      <li><b>1.</b> {{ t('how_step1') }}</li>
-      <li><b>2.</b> {{ t('how_step2') }}</li>
-      <li><b>3.</b> {{ t('how_step3') }}</li>
-      <li><b>4.</b> {{ t('how_step4') }}</li>
-    </ol>
   </section>
 
   <section class="features" id="demo">
+    <span class="eyebrow">{{ t('demo_eyebrow') }}</span>
     <h2>{{ t('demo_title') }}</h2>
-    <p class="muted" style="text-align:center;">{{ t('demo_subtitle') }}</p>
+    <p class="muted section-sub">{{ t('demo_subtitle') }}</p>
     <div class="home-grid">
       <article class="home-card">
         <div class="home-card-head">
@@ -110,6 +119,7 @@
   </section>
 
   <section class="faq" id="faq">
+    <span class="eyebrow">{{ t('faq_eyebrow') }}</span>
     <h2>{{ t('faq_title') }}</h2>
     {% for item in faq_items %}
       <details class="faq-item">
