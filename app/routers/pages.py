@@ -14,7 +14,7 @@ from fastapi.responses import (
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
-    XMLResponse,
+    Response,
 )
 from fastapi.templating import Jinja2Templates
 
@@ -332,7 +332,7 @@ async def robots_txt():
     )
 
 
-@router.get("/sitemap.xml", response_class=XMLResponse)
+@router.get("/sitemap.xml", response_class=Response)
 async def sitemap_xml():
     now = datetime.now().strftime("%Y-%m-%d")
     urls = [("/", now), ("/about", now), ("/privacy", now), ("/contact", now),
@@ -356,7 +356,7 @@ async def sitemap_xml():
         f"{locs}"
         "</urlset>\n"
     )
-    return XMLResponse(xml_text)
+    return Response(content=xml_text, media_type="application/xml")
 
 
 @router.get("/contact", response_class=HTMLResponse)
