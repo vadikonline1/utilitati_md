@@ -37,34 +37,28 @@
   </div>
 
   {% if accounts %}
-    <div class="table-responsive">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>{{ t('home_utility') }}</th>
-            <th>{{ t('home_contract') }}</th>
-            <th>{{ t('homes_status') }}</th>
-            <th class="col-actions">{{ t('homes_actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for acc in accounts %}
-            <tr class="{{ 'row-disabled' if acc.status == 'disabled' }}">
-              <td data-label="{{ t('home_utility') }}">{{ acc.icon }} {{ acc.label }}</td>
-              <td data-label="{{ t('home_contract') }}">{{ acc.contract_number }}</td>
-              <td data-label="{{ t('homes_status') }}">
-                <span class="badge {{ acc.status }}">{{ t('home_account_active') if acc.status == 'enabled' else t('home_account_disabled') }}</span>
-              </td>
-              <td class="row-actions">
-                <a class="btn small" href="/accounts/{{ acc.id }}/invoices">{{ t('nav_invoices') }}</a>
-                <form method="post" action="/homes/{{ home.id }}/utilities/{{ acc.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('home_disconnect_confirm') }}')">
-                  <button type="submit" class="btn-danger small">{{ t('home_disconnect') }}</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="data-list cols-4">
+      <div class="dl-head">
+        <div class="dl-cell">{{ t('home_utility') }}</div>
+        <div class="dl-cell">{{ t('home_contract') }}</div>
+        <div class="dl-cell">{{ t('homes_status') }}</div>
+        <div class="dl-cell">{{ t('homes_actions') }}</div>
+      </div>
+      {% for acc in accounts %}
+        <div class="dl-row {{ 'row-disabled' if acc.status == 'disabled' }}">
+          <div class="dl-cell" data-label="{{ t('home_utility') }}">{{ acc.icon }} {{ acc.label }}</div>
+          <div class="dl-cell" data-label="{{ t('home_contract') }}">{{ acc.contract_number }}</div>
+          <div class="dl-cell" data-label="{{ t('homes_status') }}">
+            <span class="badge {{ acc.status }}">{{ t('home_account_active') if acc.status == 'enabled' else t('home_account_disabled') }}</span>
+          </div>
+          <div class="dl-cell row-actions">
+            <a class="btn small" href="/accounts/{{ acc.id }}/invoices">{{ t('nav_invoices') }}</a>
+            <form method="post" action="/homes/{{ home.id }}/utilities/{{ acc.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('home_disconnect_confirm') }}')">
+              <button type="submit" class="btn-danger small">{{ t('home_disconnect') }}</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
     </div>
   {% else %}
     <p class="empty">{{ t('home_no_utility') }}</p>

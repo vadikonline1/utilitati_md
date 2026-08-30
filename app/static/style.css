@@ -415,6 +415,7 @@ textarea {
 .cols-8 .dl-head, .cols-8 .dl-row { grid-template-columns: 1.4fr 1fr 1fr 1.1fr 1.1fr 1fr 1.4fr 2.2fr; }
 .cols-9 .dl-head, .cols-9 .dl-row { grid-template-columns: 1.9fr 1.3fr 1fr 1fr 1fr 1.1fr 1.1fr 1fr 2.4fr; }
 .cols-3 .dl-head, .cols-3 .dl-row { grid-template-columns: 1fr 1fr 1.4fr; }
+.cols-4 .dl-head, .cols-4 .dl-row { grid-template-columns: 1.8fr 1.6fr 1fr 2.2fr; }
 .dl-cell.row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 /* Modal */
