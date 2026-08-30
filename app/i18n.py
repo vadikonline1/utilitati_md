@@ -1056,9 +1056,6 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
         "prod_type_infocom": "Internet & TV",
         "prod_type_domofon": "Intercom",
         "prod_type_cet_nord": "Heating",
-        "prod_type_moldtelecom": "Internet & TV",
-        "prod_type_orange": "Mobile services",
-        "prod_type_moldcell": "Mobile services",
     },
     "ru": {
         "footer_site": "Utilitati.MD",
@@ -1221,9 +1218,6 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
         "prod_type_infocom": "Интернет и ТВ",
         "prod_type_domofon": "Домофон",
         "prod_type_cet_nord": "Теплоснабжение",
-        "prod_type_moldtelecom": "Интернет и ТВ",
-        "prod_type_orange": "Мобильная связь",
-        "prod_type_moldcell": "Мобильная связь",
     },
     "ro": {
         "footer_site": "Utilitati.MD",
@@ -1386,9 +1380,6 @@ _NEW_KEYS: dict[str, dict[str, str]] = {
         "prod_type_infocom": "Internet și TV",
         "prod_type_domofon": "Interfon",
         "prod_type_cet_nord": "Încălzire",
-        "prod_type_moldtelecom": "Internet și TV",
-        "prod_type_orange": "Servicii mobile",
-        "prod_type_moldcell": "Servicii mobile",
     },
 }
 

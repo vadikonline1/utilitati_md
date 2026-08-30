@@ -37,9 +37,6 @@ OPLATA_SERVICE_IDS: dict[str, int] = {
     "fee_nord": 1184,
     "stroy_master_domofon": 0,
     "cet_nord": 611,
-    "moldtelecom": 621,
-    "orange": 988,
-    "moldcell": 79,
 }
 
 # Display names (kept in sync with the web UI provider meta).
@@ -53,9 +50,6 @@ OPLATA_NAMES: dict[str, str] = {
     "fee_nord": "FEE Nord",
     "stroy_master_domofon": "Stroy Master Domofon",
     "cet_nord": "CET Nord",
-    "moldtelecom": "Moldtelecom",
-    "orange": "Orange",
-    "moldcell": "Moldcell",
 }
 
 # oplata.md "Pasul 1" account field name submitted in the request (Items[0].Name)
@@ -70,9 +64,6 @@ OPLATA_ACCOUNT_NAMES: dict[str, str] = {
     "fee_nord": "Numărul contractului",
     "stroy_master_domofon": "Cont Abonat",
     "cet_nord": "Numărul facturii",
-    "moldtelecom": "Numărul contului",
-    "orange": "Număr telefon  (6xxxxxxx)/Cont",
-    "moldcell": "NUMĂR TELEFON (6/7xxxxxxx)/Cont",
 }
 
 # Providers that accept the generic single-account oplata flow.
