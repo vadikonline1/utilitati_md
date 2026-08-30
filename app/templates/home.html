@@ -13,119 +13,206 @@
   {% endif %}
 {% endblock %}
 {% block body %}
-<main class="landing">
+<main class="landing home-landing">
   <section class="hero">
-    <h1>{{ t('hero_title') }}</h1>
-    <p>{{ t('hero_subtitle') }}</p>
-    <div class="hero-actions">
-      {% if logged_in %}
-        <a class="btn" href="/dashboard">{{ t('hero_cta_dashboard') }}</a>
+    <div class="container">
+      <h1>{{ t('hero_title') }}</h1>
+      <p>{{ t('hero_subtitle') }}</p>
+      <div class="hero-buttons">
+        {% if logged_in %}
+          <a class="btn btn-primary" href="/dashboard">{{ t('hero_cta_dashboard') }}</a>
+        {% else %}
+          <a class="btn btn-primary" href="/register">{{ t('hero_cta_register') }}</a>
+          <a class="btn btn-secondary" href="/login">{{ t('hero_cta_login') }}</a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="features section">
+    <div class="container">
+      <h2>{{ t('features_title') }}</h2>
+      <div class="features-grid">
+        <article class="feature-card">
+          <span class="feature-icon">🏠</span>
+          <h3>{{ t('feature_homes_title') }}</h3>
+          <p>{{ t('feature_homes_text') }}</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">🔌</span>
+          <h3>{{ t('feature_providers_title') }}</h3>
+          <p>{{ t('feature_providers_text') }}</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">🧾</span>
+          <h3>{{ t('feature_invoices_title') }}</h3>
+          <p>{{ t('feature_invoices_text') }}</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">📟</span>
+          <h3>{{ t('feature_reading_title') }}</h3>
+          <p>{{ t('feature_reading_text') }}</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">🔔</span>
+          <h3>{{ t('feature_notify_title') }}</h3>
+          <p>{{ t('feature_notify_text') }}</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">🔒</span>
+          <h3>{{ t('feature_secure_title') }}</h3>
+          <p>{{ t('feature_secure_text') }}</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="providers section section-alt">
+    <div class="container">
+      <h2>{{ t('providers_title') }}</h2>
+      <div class="providers-grid">
+        <div class="provider-card">
+          <span class="provider-icon">⚡</span>
+          <div class="provider-info">
+            <h4>Premier Energy</h4>
+            <span>{{ t('prod_type_premier_energy') }}</span>
+          </div>
+        </div>
+        <div class="provider-card">
+          <span class="provider-icon">🔥</span>
+          <div class="provider-info">
+            <h4>Energocom</h4>
+            <span>{{ t('prod_type_energocom') }}</span>
+          </div>
+        </div>
+        <div class="provider-card">
+          <span class="provider-icon">🌡️</span>
+          <div class="provider-info">
+            <h4>Termoelectrica</h4>
+            <span>{{ t('prod_type_termoelectrica') }}</span>
+          </div>
+        </div>
+        <div class="provider-card">
+          <span class="provider-icon">⚡</span>
+          <div class="provider-info">
+            <h4>FEE Nord</h4>
+            <span>{{ t('prod_type_fee_nord') }}</span>
+          </div>
+        </div>
+        <div class="provider-card">
+          <span class="provider-icon">💧</span>
+          <div class="provider-info">
+            <h4>Apă-Canal Chișinău</h4>
+            <span>{{ t('prod_type_apa_canal') }}</span>
+          </div>
+        </div>
+        <div class="provider-card">
+          <span class="provider-icon">🌐</span>
+          <div class="provider-info">
+            <h4>Starnet</h4>
+            <span>{{ t('prod_type_starnet') }}</span>
+          </div>
+        </div>
+        <div class="provider-card">
+          <span class="provider-icon">🏠</span>
+          <div class="provider-info">
+            <h4>InfoSapr</h4>
+            <span>{{ t('prod_type_infosapr') }}</span>
+          </div>
+        </div>
+        <div class="provider-card">
+          <span class="provider-icon">📡</span>
+          <div class="provider-info">
+            <h4>INFOCOM</h4>
+            <span>{{ t('prod_type_infocom') }}</span>
+          </div>
+        </div>
+        <div class="provider-card">
+          <span class="provider-icon">🚪</span>
+          <div class="provider-info">
+            <h4>Stroy Master Domofon</h4>
+            <span>{{ t('prod_type_domofon') }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="how section">
+    <div class="container">
+      <h2>{{ t('how_title') }}</h2>
+      <ol class="steps">
+        <li class="step"><span class="step-num">1</span>{{ t('how_step1') }}</li>
+        <li class="step"><span class="step-num">2</span>{{ t('how_step2') }}</li>
+        <li class="step"><span class="step-num">3</span>{{ t('how_step3') }}</li>
+        <li class="step"><span class="step-num">4</span>{{ t('how_step4') }}</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="demo section" id="demo">
+    <div class="container">
+      <h2>{{ t('demo_title') }}</h2>
+      <p class="muted section-sub">{{ t('demo_subtitle') }}</p>
+      <div class="home-grid">
+        <article class="home-card">
+          <div class="home-card-head">
+            <span class="home-icon">🏠</span>
+            <div><h2>{{ t('demo_home') }}</h2><span class="muted">{{ t('demo_address') }}</span></div>
+          </div>
+          <div class="home-stats"><span>5 {{ t('dash_utilities') }}</span><span>2 {{ t('dash_unpaid') }}</span></div>
+          <hr class="demo-sep">
+          <div class="demo-inv"><span>⚡ {{ t('demo_inv1') }}</span><span class="money">{{ t('demo_amt1') }}</span></div>
+          <div class="demo-inv"><span>🔥 {{ t('demo_inv2') }}</span><span class="money">{{ t('demo_amt2') }}</span></div>
+          <div class="demo-inv paid"><span>💧 {{ t('demo_inv3') }}</span><span class="money">0.00 MDL</span></div>
+        </article>
+        <article class="home-card">
+          <p><b>{{ t('demo_card_title') }}</b></p>
+          <ul class="demo-list">
+            <li>✓ {{ t('demo_feat1') }}</li>
+            <li>✓ {{ t('demo_feat2') }}</li>
+            <li>✓ {{ t('demo_feat3') }}</li>
+            <li>✓ {{ t('demo_feat4') }}</li>
+          </ul>
+          {% if not logged_in %}
+            <a class="btn" href="/register">{{ t('cta_action') }}</a>
+          {% endif %}
+        </article>
+        <article class="home-card">
+          <div class="home-card-head">
+            <span class="home-icon">🔔</span>
+            <div><h2>{{ t('demo_card_title2') }}</h2><span class="muted">{{ t('demo_card_sub2') }}</span></div>
+          </div>
+          <hr class="demo-sep">
+          <div class="demo-inv"><span>📧 {{ t('demo_alert1') }}</span><span class="money">⚡</span></div>
+          <div class="demo-inv"><span>✉️ {{ t('demo_alert2') }}</span><span class="money">💧</span></div>
+          <div class="demo-inv paid"><span>✅ {{ t('demo_alert3') }}</span><span class="money">✓</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq section" id="faq">
+    <div class="container">
+      <h2>{{ t('faq_title') }}</h2>
+      {% for item in faq_items %}
+        <details class="faq-item">
+          <summary>{{ item['question_' ~ lang] or item['question_ro'] or item['question_en'] }}</summary>
+          <p>{{ item['answer_' ~ lang] or item['answer_ro'] or item['answer_en'] }}</p>
+        </details>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="cta section section-alt">
+    <div class="container">
+      <h2>{{ t('cta_title') }}</h2>
+      {% if not logged_in %}
+        <a class="btn" href="/register">{{ t('cta_action') }}</a>
       {% else %}
-        <a class="btn" href="/register">{{ t('hero_cta_register') }}</a>
-        <a class="btn ghost" href="/login">{{ t('hero_cta_login') }}</a>
+        <a class="btn" href="/homes">{{ t('cta_add_home') }}</a>
       {% endif %}
     </div>
-  </section>
-
-  <section class="features">
-    <h2>{{ t('features_title') }}</h2>
-    <div class="feature-grid">
-      <article class="feature">
-        <span class="feature-icon">🏠</span>
-        <h3>{{ t('feature_homes_title') }}</h3>
-        <p>{{ t('feature_homes_text') }}</p>
-      </article>
-      <article class="feature">
-        <span class="feature-icon">🔌</span>
-        <h3>{{ t('feature_providers_title') }}</h3>
-        <p>{{ t('feature_providers_text') }}</p>
-      </article>
-      <article class="feature">
-        <span class="feature-icon">🧾</span>
-        <h3>{{ t('feature_invoices_title') }}</h3>
-        <p>{{ t('feature_invoices_text') }}</p>
-      </article>
-      <article class="feature">
-        <span class="feature-icon">📟</span>
-        <h3>{{ t('feature_reading_title') }}</h3>
-        <p>{{ t('feature_reading_text') }}</p>
-      </article>
-    </div>
-  </section>
-
-  <section class="providers">
-    <h2>{{ t('providers_title') }}</h2>
-    <ul class="provider-list">
-      <li>⚡ Premier Energy</li>
-      <li>🔥 Energocom</li>
-      <li>🔥 Termoelectrica</li>
-      <li>⚡ FEE Nord</li>
-      <li>💧 Apă-Canal Chișinău</li>
-      <li>🌐 Starnet</li>
-      <li>💧 InfoSapr</li>
-      <li>📡 INFOCOM</li>
-      <li>🚪 Stroy Master Domofon</li>
-    </ul>
-    <p class="muted" style="text-align:center; margin-top:12px;">{{ t('home_note_moldovagaz') }}</p>
-  </section>
-
-  <section class="how">
-    <h2>{{ t('how_title') }}</h2>
-    <ol class="steps">
-      <li><b>1.</b> {{ t('how_step1') }}</li>
-      <li><b>2.</b> {{ t('how_step2') }}</li>
-      <li><b>3.</b> {{ t('how_step3') }}</li>
-      <li><b>4.</b> {{ t('how_step4') }}</li>
-    </ol>
-  </section>
-
-  <section class="features" id="demo">
-    <h2>{{ t('demo_title') }}</h2>
-    <p class="muted" style="text-align:center;">{{ t('demo_subtitle') }}</p>
-    <div class="home-grid">
-      <article class="home-card">
-        <div class="home-card-head">
-          <span class="home-icon">🏠</span>
-          <div><h2>{{ t('demo_home') }}</h2><span class="muted">{{ t('demo_address') }}</span></div>
-        </div>
-        <div class="home-stats"><span>5 {{ t('dash_utilities') }}</span><span>2 {{ t('dash_unpaid') }}</span></div>
-        <hr class="demo-sep">
-        <div class="demo-inv"><span>⚡ {{ t('demo_inv1') }}</span><span class="money">{{ t('demo_amt1') }}</span></div>
-        <div class="demo-inv"><span>🔥 {{ t('demo_inv2') }}</span><span class="money">{{ t('demo_amt2') }}</span></div>
-        <div class="demo-inv paid"><span>💧 {{ t('demo_inv3') }}</span><span class="money">0.00 MDL</span></div>
-      </article>
-      <article class="home-card">
-        <p><b>{{ t('demo_card_title') }}</b></p>
-        <ul class="demo-list">
-          <li>✓ {{ t('demo_feat1') }}</li>
-          <li>✓ {{ t('demo_feat2') }}</li>
-          <li>✓ {{ t('demo_feat3') }}</li>
-          <li>✓ {{ t('demo_feat4') }}</li>
-        </ul>
-        {% if not logged_in %}
-          <a class="btn" href="/register">{{ t('cta_action') }}</a>
-        {% endif %}
-      </article>
-    </div>
-  </section>
-
-  <section class="faq" id="faq">
-    <h2>{{ t('faq_title') }}</h2>
-    {% for item in faq_items %}
-      <details class="faq-item">
-        <summary>{{ item['question_' ~ lang] or item['question_ro'] or item['question_en'] }}</summary>
-        <p>{{ item['answer_' ~ lang] or item['answer_ro'] or item['answer_en'] }}</p>
-      </details>
-    {% endfor %}
-  </section>
-
-  <section class="cta">
-    <h2>{{ t('cta_title') }}</h2>
-    {% if not logged_in %}
-      <a class="btn" href="/register">{{ t('cta_action') }}</a>
-    {% else %}
-      <a class="btn" href="/homes">{{ t('cta_add_home') }}</a>
-    {% endif %}
   </section>
 </main>
 {% endblock %}

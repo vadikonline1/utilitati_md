@@ -3,8 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    (function () {
+      var t;
+      try { t = localStorage.getItem('utilitati-theme'); } catch (e) {}
+      if (t !== 'light' && t !== 'dark') {
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <title>{% block title %}Utilități.MD{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
   <header class="topbar">
@@ -27,6 +38,11 @@
       <a href="/logout">{{ t('nav_logout') }}</a>
       {% endblock %}
     </nav>
+
+    <button class="theme-toggle" id="themeToggle" type="button"
+            aria-label="Toggle theme" title="Toggle theme">
+      <span id="themeIcon">☀️</span>
+    </button>
 
     <div class="lang-dropdown" id="langDropdown">
       <button class="lang-toggle" type="button" id="langToggle"
@@ -86,6 +102,26 @@
       setupToggle(document.getElementById('langToggle'), document.getElementById('langMenu'));
       document.addEventListener('click', closeAll);
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+      window.addEventListener('beforeprint', function () {
+        document.querySelectorAll('details.faq-item').forEach(function (d) {
+          d.setAttribute('open', '');
+        });
+      });
+
+      function updateThemeIcon(theme) {
+        var el = document.getElementById('themeIcon');
+        if (el) el.textContent = theme === 'dark' ? '☀️' : '🌙';
+      }
+      var themeBtn = document.getElementById('themeToggle');
+      if (themeBtn) {
+        themeBtn.addEventListener('click', function () {
+          var cur = document.documentElement.getAttribute('data-theme');
+          var next = cur === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', next);
+          try { localStorage.setItem('utilitati-theme', next); } catch (e) {}
+        });
+      }
+      updateThemeIcon(document.documentElement.getAttribute('data-theme'));
     })();
   </script>
 </body>

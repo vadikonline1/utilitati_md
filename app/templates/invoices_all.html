@@ -36,42 +36,38 @@
   {% elif homes %}<p class="muted">{{ t('connect_utility_select_home') }}</p>{% endif %}
 
   {% if invoices %}
-    <table class="data-table table-responsive">
-      <thead>
-        <tr>
-          <th>{{ t('invoices_column_utility') }}</th>
-          <th>{{ t('invoices_column_home') }}</th>
-          <th>{{ t('invoice_number') }}</th>
-          <th>{{ t('invoice_amount') }}</th>
-          <th>{{ t('invoice_period') }}</th>
-          <th>{{ t('invoice_issued') }}</th>
-          <th>{{ t('invoice_due') }}</th>
-          <th>{{ t('homes_status') }}</th>
-          <th>{{ t('homes_actions') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for inv in invoices %}
-          <tr class="{{ 'row-disabled' if inv.status == 'disabled' }}">
-            <td>{{ inv.account_icon or '' }} {{ inv.account_label or ('—') }}</td>
-            <td>{{ inv.home_name or '—' }}</td>
-            <td>{{ inv.invoice_number or '—' }}</td>
-            <td>{{ inv.amount_mdl }} {{ inv.currency or 'MDL' }}</td>
-            <td>{{ inv.period or '—' }}</td>
-            <td>{{ inv.issue_date or '—' }}</td>
-            <td>{{ inv.due_date or '—' }}</td>
-            <td><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></td>
-            <td class="row-actions">
-              <a class="btn small" href="/accounts/{{ inv.account_id }}/invoices">{{ t('invoice_check') }}</a>
-              <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
-                <input type="hidden" name="status" value="{{ 'disabled' if inv.status == 'enabled' else 'enabled' }}">
-                <button type="submit" class="btn small">{{ t('invoice_disable') if inv.status == 'enabled' else t('invoice_enable') }}</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="data-list cols-9">
+      <div class="dl-head">
+        <div class="dl-cell">{{ t('invoices_column_utility') }}</div>
+        <div class="dl-cell">{{ t('invoices_column_home') }}</div>
+        <div class="dl-cell">{{ t('invoice_number') }}</div>
+        <div class="dl-cell">{{ t('invoice_amount') }}</div>
+        <div class="dl-cell">{{ t('invoice_period') }}</div>
+        <div class="dl-cell">{{ t('invoice_issued') }}</div>
+        <div class="dl-cell">{{ t('invoice_due') }}</div>
+        <div class="dl-cell">{{ t('homes_status') }}</div>
+        <div class="dl-cell">{{ t('homes_actions') }}</div>
+      </div>
+      {% for inv in invoices %}
+        <div class="dl-row {{ 'row-disabled' if inv.status == 'disabled' }}">
+          <div class="dl-cell" data-label="{{ t('invoices_column_utility') }}">{{ inv.account_icon or '' }} {{ inv.account_label or ('—') }}</div>
+          <div class="dl-cell" data-label="{{ t('invoices_column_home') }}">{{ inv.home_name or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoice_number') }}">{{ inv.invoice_number or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoice_amount') }}">{{ inv.amount_mdl }} {{ inv.currency or 'MDL' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoice_period') }}">{{ inv.period or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoice_issued') }}">{{ inv.issue_date or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoice_due') }}">{{ inv.due_date or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('homes_status') }}"><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></div>
+          <div class="dl-cell row-actions">
+            <a class="btn small" href="/accounts/{{ inv.account_id }}/invoices">{{ t('invoice_check') }}</a>
+            <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
+              <input type="hidden" name="status" value="{{ 'disabled' if inv.status == 'enabled' else 'enabled' }}">
+              <button type="submit" class="btn small">{{ t('invoice_disable') if inv.status == 'enabled' else t('invoice_enable') }}</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
   {% else %}
     <div class="empty">
       <p>{{ t('invoices_empty') }}</p>

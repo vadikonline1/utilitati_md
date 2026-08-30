@@ -8,45 +8,41 @@
   </div>
 
   {% if homes %}
-    <table class="data-table table-responsive">
-      <thead>
-        <tr>
-          <th>{{ t('homes_name') }}</th>
-          <th>{{ t('homes_address') }}</th>
-          <th>{{ t('homes_floor') }}</th>
-          <th>{{ t('homes_area') }}</th>
-          <th>{{ t('homes_status') }}</th>
-          <th>{{ t('homes_actions') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for home in homes %}
-          <tr>
-            <td><a href="/homes/{{ home.id }}">{{ home.name }}</a></td>
-            <td>{{ home.address }}</td>
-            <td>{{ home.floor or '—' }}</td>
-            <td>{{ home.metro_area or '—' }}</td>
-            <td>
-              <span class="badge {{ home.status }}">{{ t('homes_enable') if home.status == 'enabled' else t('homes_disable') }}</span>
-            </td>
-            <td class="row-actions">
-              <a class="btn small" href="/homes/{{ home.id }}">{{ t('homes_details') }}</a>
-              <button type="button" class="btn small ghost" onclick='openEditHome({{ home|tojson }})'>{{ t('homes_edit') }}</button>
-              <form method="post" action="/homes/{{ home.id }}/status" class="inline-form">
-                {% if home.status == 'enabled' %}
-                  <input type="hidden" name="status" value="disabled">
-                  <button type="submit" class="btn small">{{ t('homes_disable') }}</button>
-                {% else %}
-                  <input type="hidden" name="status" value="enabled">
-                  <button type="submit" class="btn small">{{ t('homes_enable') }}</button>
-                {% endif %}
-              </form>
-              <a class="btn small" href="/invoices?home_id={{ home.id }}">{{ t('homes_invoices') }}</a>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="data-list cols-6">
+      <div class="dl-head">
+        <div class="dl-cell">{{ t('homes_name') }}</div>
+        <div class="dl-cell">{{ t('homes_address') }}</div>
+        <div class="dl-cell">{{ t('homes_floor') }}</div>
+        <div class="dl-cell">{{ t('homes_area') }}</div>
+        <div class="dl-cell">{{ t('homes_status') }}</div>
+        <div class="dl-cell">{{ t('homes_actions') }}</div>
+      </div>
+      {% for home in homes %}
+        <div class="dl-row">
+          <div class="dl-cell" data-label="{{ t('homes_name') }}"><a href="/homes/{{ home.id }}">{{ home.name }}</a></div>
+          <div class="dl-cell" data-label="{{ t('homes_address') }}">{{ home.address }}</div>
+          <div class="dl-cell" data-label="{{ t('homes_floor') }}">{{ home.floor or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('homes_area') }}">{{ home.metro_area or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('homes_status') }}">
+            <span class="badge {{ home.status }}">{{ t('homes_enable') if home.status == 'enabled' else t('homes_disable') }}</span>
+          </div>
+          <div class="dl-cell row-actions">
+            <a class="btn small" href="/homes/{{ home.id }}">{{ t('homes_details') }}</a>
+            <button type="button" class="btn small ghost" onclick='openEditHome({{ home|tojson }})'>{{ t('homes_edit') }}</button>
+            <form method="post" action="/homes/{{ home.id }}/status" class="inline-form">
+              {% if home.status == 'enabled' %}
+                <input type="hidden" name="status" value="disabled">
+                <button type="submit" class="btn small">{{ t('homes_disable') }}</button>
+              {% else %}
+                <input type="hidden" name="status" value="enabled">
+                <button type="submit" class="btn small">{{ t('homes_enable') }}</button>
+              {% endif %}
+            </form>
+            <a class="btn small" href="/invoices?home_id={{ home.id }}">{{ t('homes_invoices') }}</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
   {% else %}
     <div class="empty">
       <p>{{ t('homes_empty') }}</p>
