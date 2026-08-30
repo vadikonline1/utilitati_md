@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
   <script>
     (function () {
       var t;
       try { t = localStorage.getItem('utilitati-theme'); } catch (e) {}
       if (t !== 'light' && t !== 'dark') {
-        t = 'dark';
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
       }
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
   <title>{% block title %}Utilități.MD{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
   <header class="topbar">
