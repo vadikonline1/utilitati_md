@@ -29,6 +29,7 @@ def send_email(
     subject: str,
     body: str,
     *,
+    cc: str | None = None,
     _force_render: bool = False,
 ) -> bool:
     """Send a plain-text email. Returns True on success, False otherwise."""
@@ -51,6 +52,8 @@ def send_email(
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = to
+    if cc:
+        msg["Cc"] = cc
     msg.set_content(body.rstrip())
 
     try:
@@ -203,6 +206,70 @@ _DEFAULTS: dict[str, dict[str, tuple[str, str]]] = {
             "The Utilitati.MD team",
         ),
     },
+    "invoices": {
+        "ro": (
+            "Utilitati.MD — Facturi noi la {home}",
+            "Salut{comma_name},\n\n"
+            "Am găsit {count} factură(e) noi pentru locuința:\n"
+            "    {home}\n\n"
+            "{invoices}\n\n"
+            "Valoare totală: {total} MDL\n"
+            "Furnizor: {provider} (contract: {contract})\n\n"
+            "Vezi tot în contul tău: {site}\n\n"
+            "Echipa Utilitati.MD",
+        ),
+        "ru": (
+            "Utilitati.MD — Новые счета для {home}",
+            "Здравствуйте{comma_name},\n\n"
+            "Система нашла {count} новый(ых) счёт(ов) для жилья:\n"
+            "    {home}\n\n"
+            "{invoices}\n\n"
+            "Общая сумма: {total} MDL\n"
+            "Поставщик: {provider} (договор: {contract})\n\n"
+            "Подробнее в вашем аккаунте: {site}\n\n"
+            "Команда Utilitati.MD",
+        ),
+        "en": (
+            "Utilitati.MD — New invoices for {home}",
+            "Hello{comma_name},\n\n"
+            "We found {count} new invoice(s) for your home:\n"
+            "    {home}\n\n"
+            "{invoices}\n\n"
+            "Total amount: {total} MDL\n"
+            "Provider: {provider} (contract: {contract})\n\n"
+            "See everything in your account: {site}\n\n"
+            "The Utilitati.MD team",
+        ),
+    },
+    "unpaid": {
+        "ro": (
+            "Utilitati.MD — Facturi neachitate la {date}",
+            "Salut{comma_name},\n\n"
+            "La finalul lunii de raportare ({date}) aveai următoarele facturi neachitate:\n\n"
+            "{invoices}\n\n"
+            "Total neachitat: {total} MDL\n\n"
+            "Accesează contul tău pentru detalii și plată: {site}\n\n"
+            "Echipa Utilitati.MD",
+        ),
+        "ru": (
+            "Utilitati.MD — Неоплаченные счета на {date}",
+            "Здравствуйте{comma_name},\n\n"
+            "По состоянию на конец отчётного месяца ({date}) у вас есть неоплаченные счета:\n\n"
+            "{invoices}\n\n"
+            "Итого к оплате: {total} MDL\n\n"
+            "Подробнее и оплата в вашем аккаунте: {site}\n\n"
+            "Команда Utilitati.MD",
+        ),
+        "en": (
+            "Utilitati.MD — Unpaid invoices as of {date}",
+            "Hello{comma_name},\n\n"
+            "As of the end of the reporting month ({date}) you have unpaid invoices:\n\n"
+            "{invoices}\n\n"
+            "Total outstanding: {total} MDL\n\n"
+            "See details and pay from your account: {site}\n\n"
+            "The Utilitati.MD team",
+        ),
+    },
 }
 
 
@@ -237,6 +304,11 @@ def _render(msg_type: str, lang: str, **kwargs) -> tuple[str, str]:
     except (KeyError, IndexError):  # pragma: no cover - bad template
         pass
     return subj, body
+
+
+def render_template(msg_type: str, lang: str, **kwargs) -> tuple[str, str]:
+    """Public helper: render (subject, body) for a message type with placeholders."""
+    return _render(msg_type, lang, **kwargs)
 
 
 # --------------------------------------------------------------------------- #

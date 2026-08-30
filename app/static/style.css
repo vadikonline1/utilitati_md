@@ -563,6 +563,48 @@ button { font-family: inherit; }
 .legal h2 { margin-top: 24px; color: var(--accent); }
 .legal p { color: var(--text); }
 
+/* Editable content pages (privacy / about / custom) */
+.page-body { line-height: 1.6; }
+.page-body h2 { color: var(--accent); margin: 28px 0 10px; font-size: 1.25rem; }
+.page-body h2:first-child { margin-top: 16px; }
+.page-body ul, .page-body ol { padding-left: 22px; margin: 10px 0; }
+.page-body li { margin: 5px 0; color: var(--text); }
+.page-body b { color: var(--text); }
+.page-body table.retention {
+  width: 100%; margin: 14px 0; border-collapse: collapse; font-size: 0.92rem;
+}
+.page-body table.retention th, .page-body table.retention td {
+  border: 1px solid var(--border); padding: 8px 10px; text-align: left;
+}
+.page-body table.retention thead th { background: var(--panel-2); }
+.page-body table.retention tbody tr:nth-child(even) td { background: var(--panel-2); }
+
+/* Cookie-consent banner */
+.cookie-banner[hidden] { display: none; }
+.cookie-banner {
+  position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 200;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 16px; max-width: 720px; margin: 0 auto;
+}
+.cookie-text { flex: 1; min-width: 220px; margin: 0; font-size: 0.9rem; color: var(--text); }
+.cookie-actions { display: flex; gap: 8px; align-items: center; }
+.cookie-actions .btn { white-space: nowrap; }
+
+/* Placeholder editor (SEO tab) */
+.ph-table { width: 100%; border-collapse: collapse; }
+.ph-table th, .ph-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+.ph-table thead th {
+  background: var(--panel-2); font-size: 0.78rem; font-weight: 700;
+  text-transform: uppercase; color: var(--muted);
+}
+.ph-table .ph-name, .ph-table .ph-value {
+  width: 100%; min-width: 140px; font-family: var(--mono, ui-monospace, monospace); font-size: 0.85rem;
+}
+.ph-table .ph-name-static { background: var(--panel-2); color: var(--muted); }
+.ph-table .row-actions { white-space: nowrap; }
+.code-text { font-family: var(--mono, ui-monospace, monospace); }
+
 /* Message management cards (default previews) */
 .msg-card { display: flex; flex-direction: column; gap: 12px; }
 .msg-card h2 { margin-bottom: 2px; }

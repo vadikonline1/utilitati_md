@@ -5,11 +5,18 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import re
 import secrets
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from fastapi.templating import Jinja2Templates
 
 from ..auth import (
@@ -42,12 +49,15 @@ from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import contact as contact_svc
 from ..services import email as email_svc
 from ..services import faq as faq_svc
+from ..services import notify as notify_svc
+from ..services import pages as pages_svc
 from ..services import telegram as telegram_svc
 from ..services.settings import (
     MSG_TYPES,
     MASKED,
     all_settings,
     clear_msg_templates,
+    delete_setting,
     get_setting,
     get_sync_interval_hours,
     inactive_months,
@@ -55,7 +65,9 @@ from ..services.settings import (
     msg_templates,
     retention_enabled,
     set_msg_templates,
+    set_setting,
     set_settings,
+    settings_with_prefix,
     unconfirmed_hours,
     warn_days,
 )
@@ -114,6 +126,14 @@ PROVIDER_META = {
     "starnet": {"icon": "🌐", "name": "StarNet", "fields": ["contract"], "account_label": "Codul personal", "placeholder": "1-12 cifre"},
     "fee_nord": {"icon": "⚡", "name": "FEE Nord", "fields": ["contract"], "account_label": "Numărul contractului", "placeholder": "ex: 12-1234567890"},
     "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract"], "account_label": "Cont Abonat", "placeholder": "ex: 123456"},
+    "cet_nord": {"icon": "🔥", "name": "CET Nord", "fields": ["contract"], "account_label": "Numărul facturii", "placeholder": "1-9 cifre (ex: 123456789)"},
+    "paza_a_mai": {"icon": "🔒", "name": "Paza a MAI", "fields": ["contract"], "account_label": "Factura", "placeholder": "1-20 caractere (ex: 12345)"},
+    "probon": {"icon": "📋", "name": "Probon", "fields": ["contract"], "account_label": "ID Client", "placeholder": "1-10 caractere (ex: 1234567890)"},
+    "eco_mereni": {"icon": "🌿", "name": "Eco-Mereni", "fields": ["contract"], "account_label": "Cod LUC", "placeholder": "4 cifre (ex: 1234)"},
+    "antar_salubrizare": {"icon": "🗑️", "name": "ANTAR SALUBRIZARE", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
+    "anintercom": {"icon": "🏢", "name": "Anintercom", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "7 cifre (ex: 1234567)"},
+    "sagaidac_service": {"icon": "🏠", "name": "Sagaidac Service", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
+    "vipinterfon": {"icon": "🚪", "name": "VIP Interfon", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "4-5 cifre (ex: 1234)"},
 }
 
 
@@ -126,6 +146,7 @@ def _ctx(request, **extra):
     ctx = {
         "request": request,
         "now": datetime.now(),
+        "SITE_URL": SITE_URL,
         "providers": PROVIDER_META,
         "lang": lang,
         "t": make_translator(lang),
@@ -133,9 +154,77 @@ def _ctx(request, **extra):
         "logged_in": uid is not None and is_usable_user(uid),
         "is_admin": uid is not None and is_usable_user(uid)
         and is_admin_username(get_username(uid)),
+        "seo": _seo(),
     }
     ctx.update(extra)
     return ctx
+
+
+# --------------------------------------------------------------------------- #
+# SEO / company info exposed to every template (metas + custom head/footer HTML)
+# --------------------------------------------------------------------------- #
+def _seo() -> dict:
+    """Site-wide SEO values from /admin?tab=seo, included in every page context."""
+    return {
+        "meta_title": get_setting("meta_default_title", "").strip(),
+        "meta_description": get_setting("meta_default_description", "").strip(),
+        "meta_keywords": get_setting("meta_default_keywords", "").strip(),
+        "google_verification": get_setting("google_verification", "").strip(),
+        "search_verification_html": get_setting("search_verification_html", ""),
+        "header_html": get_setting("header_html", ""),
+        "footer_html": get_setting("footer_html", ""),
+        "company_name": get_setting("company_name", "").strip() or "UTILITĂȚI.MD",
+        "company_email": get_setting("company_email", "").strip(),
+        "company_address": get_setting("company_address", "").strip(),
+    }
+
+
+BUILTIN_PLACEHOLDERS = (
+    "company_name", "company_email", "company_address", "site", "contact", "privacy",
+)
+
+
+def _page_tokens_defaults() -> dict:
+    """Default {placeholder: value} pairs (company info + site addresses)."""
+    seo = _seo()
+    return {
+        "company_name": seo["company_name"] or "UTILITĂȚI.MD",
+        "company_email": seo["company_email"] or f"{SITE_URL}/contact",
+        "company_address": seo["company_address"] or "—",
+        "site": SITE_URL,
+        "contact": f"{SITE_URL}/contact",
+        "privacy": f"{SITE_URL}/privacy",
+    }
+
+
+def _page_tokens() -> dict:
+    """Live placeholder values for {company_name} etc. inside page content.
+
+    Stored overrides (`placeholder_<name>` settings, editable in the SEO tab)
+    take precedence over the computed defaults so admins can replace any value
+    or add brand-new placeholders for their own page content.
+    """
+    tokens = _page_tokens_defaults()
+    for name, value in settings_with_prefix("placeholder_").items():
+        if value:
+            tokens[name] = value
+    return tokens
+
+
+def _page_placeholder_rows() -> list[dict]:
+    """Current placeholder state for the SEO tab editor (builtin + custom)."""
+    defaults = _page_tokens_defaults()
+    overrides = settings_with_prefix("placeholder_")
+    rows = [
+        {"name": name, "value": defaults.get(name, ""), "is_builtin": True,
+         "is_override": name in overrides and bool(overrides[name])}
+        for name in BUILTIN_PLACEHOLDERS
+    ]
+    for name in sorted(overrides):
+        if name not in BUILTIN_PLACEHOLDERS and overrides[name]:
+            rows.append({"name": name, "value": overrides[name],
+                         "is_builtin": False, "is_override": True})
+    return rows
 
 
 # --------------------------------------------------------------------------- #
@@ -210,27 +299,111 @@ async def set_language(
 
 
 # --------------------------------------------------------------------------- #
-# Legal / contact public pages
+# Public content pages (privacy / about / custom) sourced from the pages table,
+# editable by admins in /admin?tab=pages.
 # --------------------------------------------------------------------------- #
+def _page_ctx(request: Request, page: dict, lang: str, **extra) -> dict:
+    """Context for rendering a content page (title, html body, SEO meta)."""
+    title = (page.get(f"title_{lang}") or page.get("title_ro") or "").strip()
+    body = (page.get(f"content_{lang}") or page.get("content_ro") or "").strip()
+    meta_title = (page.get("meta_title") or "").strip() or title
+    meta_description = (page.get("meta_description") or "").strip()
+    return _ctx(
+        request,
+        page=page,
+        page_title=title,
+        page_body=pages_svc.render_content(body, _page_tokens()),
+        page_meta_title=meta_title,
+        page_meta_description=meta_description,
+        page_url=f"{SITE_URL}/{page['slug']}",
+        **extra,
+    )
+
+
 @router.get("/privacy", response_class=HTMLResponse)
 async def privacy_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    page = pages_svc.get_page("privacy")
+    if page is None:
+        return templates.TemplateResponse(
+            request, "privacy.html",
+            _ctx(request, logged_in=user_id is not None),
+        )
+    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
     return templates.TemplateResponse(
-        request, "privacy.html",
-        _ctx(request, logged_in=user_id is not None),
+        request, "page.html", _page_ctx(request, page, lang)
     )
+
+
+@router.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    page = pages_svc.get_page("about")
+    if page is None:
+        return RedirectResponse("/", status_code=303)
+    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
+    return templates.TemplateResponse(
+        request, "page.html", _page_ctx(request, page, lang)
+    )
+
+
+@router.get("/page/{slug}", response_class=HTMLResponse)
+async def content_page(
+    slug: str, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    page = pages_svc.get_page(slug)
+    if page is None:
+        return templates.TemplateResponse(
+            request, "page.html",
+            _ctx(request, page=None, page_title="404", page_body="",
+                 page_meta_title="404", page_meta_description="", page_url=""),
+            status_code=404,
+        )
+    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
+    return templates.TemplateResponse(
+        request, "page.html", _page_ctx(request, page, lang)
+    )
+
+
+@router.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt():
+    return PlainTextResponse(
+        f"User-agent: *\n"
+        f"Allow: /\n"
+        f"Sitemap: {SITE_URL}/sitemap.xml\n"
+    )
+
+
+@router.get("/sitemap.xml", response_class=Response)
+async def sitemap_xml():
+    now = datetime.now().strftime("%Y-%m-%d")
+    urls = [("/", now), ("/about", now), ("/privacy", now), ("/contact", now),
+            ("/login", now), ("/register", now)]
+    for page in pages_svc.list_pages():
+        path = f"/page/{page['slug']}"
+        if page["slug"] == "about":
+            path = "/about"
+        elif page["slug"] == "privacy":
+            path = "/privacy"
+        elif page["slug"] == "contact":
+            path = "/contact"
+        urls.append((path, (page.get("updated_at") or now)[:10]))
+    locs = "".join(
+        f"  <url><loc>{SITE_URL}{path}</loc><lastmod>{lastmod}</lastmod></url>\n"
+        for path, lastmod in urls
+    )
+    xml_text = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{locs}"
+        "</urlset>\n"
+    )
+    return Response(content=xml_text, media_type="application/xml")
 
 
 @router.get("/contact", response_class=HTMLResponse)
 async def contact_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
     return templates.TemplateResponse(
         request, "contact.html",
-        _ctx(
-            request,
-            logged_in=user_id is not None,
-            captcha=_new_captcha(),
-            error=None,
-            done=None,
-        ),
+        _contact_page_ctx(request, captcha=_new_captcha(), error=None, done=None),
     )
 
 
@@ -240,6 +413,7 @@ async def contact_submit(request: Request):
     form = await request.form()
     name = str(form.get("name", "")).strip()
     email = str(form.get("email", "")).strip()
+    subject = str(form.get("subject", "")).strip()
     message = str(form.get("message", "")).strip()
     token = str(form.get("captcha_token", ""))
     answer = str(form.get("captcha_answer", ""))
@@ -247,43 +421,63 @@ async def contact_submit(request: Request):
     if not _check_captcha(token, answer):
         return templates.TemplateResponse(
             request, "contact.html",
-            _ctx(request, captcha=_new_captcha(), error=_t("contact_captcha_bad"), done=None),
+            _contact_page_ctx(request, captcha=_new_captcha(), error=_t("contact_captcha_bad"), done=None),
             status_code=400,
         )
     if not name or not email or not message:
         return templates.TemplateResponse(
             request, "contact.html",
-            _ctx(request, captcha=_new_captcha(), error=_t("contact_fill_all"), done=None),
+            _contact_page_ctx(request, captcha=_new_captcha(), error=_t("contact_fill_all"), done=None),
             status_code=400,
         )
     if "@" not in email or "." not in email.split("@")[-1]:
         return templates.TemplateResponse(
             request, "contact.html",
-            _ctx(request, captcha=_new_captcha(), error=_t("contact_email_bad"), done=None),
+            _contact_page_ctx(request, captcha=_new_captcha(), error=_t("contact_email_bad"), done=None),
             status_code=400,
         )
 
-    contact_svc.save_contact_message(name, email, message)
+    contact_svc.save_contact_message(name, email, subject, message)
 
     # Notify the admin (smtp_from is the site's own mailbox) when SMTP is set up.
     if email_svc.smtp_configured():
         try:
             email_svc.send_email(
                 get_setting("smtp_from"),
-                f"Contact: {name}",
-                f"De la: {name} <{email}>\n\n{message}",
+                f"Contact{(' — ' + subject) if subject else ''}: {name}",
+                f"De la: {name} <{email}>\n"
+                f"Subiect: {subject}\n\n{message}",
             )
         except Exception:  # noqa: BLE001 - notification must never break the form
             pass
 
     return templates.TemplateResponse(
         request, "contact.html",
-        _ctx(
+        _contact_page_ctx(
             request,
             captcha=_new_captcha(),
             error=None,
             done=_t("contact_done"),
         ),
+    )
+
+
+def _contact_page_ctx(request: Request, **extra) -> dict:
+    """Contact page context: editable intro (from the pages table) + the form."""
+    base = _ctx(request)
+    page = pages_svc.get_page("contact")
+    if page is None:
+        return dict(base, page_title="", page_body="", **extra)
+    lang = base["lang"]
+    return dict(
+        base,
+        page=page,
+        page_title=(page.get(f"title_{lang}") or page.get("title_ro") or "").strip(),
+        page_body=pages_svc.render_content(
+            (page.get(f"content_{lang}") or page.get("content_ro") or "").strip(),
+            _page_tokens(),
+        ),
+        **extra,
     )
 
 
@@ -666,6 +860,9 @@ def _admin_base_ctx() -> dict:
         "contact_messages": contact_svc.list_contact_messages(),
         "users": list_users(),
         "faq_items": faq_svc.list_faq_items(),
+        "pages": pages_svc.list_pages(),
+        "page_placeholders": pages_svc.PLACEHOLDERS,
+        "placeholder_rows": _page_placeholder_rows(),
         "current_uid": None,
     }
 
@@ -811,68 +1008,17 @@ def _tg_command_reply(command: str, chat_id, first_name: str, lang_code: str) ->
 
 
 # --------------------------------------------------------------------------- #
-# New-invoices notification (sent when a provider account connects & finds bills)
+# New-invoices notification (sent when a provider account connects & finds bills,
+# and by the background sync when new invoices appear). Text is admin-editable
+# in /admin?tab=messages ("invoices" message type).
 # --------------------------------------------------------------------------- #
-_INVOICES_NOTICE = {
-    "ro": ("Facturi noi găsite",
-           "Utilități.MD — Facturi noi\n\n"
-           "Furnizor: {provider}\nContract: {contract}\n\n"
-           "Sistemul a găsit {count} factură(e) noi, în valoare totală de {total} MDL.\n"
-           "Vezi-le în contul tău: {site}"),
-    "ru": ("Найдены новые счета",
-           "Utilități.MD — Новые счета\n\n"
-           "Поставщик: {provider}\nДоговор: {contract}\n\n"
-           "Система нашла {count} новый(ых) счёт(ов) на общую сумму {total} MDL.\n"
-           "Посмотрите их в своём аккаунте: {site}"),
-    "en": ("New invoices found",
-           "Utilități.MD — New invoices\n\n"
-           "Provider: {provider}\nContract: {contract}\n\n"
-           "The system found {count} new invoice(s) totalling {total} MDL.\n"
-           "See them in your account: {site}"),
-}
-_DEFAULT_NOTICE_LANG = "ro"
-
-
-def _invoice_notice(lang: str, provider: str, contract: str, count: int, total: float, site: str) -> tuple[str, str]:
-    """Return (subject, body) of the new-invoices notification in the user's language."""
-    subj_t, body_t = _INVOICES_NOTICE.get(lang, _INVOICES_NOTICE[_DEFAULT_NOTICE_LANG])
-    total_s = f"{total:g}"
-    return (
-        subj_t,
-        body_t.format(provider=provider, contract=contract, count=count,
-                      total=total_s, site=site),
-    )
-
-
-def _split_csv(value: str) -> list[str]:
-    """Split a comma/newline-separated value into non-empty stripped parts."""
-    return [p for p in str(value or "").replace(",", "\n").split() if p]
-
-
 async def _notify_invoices_found(
     user_id: int, account: dict, fetched, saved_ids: list[int], site_url: str
 ) -> None:
-    """Notify the user (email + Telegram, per their profile prefs) about new invoices."""
-    prefs = get_notification_prefs(user_id)
-    emails = prefs.get("emails", "")
-    chats = prefs.get("telegram", "")
-    if not emails and not chats:
+    """Send the editable 'new invoices' notification (email + Telegram)."""
+    if not saved_ids:
         return
-    count = len(saved_ids)
-    invoices = list(getattr(fetched, "invoices", None) or [])
-    if not invoices and getattr(fetched, "last_invoice", None) is not None:
-        invoices = [fetched.last_invoice]
-    total = sum(
-        float(getattr(inv, "amount_mdl", 0) or 0) for inv in invoices if inv is not None
-    )
-    provider = getattr(fetched, "provider_name", None) or account.get("label", account.get("provider", ""))
-    contract = account.get("contract_number", "")
-    lang = get_user_lang(user_id) or "ro"
-    subject, body = _invoice_notice(lang, provider, contract, count, total, site_url)
-    for email in _split_csv(emails):
-        email_svc.send_email(email, subject, body)
-    for chat in _split_csv(chats):
-        await telegram_svc.send_message(chat, body)
+    await notify_svc.notify_new_invoices(user_id, account, fetched, saved_ids, site_url)
 
 
 @router.post("/admin/messages/{msg_type}")
@@ -1034,6 +1180,148 @@ async def admin_faq_delete_submit(
 
 
 # --------------------------------------------------------------------------- #
+# SEO / company settings (admin) + custom head/footer HTML injection
+# --------------------------------------------------------------------------- #
+@router.post("/admin/seo")
+async def admin_seo_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    set_settings({
+        "meta_default_title": str(form.get("meta_default_title", "")).strip(),
+        "meta_default_description": str(form.get("meta_default_description", "")).strip(),
+        "meta_default_keywords": str(form.get("meta_default_keywords", "")).strip(),
+        "google_verification": str(form.get("google_verification", "")).strip(),
+        "search_verification_html": str(form.get("search_verification_html", "")),
+        "header_html": str(form.get("header_html", "")),
+        "footer_html": str(form.get("footer_html", "")),
+        "company_name": str(form.get("company_name", "")).strip(),
+        "company_email": str(form.get("company_email", "")).strip(),
+        "company_address": str(form.get("company_address", "")).strip(),
+    })
+    _save_placeholder_rows(form)
+    return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+def _save_placeholder_rows(form) -> None:
+    """Persist the placeholder editor rows, adding/removing `placeholder_*`
+    settings so custom values can be referenced as {name} in page content."""
+    names = str(form.get("ph_name", ""))
+    if not names:
+        return
+    names_list = form.getlist("ph_name")
+    values_list = form.getlist("ph_value")
+    defaults = _page_tokens_defaults()
+    previous = set(settings_with_prefix("placeholder_"))
+    seen = set()
+    valid_key = re.compile(r"^[a-z0-9_]{1,40}$")
+    for name_raw, value_raw in zip(names_list, values_list):
+        name = str(name_raw or "").strip().lower()
+        if not valid_key.match(name):
+            continue
+        seen.add(name)
+        value = str(value_raw or "").strip()
+        if not value:
+            if name in previous:
+                delete_setting(f"placeholder_{name}")
+            continue
+        if name in BUILTIN_PLACEHOLDERS and value == defaults.get(name, ""):
+            if name in previous:
+                delete_setting(f"placeholder_{name}")
+            continue
+        if get_setting(f"placeholder_{name}") != value:
+            set_setting(f"placeholder_{name}", value)
+    for name in previous:
+        if name not in seen:
+            delete_setting(f"placeholder_{name}")
+
+
+# --------------------------------------------------------------------------- #
+# Content pages management (admin)
+# --------------------------------------------------------------------------- #
+def _page_from_form(form, slug_override: str | None = None) -> dict[str, str]:
+    slug = (slug_override or str(form.get("slug", ""))).strip().lower()
+    return {
+        "slug": pages_svc.slugify(slug),
+        "title_ro": str(form.get("title_ro", "")).strip(),
+        "title_ru": str(form.get("title_ru", "")).strip(),
+        "title_en": str(form.get("title_en", "")).strip(),
+        "content_ro": str(form.get("content_ro", "")),
+        "content_ru": str(form.get("content_ru", "")),
+        "content_en": str(form.get("content_en", "")),
+        "meta_title": str(form.get("meta_title", "")).strip(),
+        "meta_description": str(form.get("meta_description", "")).strip(),
+    }
+
+
+@router.post("/admin/pages")
+async def admin_pages_add_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    raw_slug = str(form.get("slug", "")).strip().lower()
+    data = _page_from_form(form)
+    if not raw_slug or not any(
+        data.get(f"title_{lg}") for lg in ("ro", "ru", "en")
+    ):
+        return _admin_render(request, user_id, message=_t("admin_pages_slug_err"))
+    if pages_svc.page_exists(data["slug"]):
+        return _admin_render(request, user_id, message=_t("admin_pages_exists"))
+    pages_svc.add_page(data)
+    return RedirectResponse(f"/admin?tab=pages&added={data['slug']}", status_code=303)
+
+
+@router.post("/admin/pages/{page_id}")
+async def admin_pages_edit_submit(
+    page_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    existing = pages_svc.get_page_by_id(page_id)
+    if existing is None:
+        return RedirectResponse("/admin?tab=pages", status_code=303)
+    # Built-in pages keep their fixed slug: the slug input is disabled in the
+    # form, so an empty submission must never rename the page.
+    if not str(form.get("slug", "")).strip():
+        data = _page_from_form(form, slug_override=existing["slug"])
+    else:
+        data = _page_from_form(form)
+    pages_svc.update_page(page_id, data)
+    return RedirectResponse(f"/admin?tab=pages", status_code=303)
+
+
+@router.post("/admin/pages/{page_id}/delete")
+async def admin_pages_delete_submit(
+    page_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    pages_svc.delete_page(page_id)
+    return RedirectResponse("/admin?tab=pages", status_code=303)
+
+
+# --------------------------------------------------------------------------- #
 # Homes
 # --------------------------------------------------------------------------- #
 @router.get("/homes", response_class=HTMLResponse)
@@ -1169,9 +1457,9 @@ async def utility_connect(
     new_account = get_account_row(user_id, acc_id)
     if new_account is not None:
         fetched = await fetch_account_data(new_account)
-        saved_ids = persist_invoices(acc_id, fetched)
-        if saved_ids:
-            await _notify_invoices_found(user_id, new_account, fetched, saved_ids, SITE_URL)
+        created_ids, _saved_ids = persist_invoices(acc_id, fetched)
+        if created_ids:
+            await _notify_invoices_found(user_id, new_account, fetched, created_ids, SITE_URL)
     return RedirectResponse(f"/homes/{home_id}?added={acc_id}", status_code=303)
 
 

@@ -355,13 +355,15 @@ def normalize_status(
     return INVOICE_STATUS_PAID if amount_mdl == 0 else INVOICE_STATUS_UNKNOWN
 
 
-def upsert_invoice_from_provider(account_id: int, invoice: Any) -> int | None:
+def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | None, bool]:
     """Save an Invoice returned by a provider into the local store (deduped).
-    Appends a row to invoice_history on each provider check."""
+    Appends a row to invoice_history on each provider check.
+    Returns (invoice_id | None, is_new) where is_new True only on first insert."""
     if invoice is None:
-        return None
+        return None, False
     invoice_number = getattr(invoice, "invoice_number", "") or ""
     amount = float(getattr(invoice, "amount_mdl", 0) or 0)
+    is_new = False
     issue_date = _to_str(getattr(invoice, "issue_date", None))
     due_date = _month_end_date(issue_date)
     is_paid = bool(getattr(invoice, "is_paid", False))
@@ -385,7 +387,7 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> int | None:
             # Once an invoice is marked PAID it is final: do not overwrite it
             # with a later (possibly inconsistent) provider amount/status.
             if existing["pay_status"] == INVOICE_STATUS_PAID:
-                return inv_id
+                return inv_id, False
             conn.execute(
                 """UPDATE invoices SET amount_mdl = ?, currency = ?, period = ?,
                    issue_date = ?, due_date = ?, is_paid = ?, pay_status = ?,
@@ -408,6 +410,7 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> int | None:
                  pdf_url, checked_at, raw_response, extra_json),
             )
             inv_id = cur.lastrowid
+            is_new = True
 
         conn.execute(
             """INSERT INTO invoice_history
@@ -415,25 +418,29 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> int | None:
                VALUES (?, ?, ?, ?, ?)""",
             (inv_id, pay_status, amount, checked_at, raw_response),
         )
-        return inv_id
+        return inv_id, is_new
 
 
-def persist_invoices(account_id: int, data: Any) -> list[int]:
+def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
     """Persist all invoices returned by a provider (falling back to last_invoice).
 
     Dedupes against the local store and appends invoice_history rows, so a
     single provider check may now update several historic invoices at once.
+    Returns (newly_created_ids, all_saved_ids).
     """
     invoices = getattr(data, "invoices", None)
     if not invoices:
         last = getattr(data, "last_invoice", None)
         invoices = [last] if last is not None else []
     saved: list[int] = []
+    created: list[int] = []
     for inv in invoices:
-        inv_id = upsert_invoice_from_provider(account_id, inv)
+        inv_id, is_new = upsert_invoice_from_provider(account_id, inv)
         if inv_id is not None:
             saved.append(inv_id)
-    return saved
+            if is_new:
+                created.append(inv_id)
+    return created, saved
 
 
 def list_invoice_history(user_id: int, invoice_id: int) -> list[dict[str, Any]]:

@@ -48,10 +48,21 @@ SETTING_KEYS = {
     "warn_days",           # comma-separated days-before-deletion to send warnings
     "invoice_months",      # delete invoices older than this many months
     "unconfirmed_hours",   # delete unconfirmed accounts older than this many hours
+    # SEO / company info (managed from /admin?tab=seo).
+    "meta_default_title",       # fallback <title> / meta title
+    "meta_default_description", # fallback meta description
+    "meta_default_keywords",    # fallback meta keywords
+    "google_verification",      # Google Search Console verification meta value
+    "search_verification_html", # full <meta>/<link> codes for search engines (HTML)
+    "header_html",              # custom HTML injected into <head>
+    "footer_html",              # custom HTML injected before </body>
+    "company_name",             # platform operator name (GDPR)
+    "company_email",            # official email / GDPR requests
+    "company_address",          # registered / juridical address
 }
 
 # Per-type, per-language email templates edited from /admin (message management).
-MSG_TYPES = ("invite", "welcome", "reset", "inactive")
+MSG_TYPES = ("invite", "welcome", "reset", "inactive", "invoices", "unpaid")
 for _mt in MSG_TYPES:
     for _lg in ("ro", "ru", "en"):
         SETTING_KEYS.add(f"msg_{_mt}_subj_{_lg}")
@@ -117,6 +128,21 @@ def set_settings(values: dict[str, str]) -> None:
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                     (key, stored),
                 )
+
+
+def settings_with_prefix(prefix: str) -> dict[str, str]:
+    """Return {suffix: value} for stored settings keys starting with `prefix`."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT key, value FROM settings WHERE key LIKE ?", (prefix + "%",)
+        ).fetchall()
+    return {r["key"][len(prefix):]: r["value"] for r in rows}
+
+
+def delete_setting(key: str) -> None:
+    """Remove a settings row entirely (used for placeholder overrides)."""
+    with _conn() as conn:
+        conn.execute("DELETE FROM settings WHERE key = ?", (key,))
 
 
 def all_settings() -> dict[str, str]:

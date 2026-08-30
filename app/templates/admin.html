@@ -15,6 +15,8 @@
       <button type="button" class="tab-btn" data-tab="tab-contact">{{ t('admin_tab_contact') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-users">{{ t('admin_tab_users') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-faq">{{ t('admin_tab_faq') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-pages">{{ t('admin_tab_pages') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-seo">{{ t('admin_tab_seo') }}</button>
     </div>
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
@@ -170,7 +172,7 @@
                 <b>{{ m.name }}</b><br>
                 <span class="muted">{{ m.email }}</span>
               </div>
-              <div class="dl-cell" data-label="{{ t('admin_contact_message') }}" style="white-space: pre-wrap;">{{ m.message }}</div>
+              <div class="dl-cell" data-label="{{ t('admin_contact_message') }}" style="white-space: pre-wrap;">{% if m.subject %}<b>{{ m.subject }}</b><br>{% endif %}<span>{{ m.message }}</span></div>
               <div class="dl-cell row-actions">
                 <form method="post" action="/admin/contact/{{ m.id }}/delete"
                       onsubmit="return confirm('{{ t('admin_contact_delete_confirm') }}');">
@@ -281,6 +283,151 @@
       {% endif %}
     </section>
 
+    {# ---------------- Content pages ---------------- #}
+    <section id="tab-pages" class="admin-tab-panel" hidden>
+      <div class="tab-toolbar">
+        <p class="subtitle" style="flex:1">{{ t('admin_pages_hint') }}
+          <span class="field-hint"><br>{{ t('admin_pages_placeholders') }}: <code>{{ page_placeholders }}</code></span>
+        </p>
+        <button type="button" class="btn" onclick="openModal('modal-page-add')">+ {{ t('admin_pages_add_title') }}</button>
+      </div>
+
+      {% if pages %}
+        <div class="data-list cols-4">
+          <div class="dl-head">
+            <div class="dl-cell">{{ t('admin_users_id') }}</div>
+            <div class="dl-cell">{{ t('admin_pages_slug') }}</div>
+            <div class="dl-cell">{{ t('admin_pages_title') }}</div>
+            <div class="dl-cell">{{ t('admin_users_actions') }}</div>
+          </div>
+          {% for p in pages %}
+            <div class="dl-row {{ 'row-disabled' if not p.title_ro and not p.title_en and not p.title_ru }}">
+              <div class="dl-cell" data-label="{{ t('admin_users_id') }}"><span class="muted">#{{ p.id }}</span></div>
+              <div class="dl-cell" data-label="{{ t('admin_pages_slug') }}">
+                <code>{% if p.is_builtin %}/{{ p.slug }}{% else %}/page/{{ p.slug }}{% endif %}</code>
+                {% if p.is_builtin %}<span class="badge disabled">{{ t('admin_pages_builtin') }}</span>{% endif %}
+              </div>
+              <div class="dl-cell" data-label="{{ t('admin_pages_title') }}">{{ p.title_ro or p.title_en or p.title_ru or '—' }}</div>
+              <div class="dl-cell row-actions">
+                <button type="button" class="btn small" onclick="openModal('modal-page-edit-{{ p.id }}')">{{ t('admin_pages_edit') }}</button>
+                {% if not p.is_builtin %}
+                  <form method="post" action="/admin/pages/{{ p.id }}/delete"
+                        onsubmit="return confirm('{{ t('admin_pages_delete_confirm') }}?');">
+                    <button type="submit" class="btn ghost small">{{ t('admin_pages_delete') }}</button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty">{{ t('admin_pages_empty') }}</p>
+      {% endif %}
+    </section>
+
+    {# ---------------- SEO & custom code ---------------- #}
+    <section id="tab-seo" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_seo_hint') }}</p>
+      <form method="post" action="/admin/seo">
+        <div class="config-grid">
+          <div class="card">
+            <h2>{{ t('admin_seo_meta') }}</h2>
+            <div class="form-stack">
+              <label>{{ t('admin_meta_default_title') }}
+                <input type="text" name="meta_default_title" value="{{ settings.get('meta_default_title', '') }}" placeholder="{{ t('admin_meta_title_ph') }}">
+              </label>
+              <label>{{ t('admin_meta_default_desc') }}
+                <textarea name="meta_default_description" rows="2">{{ settings.get('meta_default_description', '') }}</textarea>
+              </label>
+              <label>{{ t('admin_meta_default_keywords') }}
+                <input type="text" name="meta_default_keywords" value="{{ settings.get('meta_default_keywords', '') }}" placeholder="utilități, facturi, chișinău, moldova">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_seo_google') }}</h2>
+            <div class="form-stack">
+              <label>{{ t('admin_seo_google_verification') }}
+                <input type="text" name="google_verification" value="{{ settings.get('google_verification', '') }}" placeholder="abcdef1234567890">
+              </label>
+              <label>{{ t('admin_seo_verification_html') }}
+                <textarea name="search_verification_html" rows="4" spellcheck="false" placeholder='&lt;meta name="yandex-verification" content="..."&gt;' class="code-text">{{ settings.get('search_verification_html', '') }}</textarea>
+              </label>
+              <p class="field-hint">{{ t('admin_seo_google_hint') }}</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_company') }}</h2>
+            <div class="form-stack">
+              <label>{{ t('admin_company_name') }}
+                <input type="text" name="company_name" value="{{ settings.get('company_name', '') }}" placeholder="UTILITĂȚI.MD">
+              </label>
+              <label>{{ t('admin_company_email') }}
+                <input type="email" name="company_email" value="{{ settings.get('company_email', '') }}" placeholder="gdpr@utilitati.nistorlazar.md">
+              </label>
+              <label>{{ t('admin_company_address') }}
+                <input type="text" name="company_address" value="{{ settings.get('company_address', '') }}" placeholder="{{ t('admin_company_address_ph') }}">
+              </label>
+            </div>
+          </div>
+
+          <div class="card" style="grid-column: 1 / -1;">
+            <h2>{{ t('admin_seo_placeholders') }}</h2>
+            <p class="field-hint">{{ t('admin_seo_placeholders_hint') }}</p>
+            <table class="ph-table">
+              <thead>
+                <tr>
+                  <th>{{ t('admin_placeholder_name') }}</th>
+                  <th>{{ t('admin_placeholder_value') }}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="phRows">
+                {% for r in placeholder_rows %}
+                <tr>
+                  <td>
+                    <input type="text" name="ph_name" value="{{ r.name }}" maxlength="40"
+                           class="ph-name {{ 'ph-name-static' if r.is_builtin }}"
+                           {% if r.is_builtin %}readonly{% endif %}>
+                  </td>
+                  <td><input type="text" name="ph_value" value="{{ r.value }}" class="ph-value"></td>
+                  <td class="row-actions">
+                    <button type="button" class="btn ghost small ph-reset"
+                            {% if not r.is_override %}disabled{% endif %}
+                            title="{{ t('admin_placeholder_reset') }}">{{ t('admin_placeholder_reset') }}</button>
+                    {% if not r.is_builtin %}
+                      <button type="button" class="btn ghost small ph-remove" title="×">×</button>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div class="row-actions" style="margin-top:10px;">
+              <button type="button" class="btn small" id="ph-add">{{ t('admin_placeholder_add') }}</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_seo_code') }}</h2>
+            <div class="form-stack">
+              <label>{{ t('admin_seo_header_html') }}
+                <textarea name="header_html" rows="5" spellcheck="false">{{ settings.get('header_html', '') }}</textarea>
+              </label>
+              <label>{{ t('admin_seo_footer_html') }}
+                <textarea name="footer_html" rows="5" spellcheck="false">{{ settings.get('footer_html', '') }}</textarea>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn">{{ t('admin_save') }}</button>
+        </div>
+      </form>
+    </section>
+
     {# Add-FAQ modal #}
     <div class="modal-overlay" id="modal-faq-add" hidden>
       <div class="modal modal-wide">
@@ -330,6 +477,83 @@
           {% endfor %}
           <div class="form-actions">
             <button type="button" class="btn ghost" onclick="closeModal('modal-faq-edit-{{ item.id }}')">{{ t('admin_cancel') }}</button>
+            <button type="submit" class="btn">{{ t('admin_save') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+
+    {# Add-page modal #}
+    <div class="modal-overlay" id="modal-page-add" hidden>
+      <div class="modal modal-wide">
+        <div class="modal-head">
+          <h2>{{ t('admin_pages_add_title') }}</h2>
+          <button type="button" class="modal-close" onclick="closeModal('modal-page-add')">×</button>
+        </div>
+        <form method="post" action="/admin/pages" class="form-stack">
+          <label>{{ t('admin_pages_slug') }}
+            <input type="text" name="slug" placeholder="ex: termeni" maxlength="60">
+            <span class="field-hint">{{ t('admin_pages_slug_help') }}</span>
+          </label>
+          {% for code in ['ro', 'ru', 'en'] %}
+            <fieldset class="msg-lang">
+              <legend>{{ t('msg_lang_' ~ code) }}</legend>
+              <label>{{ t('admin_pages_title') }}
+                <input type="text" name="title_{{ code }}" maxlength="200">
+              </label>
+              <label>{{ t('admin_pages_content') }}
+                <textarea name="content_{{ code }}" rows="6" spellcheck="true"></textarea>
+              </label>
+            </fieldset>
+          {% endfor %}
+          <label>{{ t('admin_pages_meta_title') }}
+            <input type="text" name="meta_title" maxlength="200">
+          </label>
+          <label>{{ t('admin_pages_meta_desc') }}
+            <textarea name="meta_description" rows="2" maxlength="300"></textarea>
+          </label>
+          <div class="form-actions">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-page-add')">{{ t('admin_cancel') }}</button>
+            <button type="submit" class="btn">{{ t('admin_pages_add') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# Edit-page modals #}
+    {% for p in pages %}
+    <div class="modal-overlay" id="modal-page-edit-{{ p.id }}" hidden>
+      <div class="modal modal-wide">
+        <div class="modal-head">
+          <h2>{{ t('admin_pages_edit') }} #{{ p.id }}</h2>
+          <button type="button" class="modal-close" onclick="closeModal('modal-page-edit-{{ p.id }}')">×</button>
+        </div>
+        <form method="post" action="/admin/pages/{{ p.id }}" class="form-stack">
+          <label>{{ t('admin_pages_slug') }}
+            <input type="text" name="slug" value="{{ p.slug }}" maxlength="60"
+                   {{ 'disabled' if p.is_builtin }}>
+            {% if p.is_builtin %}<span class="field-hint">{{ t('admin_pages_builtin_slug') }}</span>{% endif %}
+          </label>
+          {% for code in ['ro', 'ru', 'en'] %}
+            <fieldset class="msg-lang">
+              <legend>{{ t('msg_lang_' ~ code) }}</legend>
+              <label>{{ t('admin_pages_title') }}
+                <input type="text" name="title_{{ code }}" maxlength="200" value="{{ p['title_' ~ code] }}">
+              </label>
+              <label>{{ t('admin_pages_content') }}
+                <textarea name="content_{{ code }}" rows="8" spellcheck="true">{{ p['content_' ~ code] }}</textarea>
+              </label>
+            </fieldset>
+          {% endfor %}
+          <label>{{ t('admin_pages_meta_title') }}
+            <input type="text" name="meta_title" maxlength="200" value="{{ p.meta_title }}">
+          </label>
+          <label>{{ t('admin_pages_meta_desc') }}
+            <textarea name="meta_description" rows="2" maxlength="300">{{ p.meta_description }}</textarea>
+          </label>
+          <div class="form-actions">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-page-edit-{{ p.id }}')">{{ t('admin_cancel') }}</button>
             <button type="submit" class="btn">{{ t('admin_save') }}</button>
           </div>
         </form>
@@ -391,18 +615,52 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=users");
       } else if (target === "tab-faq") {
         history.replaceState(null, "", "/admin?tab=faq");
+      } else if (target === "tab-pages") {
+        history.replaceState(null, "", "/admin?tab=pages");
+      } else if (target === "tab-seo") {
+        history.replaceState(null, "", "/admin?tab=seo");
       } else {
         history.replaceState(null, "", "/admin");
       }
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
     var tabKey = params.get("saved") ? "messages" : params.get("tab");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
     if (msgBtn) msgBtn.click();
   }
+
+  var RESET_LBL = '{{ t('admin_placeholder_reset') }}';
+  function phRow(name, value) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="text" name="ph_name" maxlength="40" class="ph-name" value="' + name + '"></td>' +
+      '<td><input type="text" name="ph_value" class="ph-value" value="' + value + '"></td>' +
+      '<td class="row-actions">' +
+        '<button type="button" class="btn ghost small ph-reset" disabled>' + RESET_LBL + '</button>' +
+        '<button type="button" class="btn ghost small ph-remove" title="×">×</button>' +
+      '</td>';
+    return tr;
+  }
+  var phAddBtn = document.getElementById('ph-add');
+  if (phAddBtn) {
+    phAddBtn.addEventListener('click', function () {
+      document.getElementById('phRows').appendChild(phRow('', ''));
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t.classList) return;
+    if (t.classList.contains('ph-reset')) {
+      var valInp = t.closest('tr').querySelector('.ph-value');
+      if (valInp) { valInp.value = ''; t.disabled = true; }
+    } else if (t.classList.contains('ph-remove')) {
+      var tr = t.closest('tr');
+      if (tr) tr.remove();
+    }
+  });
 });
 </script>
 {% endblock %}

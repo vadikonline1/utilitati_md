@@ -15,7 +15,17 @@
     })();
   </script>
   <title>{% block title %}Utilități.MD{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css?v=6">
+  {% block head_extra %}{% endblock %}
+  <meta property="og:site_name" content="UTILITĂȚI.MD">
+  <meta property="og:type" content="website">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="{{ SITE_URL }}{{ request.url.path }}">
+  {% if seo.get('meta_description') %}<meta name="description" content="{{ seo.meta_description }}">{% endif %}
+  {% if seo.get('meta_keywords') %}<meta name="keywords" content="{{ seo.meta_keywords }}">{% endif %}
+  {% if seo.get('google_verification') %}<meta name="google-site-verification" content="{{ seo.google_verification }}">{% endif %}
+  {% if seo.get('search_verification_html') %}{{ seo.search_verification_html|safe }}{% endif %}
+  {% if seo.get('header_html') %}{{ seo.header_html|safe }}{% endif %}
+  <link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
   <header class="topbar">
@@ -67,6 +77,7 @@
       <div class="footer-brand">🇲🇩 {{ t('footer_site') }}</div>
       <nav class="footer-nav">
         <a href="/">{{ t('nav_home') }}</a>
+        <a href="/about">{{ t('nav_about') }}</a>
         <a href="/privacy">{{ t('nav_privacy') }}</a>
         <a href="/contact">{{ t('nav_contact') }}</a>
       </nav>
@@ -75,7 +86,17 @@
     <div class="footer-copy">© {{ now.year }} {{ t('footer_site') }}</div>
   </footer>
 
+  {# Cookie-consent banner: strictly necessary cookies only; "details" -> /privacy #}
+  <div class="cookie-banner" id="cookieBanner" hidden>
+    <p class="cookie-text">{{ t('cookie_banner_text') }}</p>
+    <div class="cookie-actions">
+      <a href="/privacy" class="btn ghost small">{{ t('cookie_details') }}</a>
+      <button type="button" class="btn small" id="cookieAccept">{{ t('cookie_accept') }}</button>
+    </div>
+  </div>
+
   {% block scripts %}{% endblock %}
+  {% if seo.get('footer_html') %}{{ seo.footer_html|safe }}{% endif %}
   <script>
     (function () {
       function setupToggle(openBtn, panel) {
@@ -122,6 +143,20 @@
         });
       }
       updateThemeIcon(document.documentElement.getAttribute('data-theme'));
+
+      var cookieBanner = document.getElementById('cookieBanner');
+      if (cookieBanner) {
+        var cookiesAccepted = false;
+        try { cookiesAccepted = localStorage.getItem('utilitati-cookies') === 'accepted'; } catch (e) {}
+        if (!cookiesAccepted) cookieBanner.hidden = false;
+        var cookieAcceptBtn = document.getElementById('cookieAccept');
+        if (cookieAcceptBtn) {
+          cookieAcceptBtn.addEventListener('click', function () {
+            try { localStorage.setItem('utilitati-cookies', 'accepted'); } catch (e) {}
+            cookieBanner.hidden = true;
+          });
+        }
+      }
     })();
   </script>
 </body>
