@@ -19,6 +19,9 @@
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
     {% endif %}
+    {% if request.query_params.get('resend') %}
+      <p class="notice">{{ t('admin_users_resend_ok' if request.query_params.get('resend') == '1' else 'admin_users_resend_fail') }}</p>
+    {% endif %}
 
     {# ---------------- Settings: SMTP / Telegram / sync / retention ---------------- #}
     <section id="tab-settings" class="admin-tab-panel">
@@ -200,7 +203,9 @@
               <div class="dl-cell" data-label="{{ t('admin_users_fullname') }}">{{ u.full_name or '—' }}</div>
               <div class="dl-cell" data-label="{{ t('admin_users_email') }}">{{ u.email or '—' }}</div>
               <div class="dl-cell" data-label="{{ t('admin_users_status') }}">
-                {% if u.is_active %}
+                {% if u.pending %}
+                  <span class="badge warn">{{ t('admin_users_pending') }}</span>
+                {% elif u.is_active %}
                   <span class="badge enabled">{{ t('admin_users_active') }}</span>
                 {% else %}
                   <span class="badge disabled">{{ t('admin_users_inactive') }}</span>
@@ -209,7 +214,12 @@
               <div class="dl-cell" data-label="{{ t('admin_users_created') }}"><span class="muted">{{ u.created_at }}</span></div>
               <div class="dl-cell" data-label="{{ t('admin_users_last_login') }}"><span class="muted">{{ u.last_login or '—' }}</span></div>
               <div class="dl-cell row-actions">
-                {% if u.id != current_uid %}
+                {% if u.pending %}
+                  <form method="post" action="/admin/users/{{ u.id }}/resend"
+                        onsubmit="return confirm('{{ t('admin_users_resend_confirm') }} · {{ u.username }}?');">
+                    <button type="submit" class="btn small">{{ t('admin_users_resend') }}</button>
+                  </form>
+                {% elif u.id != current_uid %}
                   {% if u.is_active %}
                     <form method="post" action="/admin/users/{{ u.id }}/status"
                           onsubmit="return confirm('{{ t('admin_users_disable_confirm') }} · {{ u.username }}?');">

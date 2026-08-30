@@ -35,6 +35,18 @@ _RESET_TEXT = {
 
 _DEFAULT_LANG = "ro"
 
+# Invite / account-activation messages shown in Telegram (in addition to email).
+_INVITE_TEXT = {
+    "ro": "Utilități.MD — Confirmă-ți contul\n\n"
+          "Apasă pe linkul de mai jos pentru a-ți activa contul "
+          "(valabil 24 de ore):\n{url}",
+    "ru": "Utilități.MD — Подтвердите аккаунт\n\n"
+          "Нажмите на ссылку ниже, чтобы активировать аккаунт "
+          "(действует 24 часа):\n{url}",
+    "en": "Utilități.MD — Confirm your account\n\n"
+          "Click the link below to activate your account (valid 24 hours):\n{url}",
+}
+
 
 def telegram_configured() -> bool:
     """True when a bot token is configured (env or admin panel)."""
@@ -95,5 +107,14 @@ async def send_reset_link_to_chats(
 ) -> None:
     """Send the password-reset link to every chat id the user configured."""
     text = _RESET_TEXT.get(lang, _RESET_TEXT[_DEFAULT_LANG]).format(url=reset_url)
+    for chat_id in _chat_ids(chat_ids_csv):
+        await send_message(chat_id, text)
+
+
+async def send_invitation_to_chats(
+    chat_ids_csv: str, confirm_url: str, lang: str = _DEFAULT_LANG
+) -> None:
+    """Send the account-activation link to every chat id the user configured."""
+    text = _INVITE_TEXT.get(lang, _INVITE_TEXT[_DEFAULT_LANG]).format(url=confirm_url)
     for chat_id in _chat_ids(chat_ids_csv):
         await send_message(chat_id, text)

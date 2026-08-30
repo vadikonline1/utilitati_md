@@ -24,6 +24,7 @@ from ..auth import (
     get_user_lang,
     is_usable_user,
     list_users,
+    new_invitation_token,
     parse_session_token,
     register,
     resolve_reset_token,
@@ -943,6 +944,35 @@ async def admin_user_status_submit(
         enabled = str(form.get("enabled", "")) == "1"
         set_user_active(target_id, enabled)
     return RedirectResponse("/admin?tab=users", status_code=303)
+
+
+@router.post("/admin/users/{target_id}/resend")
+async def admin_user_resend_submit(
+    target_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    user = get_user(target_id)
+    token = new_invitation_token(target_id) if user else None
+    if not user or not token or not user.get("email"):
+        return RedirectResponse("/admin?tab=users", status_code=303)
+    confirm_url = f"{SITE_URL}/confirm/{token}"
+    lang = get_user_lang(target_id) or get_lang(request.cookies.get("lang"))
+    sent = email_svc.send_invitation(
+        user["email"], user.get("full_name", "") or user.get("username", ""),
+        confirm_url, lang=lang,
+    )
+    chat_ids = user.get("telegram_chat_ids", "")
+    if chat_ids:
+        await telegram_svc.send_invitation_to_chats(chat_ids, confirm_url, lang)
+    return RedirectResponse(
+        f"/admin?tab=users&resend={1 if sent or chat_ids else 0}&u={target_id}",
+        status_code=303,
+    )
 
 
 # --------------------------------------------------------------------------- #

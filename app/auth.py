@@ -55,6 +55,22 @@ def create_invitation(username: str, full_name: str, email: str) -> tuple[int, s
         return cur.lastrowid, token
 
 
+def new_invitation_token(user_id: int) -> str | None:
+    """Generate and store a fresh confirmation token for an unconfirmed user.
+
+    Returns the new token, or None if the user does not exist / already confirmed.
+    """
+    token = secrets.token_urlsafe(32)
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE users SET confirm_token = ? WHERE id = ? AND confirm_token IS NOT NULL",
+            (token, user_id),
+        )
+        if not cur.rowcount:
+            return None
+    return token
+
+
 def confirm_invitation(token: str) -> tuple[int, str] | None:
     """Confirm a user's email, setting a generated password.
 
@@ -202,7 +218,8 @@ def list_users() -> list[dict]:
     with _conn() as conn:
         rows = conn.execute(
             "SELECT id, username, full_name, email, is_active, created_at, "
-            "datetime(last_login) AS last_login "
+            "datetime(last_login) AS last_login, "
+            "CASE WHEN confirm_token IS NOT NULL THEN 1 ELSE 0 END AS pending "
             "FROM users ORDER BY id DESC"
         ).fetchall()
     return [dict(r) for r in rows]
