@@ -854,9 +854,10 @@ async def _notify_invoices_found(
 ) -> None:
     """Notify the user (email + Telegram, per their profile prefs) about new invoices."""
     prefs = get_notification_prefs(user_id)
-    emails = prefs.get("emails", "")
+    cc_emails = prefs.get("emails", "")
     chats = prefs.get("telegram", "")
-    if not emails and not chats:
+    user_email = (get_user(user_id) or {}).get("email", "").strip()
+    if not user_email and not cc_emails and not chats:
         return
     count = len(saved_ids)
     invoices = list(getattr(fetched, "invoices", None) or [])
@@ -869,8 +870,11 @@ async def _notify_invoices_found(
     contract = account.get("contract_number", "")
     lang = get_user_lang(user_id) or "ro"
     subject, body = _invoice_notice(lang, provider, contract, count, total, site_url)
-    for email in _split_csv(emails):
-        email_svc.send_email(email, subject, body)
+    if user_email:
+        email_svc.send_email(user_email, subject, body, cc=cc_emails or None)
+    else:
+        for email in _split_csv(cc_emails):
+            email_svc.send_email(email, subject, body)
     for chat in _split_csv(chats):
         await telegram_svc.send_message(chat, body)
 

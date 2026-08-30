@@ -29,6 +29,7 @@ def send_email(
     subject: str,
     body: str,
     *,
+    cc: str | None = None,
     _force_render: bool = False,
 ) -> bool:
     """Send a plain-text email. Returns True on success, False otherwise."""
@@ -51,6 +52,8 @@ def send_email(
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = to
+    if cc:
+        msg["Cc"] = cc
     msg.set_content(body.rstrip())
 
     try:
