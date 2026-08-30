@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS contact_messages (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     name TEXT NOT NULL DEFAULT '',
     email TEXT NOT NULL DEFAULT '',
+    subject TEXT NOT NULL DEFAULT '',
     message TEXT NOT NULL DEFAULT ''
 );
 
@@ -174,6 +175,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
         }.items():
             if col not in cols:
                 conn.execute(ddl)
+
+    # Contact messages: GDPR request subject.
+    if "contact_messages" in tables:
+        ccols = {row["name"] for row in conn.execute("PRAGMA table_info(contact_messages)")}
+        if "subject" not in ccols:
+            conn.execute(
+                "ALTER TABLE contact_messages ADD COLUMN subject TEXT NOT NULL DEFAULT ''"
+            )
 
     # Users: notification preferences (email list + telegram chat ids).
     if "users" in tables:

@@ -23,8 +23,9 @@
   {% if seo.get('meta_description') %}<meta name="description" content="{{ seo.meta_description }}">{% endif %}
   {% if seo.get('meta_keywords') %}<meta name="keywords" content="{{ seo.meta_keywords }}">{% endif %}
   {% if seo.get('google_verification') %}<meta name="google-site-verification" content="{{ seo.google_verification }}">{% endif %}
+  {% if seo.get('search_verification_html') %}{{ seo.search_verification_html|safe }}{% endif %}
   {% if seo.get('header_html') %}{{ seo.header_html|safe }}{% endif %}
-  <link rel="stylesheet" href="/static/style.css?v=7">
+  <link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
   <header class="topbar">

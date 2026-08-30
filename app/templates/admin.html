@@ -172,7 +172,7 @@
                 <b>{{ m.name }}</b><br>
                 <span class="muted">{{ m.email }}</span>
               </div>
-              <div class="dl-cell" data-label="{{ t('admin_contact_message') }}" style="white-space: pre-wrap;">{{ m.message }}</div>
+              <div class="dl-cell" data-label="{{ t('admin_contact_message') }}" style="white-space: pre-wrap;">{% if m.subject %}<b>{{ m.subject }}</b><br>{% endif %}<span>{{ m.message }}</span></div>
               <div class="dl-cell row-actions">
                 <form method="post" action="/admin/contact/{{ m.id }}/delete"
                       onsubmit="return confirm('{{ t('admin_contact_delete_confirm') }}');">
@@ -351,6 +351,9 @@
               <label>{{ t('admin_seo_google_verification') }}
                 <input type="text" name="google_verification" value="{{ settings.get('google_verification', '') }}" placeholder="abcdef1234567890">
               </label>
+              <label>{{ t('admin_seo_verification_html') }}
+                <textarea name="search_verification_html" rows="4" spellcheck="false" placeholder='&lt;meta name="yandex-verification" content="..."&gt;' class="code-text">{{ settings.get('search_verification_html', '') }}</textarea>
+              </label>
               <p class="field-hint">{{ t('admin_seo_google_hint') }}</p>
             </div>
           </div>
@@ -367,6 +370,43 @@
               <label>{{ t('admin_company_address') }}
                 <input type="text" name="company_address" value="{{ settings.get('company_address', '') }}" placeholder="{{ t('admin_company_address_ph') }}">
               </label>
+            </div>
+          </div>
+
+          <div class="card" style="grid-column: 1 / -1;">
+            <h2>{{ t('admin_seo_placeholders') }}</h2>
+            <p class="field-hint">{{ t('admin_seo_placeholders_hint') }}</p>
+            <table class="ph-table">
+              <thead>
+                <tr>
+                  <th>{{ t('admin_placeholder_name') }}</th>
+                  <th>{{ t('admin_placeholder_value') }}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="phRows">
+                {% for r in placeholder_rows %}
+                <tr>
+                  <td>
+                    <input type="text" name="ph_name" value="{{ r.name }}" maxlength="40"
+                           class="ph-name {{ 'ph-name-static' if r.is_builtin }}"
+                           {% if r.is_builtin %}readonly{% endif %}>
+                  </td>
+                  <td><input type="text" name="ph_value" value="{{ r.value }}" class="ph-value"></td>
+                  <td class="row-actions">
+                    <button type="button" class="btn ghost small ph-reset"
+                            {% if not r.is_override %}disabled{% endif %}
+                            title="{{ t('admin_placeholder_reset') }}">{{ t('admin_placeholder_reset') }}</button>
+                    {% if not r.is_builtin %}
+                      <button type="button" class="btn ghost small ph-remove" title="×">×</button>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div class="row-actions" style="margin-top:10px;">
+              <button type="button" class="btn small" id="ph-add">{{ t('admin_placeholder_add') }}</button>
             </div>
           </div>
 
@@ -591,6 +631,36 @@ document.addEventListener("DOMContentLoaded", function () {
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
     if (msgBtn) msgBtn.click();
   }
+
+  var RESET_LBL = '{{ t('admin_placeholder_reset') }}';
+  function phRow(name, value) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="text" name="ph_name" maxlength="40" class="ph-name" value="' + name + '"></td>' +
+      '<td><input type="text" name="ph_value" class="ph-value" value="' + value + '"></td>' +
+      '<td class="row-actions">' +
+        '<button type="button" class="btn ghost small ph-reset" disabled>' + RESET_LBL + '</button>' +
+        '<button type="button" class="btn ghost small ph-remove" title="×">×</button>' +
+      '</td>';
+    return tr;
+  }
+  var phAddBtn = document.getElementById('ph-add');
+  if (phAddBtn) {
+    phAddBtn.addEventListener('click', function () {
+      document.getElementById('phRows').appendChild(phRow('', ''));
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t.classList) return;
+    if (t.classList.contains('ph-reset')) {
+      var valInp = t.closest('tr').querySelector('.ph-value');
+      if (valInp) { valInp.value = ''; t.disabled = true; }
+    } else if (t.classList.contains('ph-remove')) {
+      var tr = t.closest('tr');
+      if (tr) tr.remove();
+    }
+  });
 });
 </script>
 {% endblock %}

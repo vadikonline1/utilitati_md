@@ -11,12 +11,12 @@ from typing import Any
 from ..db import _conn
 
 
-def save_contact_message(name: str, email: str, message: str) -> int:
+def save_contact_message(name: str, email: str, subject: str, message: str) -> int:
     with _conn() as conn:
         cur = conn.execute(
-            """INSERT INTO contact_messages (name, email, message)
-               VALUES (?, ?, ?)""",
-            (name.strip(), email.strip(), message.strip()),
+            """INSERT INTO contact_messages (name, email, subject, message)
+               VALUES (?, ?, ?, ?)""",
+            (name.strip(), email.strip(), subject.strip(), message.strip()),
         )
         return cur.lastrowid
 

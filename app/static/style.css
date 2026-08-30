@@ -580,6 +580,7 @@ button { font-family: inherit; }
 .page-body table.retention tbody tr:nth-child(even) td { background: var(--panel-2); }
 
 /* Cookie-consent banner */
+.cookie-banner[hidden] { display: none; }
 .cookie-banner {
   position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 200;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
@@ -589,6 +590,20 @@ button { font-family: inherit; }
 .cookie-text { flex: 1; min-width: 220px; margin: 0; font-size: 0.9rem; color: var(--text); }
 .cookie-actions { display: flex; gap: 8px; align-items: center; }
 .cookie-actions .btn { white-space: nowrap; }
+
+/* Placeholder editor (SEO tab) */
+.ph-table { width: 100%; border-collapse: collapse; }
+.ph-table th, .ph-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+.ph-table thead th {
+  background: var(--panel-2); font-size: 0.78rem; font-weight: 700;
+  text-transform: uppercase; color: var(--muted);
+}
+.ph-table .ph-name, .ph-table .ph-value {
+  width: 100%; min-width: 140px; font-family: var(--mono, ui-monospace, monospace); font-size: 0.85rem;
+}
+.ph-table .ph-name-static { background: var(--panel-2); color: var(--muted); }
+.ph-table .row-actions { white-space: nowrap; }
+.code-text { font-family: var(--mono, ui-monospace, monospace); }
 
 /* Message management cards (default previews) */
 .msg-card { display: flex; flex-direction: column; gap: 12px; }

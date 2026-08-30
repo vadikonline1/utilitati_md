@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import re
 import secrets
 from datetime import datetime, timedelta
 
@@ -56,6 +57,7 @@ from ..services.settings import (
     MASKED,
     all_settings,
     clear_msg_templates,
+    delete_setting,
     get_setting,
     get_sync_interval_hours,
     inactive_months,
@@ -63,7 +65,9 @@ from ..services.settings import (
     msg_templates,
     retention_enabled,
     set_msg_templates,
+    set_setting,
     set_settings,
+    settings_with_prefix,
     unconfirmed_hours,
     warn_days,
 )
@@ -166,6 +170,7 @@ def _seo() -> dict:
         "meta_description": get_setting("meta_default_description", "").strip(),
         "meta_keywords": get_setting("meta_default_keywords", "").strip(),
         "google_verification": get_setting("google_verification", "").strip(),
+        "search_verification_html": get_setting("search_verification_html", ""),
         "header_html": get_setting("header_html", ""),
         "footer_html": get_setting("footer_html", ""),
         "company_name": get_setting("company_name", "").strip() or "UTILITĂȚI.MD",
@@ -174,8 +179,13 @@ def _seo() -> dict:
     }
 
 
-def _page_tokens() -> dict:
-    """Live placeholder values for {company_name} etc. inside page content."""
+BUILTIN_PLACEHOLDERS = (
+    "company_name", "company_email", "company_address", "site", "contact", "privacy",
+)
+
+
+def _page_tokens_defaults() -> dict:
+    """Default {placeholder: value} pairs (company info + site addresses)."""
     seo = _seo()
     return {
         "company_name": seo["company_name"] or "UTILITĂȚI.MD",
@@ -185,6 +195,36 @@ def _page_tokens() -> dict:
         "contact": f"{SITE_URL}/contact",
         "privacy": f"{SITE_URL}/privacy",
     }
+
+
+def _page_tokens() -> dict:
+    """Live placeholder values for {company_name} etc. inside page content.
+
+    Stored overrides (`placeholder_<name>` settings, editable in the SEO tab)
+    take precedence over the computed defaults so admins can replace any value
+    or add brand-new placeholders for their own page content.
+    """
+    tokens = _page_tokens_defaults()
+    for name, value in settings_with_prefix("placeholder_").items():
+        if value:
+            tokens[name] = value
+    return tokens
+
+
+def _page_placeholder_rows() -> list[dict]:
+    """Current placeholder state for the SEO tab editor (builtin + custom)."""
+    defaults = _page_tokens_defaults()
+    overrides = settings_with_prefix("placeholder_")
+    rows = [
+        {"name": name, "value": defaults.get(name, ""), "is_builtin": True,
+         "is_override": name in overrides and bool(overrides[name])}
+        for name in BUILTIN_PLACEHOLDERS
+    ]
+    for name in sorted(overrides):
+        if name not in BUILTIN_PLACEHOLDERS and overrides[name]:
+            rows.append({"name": name, "value": overrides[name],
+                         "is_builtin": False, "is_override": True})
+    return rows
 
 
 # --------------------------------------------------------------------------- #
@@ -373,6 +413,7 @@ async def contact_submit(request: Request):
     form = await request.form()
     name = str(form.get("name", "")).strip()
     email = str(form.get("email", "")).strip()
+    subject = str(form.get("subject", "")).strip()
     message = str(form.get("message", "")).strip()
     token = str(form.get("captcha_token", ""))
     answer = str(form.get("captcha_answer", ""))
@@ -396,15 +437,16 @@ async def contact_submit(request: Request):
             status_code=400,
         )
 
-    contact_svc.save_contact_message(name, email, message)
+    contact_svc.save_contact_message(name, email, subject, message)
 
     # Notify the admin (smtp_from is the site's own mailbox) when SMTP is set up.
     if email_svc.smtp_configured():
         try:
             email_svc.send_email(
                 get_setting("smtp_from"),
-                f"Contact: {name}",
-                f"De la: {name} <{email}>\n\n{message}",
+                f"Contact{(' — ' + subject) if subject else ''}: {name}",
+                f"De la: {name} <{email}>\n"
+                f"Subiect: {subject}\n\n{message}",
             )
         except Exception:  # noqa: BLE001 - notification must never break the form
             pass
@@ -820,6 +862,7 @@ def _admin_base_ctx() -> dict:
         "faq_items": faq_svc.list_faq_items(),
         "pages": pages_svc.list_pages(),
         "page_placeholders": pages_svc.PLACEHOLDERS,
+        "placeholder_rows": _page_placeholder_rows(),
         "current_uid": None,
     }
 
@@ -1155,13 +1198,48 @@ async def admin_seo_submit(
         "meta_default_description": str(form.get("meta_default_description", "")).strip(),
         "meta_default_keywords": str(form.get("meta_default_keywords", "")).strip(),
         "google_verification": str(form.get("google_verification", "")).strip(),
+        "search_verification_html": str(form.get("search_verification_html", "")),
         "header_html": str(form.get("header_html", "")),
         "footer_html": str(form.get("footer_html", "")),
         "company_name": str(form.get("company_name", "")).strip(),
         "company_email": str(form.get("company_email", "")).strip(),
         "company_address": str(form.get("company_address", "")).strip(),
     })
+    _save_placeholder_rows(form)
     return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+def _save_placeholder_rows(form) -> None:
+    """Persist the placeholder editor rows, adding/removing `placeholder_*`
+    settings so custom values can be referenced as {name} in page content."""
+    names = str(form.get("ph_name", ""))
+    if not names:
+        return
+    names_list = form.getlist("ph_name")
+    values_list = form.getlist("ph_value")
+    defaults = _page_tokens_defaults()
+    previous = set(settings_with_prefix("placeholder_"))
+    seen = set()
+    valid_key = re.compile(r"^[a-z0-9_]{1,40}$")
+    for name_raw, value_raw in zip(names_list, values_list):
+        name = str(name_raw or "").strip().lower()
+        if not valid_key.match(name):
+            continue
+        seen.add(name)
+        value = str(value_raw or "").strip()
+        if not value:
+            if name in previous:
+                delete_setting(f"placeholder_{name}")
+            continue
+        if name in BUILTIN_PLACEHOLDERS and value == defaults.get(name, ""):
+            if name in previous:
+                delete_setting(f"placeholder_{name}")
+            continue
+        if get_setting(f"placeholder_{name}") != value:
+            set_setting(f"placeholder_{name}", value)
+    for name in previous:
+        if name not in seen:
+            delete_setting(f"placeholder_{name}")
 
 
 # --------------------------------------------------------------------------- #
@@ -1193,8 +1271,9 @@ async def admin_pages_add_submit(
             _ctx(request, denied=True, message=_t("admin_not_admin")),
         )
     form = await request.form()
+    raw_slug = str(form.get("slug", "")).strip().lower()
     data = _page_from_form(form)
-    if not data["slug"] or not any(
+    if not raw_slug or not any(
         data.get(f"title_{lg}") for lg in ("ro", "ru", "en")
     ):
         return _admin_render(request, user_id, message=_t("admin_pages_slug_err"))
@@ -1215,7 +1294,15 @@ async def admin_pages_edit_submit(
             _ctx(request, denied=True, message=_t("admin_not_admin")),
         )
     form = await request.form()
-    data = _page_from_form(form)
+    existing = pages_svc.get_page_by_id(page_id)
+    if existing is None:
+        return RedirectResponse("/admin?tab=pages", status_code=303)
+    # Built-in pages keep their fixed slug: the slug input is disabled in the
+    # form, so an empty submission must never rename the page.
+    if not str(form.get("slug", "")).strip():
+        data = _page_from_form(form, slug_override=existing["slug"])
+    else:
+        data = _page_from_form(form)
     pages_svc.update_page(page_id, data)
     return RedirectResponse(f"/admin?tab=pages", status_code=303)
 

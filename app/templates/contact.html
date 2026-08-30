@@ -33,6 +33,15 @@
           <input type="email" name="email" required maxlength="200" autocomplete="email">
         </label>
       </div>
+      <label>{{ t('contact_subject_label') }}
+        <input type="text" name="subject" list="contact-subjects" maxlength="120"
+               placeholder="{{ t('contact_subject_ph') }}">
+        <datalist id="contact-subjects">
+          <option value="{{ t('gdpr_subject') }}">
+          <option value="{{ t('contact_subject_support') }}">
+          <option value="{{ t('contact_subject_general') }}">
+        </datalist>
+      </label>
       <label>{{ t('contact_message_label') }}
         <textarea name="message" rows="6" required maxlength="5000"></textarea>
       </label>

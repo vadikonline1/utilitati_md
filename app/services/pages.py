@@ -43,6 +43,14 @@ def get_page(slug: str) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def get_page_by_id(page_id: int) -> dict[str, Any] | None:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM pages WHERE id = ?", (page_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
 def page_exists(slug: str) -> bool:
     with _conn() as conn:
         row = conn.execute("SELECT id FROM pages WHERE slug = ?", (slug,)).fetchone()
@@ -176,9 +184,7 @@ acolo unde este cazul, consimțământul tău):</p>
 <ul>
   <li><b>În tranzit:</b> toate conexiunile către platformă au loc prin HTTPS (transport criptat);</li>
   <li><b>La stocare:</b> parolele de utilizator sunt păstrate sub formă de hash (PBKDF2-HMAC); acreditările portalurilor furnizorilor, adresele suplimentare de notificare și ID-urile Telegram sunt criptate (cifru AES) cu o cheie ce nu se află în baza de date;</li>
-  <li><b>Acces:</b> administratorii tehnici nu pot vizualiza conținutul decriptat al datelor tale; accesul la datele de gestionare este protejat prin autentificare;</li>
-  <li><b>Jurnalizare:</b> menținem loguri tehnice limitate (ex. ore de acces, erori), folosite doar pentru securitate și diagnosticare;</li>
-  <li><b>Copii de siguranță:</b> datele beneficiază de copii de rezervă periodice, păstrate pe o perioadă limitată, exclusiv pentru recuperare în caz de incident.</li>
+  <li><b>Acces:</b> administratorii tehnici nu pot vizualiza conținutul decriptat al datelor tale; accesul la datele de gestionare este protejat prin autentificare.</li>
 </ul>
 <p>În cazul unui incident de securitate care ar putea afecta datele personale, vom
 anunța utilizatorii afectați conform obligațiilor legale aplicabile.</p>
@@ -209,12 +215,10 @@ cu terți pentru scopuri comerciale sau de publicitate.</p>
     <tr><td>Cont neconfirmat (emailul nu a fost validat)</td><td>Ștergere automată după un interval scurt</td></tr>
     <tr><td>Cont dezactivat de utilizator</td><td>Ștergere definitivă după 30 de zile</td></tr>
     <tr><td>Cont inactiv (fără autentificare)</td><td>Ștergere după 12 luni, precedată de emailuri de avertisment</td></tr>
-    <tr><td>Copii de rezervă tehnice</td><td>Perioadă limitată, exclusiv pentru recuperare în caz de incident</td></tr>
   </tbody>
 </table>
 <p>„Ștergere definitivă” înseamnă că datele, inclusiv facturile și preferințele,
-nu mai pot fi accesate sau recuperate prin mijloace normale; datele care ar
-rămâne doar în copiile de siguranță tehnice sunt purjate în mod reglementat.</p>
+nu mai pot fi accesate sau recuperate prin mijloace normale.</p>
 
 <h2>9. Cookie-uri și tehnologii similare</h2>
 <p>Platforma folosește doar cookie-uri strict necesare funcționării:</p>
@@ -247,12 +251,12 @@ oferim exclusiv datele necesare scopului respectiv:</p>
   <li>soliciți <b>exportul datelor</b> (portabilitate);</li>
   <li>soliciți <b>restricționarea</b> prelucrării;</li>
   <li>te <b>opui</b> anumitor forme de prelucrare;</li>
-  <li><b>retragi consimțământul</b> atunci când prelucrarea se bazează pe consimțământ (de exemplu, notificările — din pagina Cont);</li>
+  <li><b>retragi consimțământul</b> atunci când prelucrarea se bazează pe consimțământ (de exemplu, notificările — din pagina Profil);</li>
   <li>depui o <b>plângere</b> la Centrul Național pentru Protecția Datelor cu Caracter Personal (Republica Moldova) sau la autoritatea competentă din țara ta.</li>
 </ul>
-<p><b>Cum faci asta?</b> Trimite solicitarea la {company_email} cu subiectul
-<b>„GDPR — Solicitare date”</b> sau folosește <a href="{contact}">pagina de contact</a>.
-Răspundem de regulă în maximum 30 de zile.</p>
+<p><b>Cum faci asta?</b> Folosește <a href="{contact}">pagina de contact</a> și
+alege subiectul <b>„GDPR — Solicitare date”</b>, ori scrie-ne la {company_email}
+cu același subiect. Răspundem de regulă în maximum 30 de zile.</p>
 
 <h2>12. Temeiuri juridice</h2>
 <p>Prelucrăm datele personale pe următoarele temeiuri: executarea contractului
@@ -269,8 +273,8 @@ pe această pagină, iar modificările importante sunt aduse la cunoștința ta 
 platformă (email sau notificare).</p>
 
 <h2>14. Contact</h2>
-<p>Pentru orice întrebare privind datele sau această politică, scrie-ne la
-{company_email} sau folosește <a href="{contact}">formularul de contact</a>.</p>
+<p>Pentru orice întrebare privind datele sau această politică, folosește
+<a href="{contact}">pagina de contact</a> sau scrie-ne la {company_email}.</p>
 """,
         "content_ru": """
 <h2>1. Кто мы</h2>
@@ -324,9 +328,7 @@ platformă (email sau notificare).</p>
 <ul>
   <li><b>При передаче:</b> все соединения выполняются по HTTPS (шифрованный транспорт);</li>
   <li><b>При хранении:</b> пароли пользователей хранятся в виде хеша (PBKDF2-HMAC); учётные данные порталов поставщиков, дополнительные email и Telegram ID зашифрованы (AES) ключом, который не находится в базе данных;</li>
-  <li><b>Доступ:</b> технические администраторы не могут просматривать расшифрованные данные; доступ к управлению защищён аутентификацией;</li>
-  <li><b>Журналирование:</b> ограниченные технические журналы (время доступа, ошибки) — только для безопасности и диагностики;</li>
-  <li><b>Резервные копии:</b> данные регулярно резервируются и хранятся ограниченный период только для восстановления после инцидентов.</li>
+  <li><b>Доступ:</b> технические администраторы не могут просматривать расшифрованные данные; доступ к управлению защищён аутентификацией.</li>
 </ul>
 <p>В случае инцидента, который может затронуть персональные данные, мы уведомим
 пострадавших пользователей в соответствии с применимыми требованиями.</p>
@@ -354,12 +356,10 @@ platformă (email sau notificare).</p>
     <tr><td>Неподтверждённый аккаунт</td><td>Автоматическое удаление через короткий срок</td></tr>
     <tr><td>Деактивированный пользователем аккаунт</td><td>Безвозвратное удаление через 30 дней</td></tr>
     <tr><td>Неактивный аккаунт</td><td>Удаление через 12 месяцев после предупредительных писем</td></tr>
-    <tr><td>Технические резервные копии</td><td>Ограниченный срок, только для восстановления после инцидентов</td></tr>
   </tbody>
 </table>
 <p>„Безвозвратное удаление” означает, что данные, включая счета и настройки,
-больше не могут быть получены обычными способами; данные, оставшиеся только в
-технических резервных копиях, удаляются регулируемым образом.</p>
+больше не могут быть получены обычными способами.</p>
 
 <h2>9. Cookie-файлы и аналогичные технологии</h2>
 <ul>
@@ -389,12 +389,12 @@ platformă (email sau notificare).</p>
   <li><b>экспорт данных</b> (переносимость);</li>
   <li><b>ограничение</b> обработки;</li>
   <li><b>возражение</b> против отдельных видов обработки;</li>
-  <li><b>отзыв согласия</b> (например, на уведомления — на странице Аккаунт);</li>
+  <li><b>отзыв согласия</b> (например, на уведомления — на странице Профиль);</li>
   <li><b>жалоба</b> в Центр по защите персональных данных Республики Молдова или в компетентный орган вашей страны.</li>
 </ul>
-<p><b>Как это сделать?</b> Отправьте запрос на {company_email} с темой
-<b>„GDPR — Запрос данных”</b> или воспользуйтесь <a href="{contact}">страницей контактов</a>.
-Мы отвечаем, как правило, в течение 30 дней.</p>
+<p><b>Как это сделать?</b> Воспользуйтесь <a href="{contact}">страницей контактов</a>
+и выберите тему <b>„GDPR — Запрос данных”</b>, либо напишите нам на {company_email}
+с той же темой. Мы отвечаем, как правило, в течение 30 дней.</p>
 
 <h2>12. Правовые основания</h2>
 <p>Мы обрабатываем персональные данные на следующих основаниях: исполнение
@@ -410,8 +410,8 @@ platformă (email sau notificare).</p>
 странице; о важных изменениях мы сообщаем через платформу.</p>
 
 <h2>14. Контакты</h2>
-<p>По любым вопросам о данных пишите на {company_email} или используйте
-<a href="{contact}">форму контактов</a>.</p>
+<p>По любым вопросам о данных используйте <a href="{contact}">страницу
+контактов</a> или напишите нам на {company_email}.</p>
 """,
         "content_en": """
 <h2>1. Who we are</h2>
@@ -464,9 +464,7 @@ platform and decides the purposes and means of processing your personal data.</p
 <ul>
   <li><b>In transit:</b> all connections to the platform use HTTPS (encrypted transport);</li>
   <li><b>At rest:</b> user passwords are stored as hashes (PBKDF2-HMAC); provider-portal credentials, additional notification emails and Telegram IDs are encrypted (AES cipher) with a key that is not stored in the database;</li>
-  <li><b>Access:</b> technical administrators cannot view your decrypted data; management access is protected by authentication;</li>
-  <li><b>Logging:</b> limited technical logs (access times, errors) — used only for security and diagnostics;</li>
-  <li><b>Backups:</b> data is backed up periodically and kept for a limited time, solely for recovery after incidents.</li>
+  <li><b>Access:</b> technical administrators cannot view your decrypted data; management access is protected by authentication.</li>
 </ul>
 <p>If a security incident could affect personal data, we will notify the affected
 users as required by applicable law.</p>
@@ -493,12 +491,10 @@ do not sell or share your data for commercial or advertising purposes.</p>
     <tr><td>Unconfirmed account (email not verified)</td><td>Automatic deletion after a short period</td></tr>
     <tr><td>Account deactivated by the user</td><td>Permanent deletion after 30 days</td></tr>
     <tr><td>Inactive account (no login)</td><td>Deletion after 12 months, preceded by warning emails</td></tr>
-    <tr><td>Technical backups</td><td>Limited period, solely for recovery after incidents</td></tr>
   </tbody>
 </table>
 <p>„Permanent deletion" means the data, including invoices and preferences, can no
-longer be accessed or recovered through normal means; data remaining only in
-technical backups is purged in a regulated manner.</p>
+longer be accessed or recovered through normal means.</p>
 
 <h2>9. Cookies and similar technologies</h2>
 <ul>
@@ -527,12 +523,12 @@ and under appropriate data-protection agreements.</p>
   <li>request an <b>export</b> of your data (portability);</li>
   <li>request <b>restriction</b> of processing;</li>
   <li><b>object</b> to certain types of processing;</li>
-  <li><b>withdraw consent</b> where processing is based on consent (e.g. notifications — from the Account page);</li>
+  <li><b>withdraw consent</b> where processing is based on consent (e.g. notifications — from the Profile page);</li>
   <li>file a <b>complaint</b> with the National Centre for Personal Data Protection of the Republic of Moldova or the competent authority in your country.</li>
 </ul>
-<p><b>How to do it?</b> Send your request to {company_email} with the subject
-<b>"GDPR — Data request"</b> or use the <a href="{contact}">contact page</a>. We
-answer, as a rule, within 30 days.</p>
+<p><b>How to do it?</b> Use the <a href="{contact}">contact page</a> and choose the
+subject <b>"GDPR — Data request"</b>, or write to {company_email} with the same
+subject. We answer, as a rule, within 30 days.</p>
 
 <h2>12. Legal bases</h2>
 <p>We process personal data on the following grounds: performance of the service
@@ -547,8 +543,8 @@ and configured in your account.</p>
 page; important changes are communicated through the platform.</p>
 
 <h2>14. Contact</h2>
-<p>For any question about your data or this policy, write to {company_email} or
-use the <a href="{contact}">contact form</a>.</p>
+<p>For any question about your data or this policy, use the
+<a href="{contact}">contact page</a> or write to {company_email}.</p>
 """,
     },
     {
@@ -560,19 +556,20 @@ use the <a href="{contact}">contact form</a>.</p>
         "content_ro": """
 <p>Suntem bucuroși să te ajutăm. Scrie-ne pentru orice întrebare despre
 platformă, utilități sau datele tale. Pentru cereri privind protecția datelor,
-trimite mesajul cu subiectul <b>„GDPR — Solicitare date”</b> la {company_email}.</p>
+alege subiectul <b>„GDPR — Solicitare date”</b> în formularul de mai jos sau
+scrie-ne la {company_email}.</p>
 <p>Folosește formularul de mai jos și îți vom răspunde cât mai curând posibil.</p>
 """,
         "content_ru": """
 <p>Мы будем рады помочь. Напишите нам по любому вопросу о платформе, услугах
-или ваших данных. Для запросов о защите данных отправьте сообщение с темой
-<b>„GDPR — Запрос данных”</b> на {company_email}.</p>
+или ваших данных. Для запросов о защите данных выберите тему
+<b>„GDPR — Запрос данных”</b> в форме ниже или напишите нам на {company_email}.</p>
 <p>Воспользуйтесь формой ниже — мы ответим как можно скорее.</p>
 """,
         "content_en": """
 <p>We are happy to help. Write to us with any question about the platform, your
-utilities or your data. For data-protection requests, send your message with the
-subject <b>"GDPR — Data request"</b> to {company_email}.</p>
+utilities or your data. For data-protection requests, choose the subject
+<b>"GDPR — Data request"</b> in the form below or write to {company_email}.</p>
 <p>Please use the form below and we will reply as soon as possible.</p>
 """,
     },
@@ -691,8 +688,15 @@ organising and monitoring your utility obligations.</p>
 ]
 
 
+# Bumped whenever the built-in page content above changes. On startup, if the
+# stored version is older, the built-in pages are refreshed from DEFAULT_PAGES
+# (custom pages and later admin edits are kept until the next bump).
+SEED_VERSION = "3"
+
+
 def seed_default_pages(conn=None) -> None:
-    """Insert the built-in pages if the table is empty (idempotent)."""
+    """Insert the built-in pages if the table is empty, else sync content when
+    the seed version has changed (idempotent)."""
     if conn is None:
         with _conn() as conn:
             _seed(conn)
@@ -702,18 +706,46 @@ def seed_default_pages(conn=None) -> None:
 
 def _seed(conn) -> None:
     count = conn.execute("SELECT COUNT(*) AS c FROM pages").fetchone()["c"]
-    if count > 0:
-        return
-    for page in DEFAULT_PAGES:
-        conn.execute(
-            """INSERT INTO pages
-               (slug, title_ro, title_ru, title_en,
-                content_ro, content_ru, content_en, is_builtin)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                page["slug"],
-                page["title_ro"], page["title_ru"], page["title_en"],
-                page["content_ro"], page["content_ru"], page["content_en"],
-                int(page.get("is_builtin", "0") or "0"),
-            ),
-        )
+    if count == 0:
+        for page in DEFAULT_PAGES:
+            conn.execute(
+                """INSERT INTO pages
+                   (slug, title_ro, title_ru, title_en,
+                    content_ro, content_ru, content_en, is_builtin)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    page["slug"],
+                    page["title_ro"], page["title_ru"], page["title_en"],
+                    page["content_ro"], page["content_ru"], page["content_en"],
+                    int(page.get("is_builtin", "0") or "0"),
+                ),
+            )
+    else:
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = 'pages_seed_version'"
+        ).fetchone()
+        try:
+            version = int(row["value"] if row else "0")
+        except (TypeError, ValueError):
+            version = 0
+        if version < int(SEED_VERSION):
+            for page in DEFAULT_PAGES:
+                conn.execute(
+                    """UPDATE pages SET
+                       title_ro = ?, title_ru = ?, title_en = ?,
+                       content_ro = ?, content_ru = ?, content_en = ?,
+                       meta_title = ?, meta_description = ?,
+                       is_builtin = 1, updated_at = datetime('now')
+                       WHERE slug = ?""",
+                    (
+                        page["title_ro"], page["title_ru"], page["title_en"],
+                        page["content_ro"], page["content_ru"], page["content_en"],
+                        page.get("meta_title", ""), page.get("meta_description", ""),
+                        page["slug"],
+                    ),
+                )
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('pages_seed_version', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (SEED_VERSION,),
+    )
