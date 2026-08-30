@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} · UTILITĂȚI.MD{% endblock %}
+{% block head_extra %}
+  {% if page_meta_title %}<meta property="og:title" content="{{ page_meta_title }}">{% endif %}
+  {% if page_meta_description %}
+    <meta name="description" content="{{ page_meta_description }}">
+    <meta property="og:description" content="{{ page_meta_description }}">
+  {% endif %}
+  {% if page_url %}<meta property="og:url" content="{{ page_url }}">{% endif %}
+{% endblock %}
+{% block nav %}
+  <a href="/">{{ t('nav_home') }}</a>
+  <a href="/about">{{ t('nav_about') }}</a>
+  {% if logged_in %}
+    <a href="/dashboard">{{ t('nav_dashboard') }}</a>
+    <a href="/logout">{{ t('nav_logout') }}</a>
+  {% else %}
+    <a href="/login">{{ t('nav_login') }}</a>
+    <a href="/register">{{ t('nav_register') }}</a>
+  {% endif %}
+{% endblock %}
+{% block body %}
+<main class="landing">
+  <section class="legal">
+    <h1>{{ page_title }}</h1>
+    {% if page_body %}
+      <div class="page-body">{{ page_body|safe }}</div>
+    {% else %}
+      {% if page %}
+        <p class="empty">{{ t('page_empty') }}</p>
+      {% else %}
+        <p class="empty">{{ t('page_not_found') }}</p>
+      {% endif %}
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

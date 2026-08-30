@@ -51,6 +51,22 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS pages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    title_ro TEXT NOT NULL DEFAULT '',
+    title_ru TEXT NOT NULL DEFAULT '',
+    title_en TEXT NOT NULL DEFAULT '',
+    content_ro TEXT NOT NULL DEFAULT '',
+    content_ru TEXT NOT NULL DEFAULT '',
+    content_en TEXT NOT NULL DEFAULT '',
+    meta_title TEXT NOT NULL DEFAULT '',
+    meta_description TEXT NOT NULL DEFAULT '',
+    is_builtin INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS homes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -210,3 +226,5 @@ def _migrate(conn: sqlite3.Connection) -> None:
         )
     from .services.faq import seed_default_faq
     seed_default_faq(conn)
+    from .services.pages import seed_default_pages
+    seed_default_pages(conn)

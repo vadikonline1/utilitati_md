@@ -9,7 +9,13 @@ import secrets
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    XMLResponse,
+)
 from fastapi.templating import Jinja2Templates
 
 from ..auth import (
@@ -43,6 +49,7 @@ from ..services import contact as contact_svc
 from ..services import email as email_svc
 from ..services import faq as faq_svc
 from ..services import notify as notify_svc
+from ..services import pages as pages_svc
 from ..services import telegram as telegram_svc
 from ..services.settings import (
     MSG_TYPES,
@@ -135,6 +142,7 @@ def _ctx(request, **extra):
     ctx = {
         "request": request,
         "now": datetime.now(),
+        "SITE_URL": SITE_URL,
         "providers": PROVIDER_META,
         "lang": lang,
         "t": make_translator(lang),
@@ -142,9 +150,41 @@ def _ctx(request, **extra):
         "logged_in": uid is not None and is_usable_user(uid),
         "is_admin": uid is not None and is_usable_user(uid)
         and is_admin_username(get_username(uid)),
+        "seo": _seo(),
     }
     ctx.update(extra)
     return ctx
+
+
+# --------------------------------------------------------------------------- #
+# SEO / company info exposed to every template (metas + custom head/footer HTML)
+# --------------------------------------------------------------------------- #
+def _seo() -> dict:
+    """Site-wide SEO values from /admin?tab=seo, included in every page context."""
+    return {
+        "meta_title": get_setting("meta_default_title", "").strip(),
+        "meta_description": get_setting("meta_default_description", "").strip(),
+        "meta_keywords": get_setting("meta_default_keywords", "").strip(),
+        "google_verification": get_setting("google_verification", "").strip(),
+        "header_html": get_setting("header_html", ""),
+        "footer_html": get_setting("footer_html", ""),
+        "company_name": get_setting("company_name", "").strip() or "UTILITĂȚI.MD",
+        "company_email": get_setting("company_email", "").strip(),
+        "company_address": get_setting("company_address", "").strip(),
+    }
+
+
+def _page_tokens() -> dict:
+    """Live placeholder values for {company_name} etc. inside page content."""
+    seo = _seo()
+    return {
+        "company_name": seo["company_name"] or "UTILITĂȚI.MD",
+        "company_email": seo["company_email"] or f"{SITE_URL}/contact",
+        "company_address": seo["company_address"] or "—",
+        "site": SITE_URL,
+        "contact": f"{SITE_URL}/contact",
+        "privacy": f"{SITE_URL}/privacy",
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -219,27 +259,111 @@ async def set_language(
 
 
 # --------------------------------------------------------------------------- #
-# Legal / contact public pages
+# Public content pages (privacy / about / custom) sourced from the pages table,
+# editable by admins in /admin?tab=pages.
 # --------------------------------------------------------------------------- #
+def _page_ctx(request: Request, page: dict, lang: str, **extra) -> dict:
+    """Context for rendering a content page (title, html body, SEO meta)."""
+    title = (page.get(f"title_{lang}") or page.get("title_ro") or "").strip()
+    body = (page.get(f"content_{lang}") or page.get("content_ro") or "").strip()
+    meta_title = (page.get("meta_title") or "").strip() or title
+    meta_description = (page.get("meta_description") or "").strip()
+    return _ctx(
+        request,
+        page=page,
+        page_title=title,
+        page_body=pages_svc.render_content(body, _page_tokens()),
+        page_meta_title=meta_title,
+        page_meta_description=meta_description,
+        page_url=f"{SITE_URL}/{page['slug']}",
+        **extra,
+    )
+
+
 @router.get("/privacy", response_class=HTMLResponse)
 async def privacy_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    page = pages_svc.get_page("privacy")
+    if page is None:
+        return templates.TemplateResponse(
+            request, "privacy.html",
+            _ctx(request, logged_in=user_id is not None),
+        )
+    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
     return templates.TemplateResponse(
-        request, "privacy.html",
-        _ctx(request, logged_in=user_id is not None),
+        request, "page.html", _page_ctx(request, page, lang)
     )
+
+
+@router.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    page = pages_svc.get_page("about")
+    if page is None:
+        return RedirectResponse("/", status_code=303)
+    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
+    return templates.TemplateResponse(
+        request, "page.html", _page_ctx(request, page, lang)
+    )
+
+
+@router.get("/page/{slug}", response_class=HTMLResponse)
+async def content_page(
+    slug: str, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    page = pages_svc.get_page(slug)
+    if page is None:
+        return templates.TemplateResponse(
+            request, "page.html",
+            _ctx(request, page=None, page_title="404", page_body="",
+                 page_meta_title="404", page_meta_description="", page_url=""),
+            status_code=404,
+        )
+    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
+    return templates.TemplateResponse(
+        request, "page.html", _page_ctx(request, page, lang)
+    )
+
+
+@router.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt():
+    return PlainTextResponse(
+        f"User-agent: *\n"
+        f"Allow: /\n"
+        f"Sitemap: {SITE_URL}/sitemap.xml\n"
+    )
+
+
+@router.get("/sitemap.xml", response_class=XMLResponse)
+async def sitemap_xml():
+    now = datetime.now().strftime("%Y-%m-%d")
+    urls = [("/", now), ("/about", now), ("/privacy", now), ("/contact", now),
+            ("/login", now), ("/register", now)]
+    for page in pages_svc.list_pages():
+        path = f"/page/{page['slug']}"
+        if page["slug"] == "about":
+            path = "/about"
+        elif page["slug"] == "privacy":
+            path = "/privacy"
+        elif page["slug"] == "contact":
+            path = "/contact"
+        urls.append((path, (page.get("updated_at") or now)[:10]))
+    locs = "".join(
+        f"  <url><loc>{SITE_URL}{path}</loc><lastmod>{lastmod}</lastmod></url>\n"
+        for path, lastmod in urls
+    )
+    xml_text = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{locs}"
+        "</urlset>\n"
+    )
+    return XMLResponse(xml_text)
 
 
 @router.get("/contact", response_class=HTMLResponse)
 async def contact_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
     return templates.TemplateResponse(
         request, "contact.html",
-        _ctx(
-            request,
-            logged_in=user_id is not None,
-            captcha=_new_captcha(),
-            error=None,
-            done=None,
-        ),
+        _contact_page_ctx(request, captcha=_new_captcha(), error=None, done=None),
     )
 
 
@@ -256,19 +380,19 @@ async def contact_submit(request: Request):
     if not _check_captcha(token, answer):
         return templates.TemplateResponse(
             request, "contact.html",
-            _ctx(request, captcha=_new_captcha(), error=_t("contact_captcha_bad"), done=None),
+            _contact_page_ctx(request, captcha=_new_captcha(), error=_t("contact_captcha_bad"), done=None),
             status_code=400,
         )
     if not name or not email or not message:
         return templates.TemplateResponse(
             request, "contact.html",
-            _ctx(request, captcha=_new_captcha(), error=_t("contact_fill_all"), done=None),
+            _contact_page_ctx(request, captcha=_new_captcha(), error=_t("contact_fill_all"), done=None),
             status_code=400,
         )
     if "@" not in email or "." not in email.split("@")[-1]:
         return templates.TemplateResponse(
             request, "contact.html",
-            _ctx(request, captcha=_new_captcha(), error=_t("contact_email_bad"), done=None),
+            _contact_page_ctx(request, captcha=_new_captcha(), error=_t("contact_email_bad"), done=None),
             status_code=400,
         )
 
@@ -287,12 +411,31 @@ async def contact_submit(request: Request):
 
     return templates.TemplateResponse(
         request, "contact.html",
-        _ctx(
+        _contact_page_ctx(
             request,
             captcha=_new_captcha(),
             error=None,
             done=_t("contact_done"),
         ),
+    )
+
+
+def _contact_page_ctx(request: Request, **extra) -> dict:
+    """Contact page context: editable intro (from the pages table) + the form."""
+    base = _ctx(request)
+    page = pages_svc.get_page("contact")
+    if page is None:
+        return dict(base, page_title="", page_body="", **extra)
+    lang = base["lang"]
+    return dict(
+        base,
+        page=page,
+        page_title=(page.get(f"title_{lang}") or page.get("title_ro") or "").strip(),
+        page_body=pages_svc.render_content(
+            (page.get(f"content_{lang}") or page.get("content_ro") or "").strip(),
+            _page_tokens(),
+        ),
+        **extra,
     )
 
 
@@ -675,6 +818,8 @@ def _admin_base_ctx() -> dict:
         "contact_messages": contact_svc.list_contact_messages(),
         "users": list_users(),
         "faq_items": faq_svc.list_faq_items(),
+        "pages": pages_svc.list_pages(),
+        "page_placeholders": pages_svc.PLACEHOLDERS,
         "current_uid": None,
     }
 
@@ -989,6 +1134,104 @@ async def admin_faq_delete_submit(
         )
     faq_svc.delete_faq_item(faq_id)
     return RedirectResponse("/admin?tab=faq", status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+# SEO / company settings (admin) + custom head/footer HTML injection
+# --------------------------------------------------------------------------- #
+@router.post("/admin/seo")
+async def admin_seo_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    set_settings({
+        "meta_default_title": str(form.get("meta_default_title", "")).strip(),
+        "meta_default_description": str(form.get("meta_default_description", "")).strip(),
+        "meta_default_keywords": str(form.get("meta_default_keywords", "")).strip(),
+        "google_verification": str(form.get("google_verification", "")).strip(),
+        "header_html": str(form.get("header_html", "")),
+        "footer_html": str(form.get("footer_html", "")),
+        "company_name": str(form.get("company_name", "")).strip(),
+        "company_email": str(form.get("company_email", "")).strip(),
+        "company_address": str(form.get("company_address", "")).strip(),
+    })
+    return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+# --------------------------------------------------------------------------- #
+# Content pages management (admin)
+# --------------------------------------------------------------------------- #
+def _page_from_form(form, slug_override: str | None = None) -> dict[str, str]:
+    slug = (slug_override or str(form.get("slug", ""))).strip().lower()
+    return {
+        "slug": pages_svc.slugify(slug),
+        "title_ro": str(form.get("title_ro", "")).strip(),
+        "title_ru": str(form.get("title_ru", "")).strip(),
+        "title_en": str(form.get("title_en", "")).strip(),
+        "content_ro": str(form.get("content_ro", "")),
+        "content_ru": str(form.get("content_ru", "")),
+        "content_en": str(form.get("content_en", "")),
+        "meta_title": str(form.get("meta_title", "")).strip(),
+        "meta_description": str(form.get("meta_description", "")).strip(),
+    }
+
+
+@router.post("/admin/pages")
+async def admin_pages_add_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    data = _page_from_form(form)
+    if not data["slug"] or not any(
+        data.get(f"title_{lg}") for lg in ("ro", "ru", "en")
+    ):
+        return _admin_render(request, user_id, message=_t("admin_pages_slug_err"))
+    if pages_svc.page_exists(data["slug"]):
+        return _admin_render(request, user_id, message=_t("admin_pages_exists"))
+    pages_svc.add_page(data)
+    return RedirectResponse(f"/admin?tab=pages&added={data['slug']}", status_code=303)
+
+
+@router.post("/admin/pages/{page_id}")
+async def admin_pages_edit_submit(
+    page_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    data = _page_from_form(form)
+    pages_svc.update_page(page_id, data)
+    return RedirectResponse(f"/admin?tab=pages", status_code=303)
+
+
+@router.post("/admin/pages/{page_id}/delete")
+async def admin_pages_delete_submit(
+    page_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    pages_svc.delete_page(page_id)
+    return RedirectResponse("/admin?tab=pages", status_code=303)
 
 
 # --------------------------------------------------------------------------- #

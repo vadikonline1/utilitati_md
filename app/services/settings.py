@@ -48,6 +48,16 @@ SETTING_KEYS = {
     "warn_days",           # comma-separated days-before-deletion to send warnings
     "invoice_months",      # delete invoices older than this many months
     "unconfirmed_hours",   # delete unconfirmed accounts older than this many hours
+    # SEO / company info (managed from /admin?tab=seo).
+    "meta_default_title",       # fallback <title> / meta title
+    "meta_default_description", # fallback meta description
+    "meta_default_keywords",    # fallback meta keywords
+    "google_verification",      # Google Search Console verification meta value
+    "header_html",              # custom HTML injected into <head>
+    "footer_html",              # custom HTML injected before </body>
+    "company_name",             # platform operator name (GDPR)
+    "company_email",            # official email / GDPR requests
+    "company_address",          # registered / juridical address
 }
 
 # Per-type, per-language email templates edited from /admin (message management).

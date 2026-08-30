@@ -2,6 +2,7 @@
 {% block title %}{{ t('contact_title') }} · UTILITĂȚI.MD{% endblock %}
 {% block nav %}
   <a href="/">{{ t('nav_home') }}</a>
+  <a href="/about">{{ t('nav_about') }}</a>
   {% if logged_in %}
     <a href="/dashboard">{{ t('nav_dashboard') }}</a>
     <a href="/logout">{{ t('nav_logout') }}</a>
@@ -13,8 +14,12 @@
 {% block body %}
 <main class="landing">
   <section class="legal">
-    <h1>{{ t('contact_title') }}</h1>
-    <p>{{ t('contact_intro') }}</p>
+    <h1>{{ page_title or t('contact_title') }}</h1>
+    {% if page_body %}
+      <div class="page-body">{{ page_body|safe }}</div>
+    {% else %}
+      <p>{{ t('contact_intro') }}</p>
+    {% endif %}
 
     {% if error %}<p class="error">{{ error }}</p>{% endif %}
     {% if done %}<p class="notice">{{ done }}</p>{% endif %}
