@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 14,
     padding: spacing.lg,
-    marginVertical: spacing.sm,
+    marginVertical: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },

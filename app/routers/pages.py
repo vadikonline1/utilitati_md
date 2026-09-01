@@ -286,6 +286,7 @@ async def home(request: Request, user_id: int | None = Depends(optional_auth_tok
             request,
             logged_in=user_id is not None,
             faq_items=faq_svc.list_faq_items(),
+            providers=PROVIDER_META,
         ),
     )
 

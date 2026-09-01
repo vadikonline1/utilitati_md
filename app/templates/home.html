@@ -72,125 +72,28 @@
     <div class="container">
       <h2>{{ t('providers_title') }}</h2>
       <div class="providers-grid">
-        <div class="provider-card">
-          <span class="provider-icon">⚡</span>
+        {% set skin = {
+          'premier_energy': t('prod_type_premier_energy'), 'energocom': t('prod_type_energocom'),
+          'termoelectrica': t('prod_type_termoelectrica'), 'fee_nord': t('prod_type_fee_nord'),
+          'apa_canal_chisinau': t('prod_type_apa_canal'), 'starnet': t('prod_type_starnet'),
+          'infosapr': t('prod_type_infosapr'), 'infocom': t('prod_type_infocom'),
+          'stroy_master_domofon': t('prod_type_domofon'), 'cet_nord': t('prod_type_cet_nord'),
+          'paza_a_mai': t('prod_type_paza_a_mai'), 'probon': t('prod_type_probon'),
+          'eco_mereni': t('prod_type_eco_mereni'), 'antar_salubrizare': t('prod_type_antar_salubrizare'),
+          'anintercom': t('prod_type_anintercom'), 'sagaidac_service': t('prod_type_sagaidac_service'),
+          'vipinterfon': t('prod_type_vipinterfon'), 'econdominiu': t('prod_type_econdominiu'),
+          'salubeco': t('prod_type_salubeco'), 'legion_security_group': t('prod_type_legion_security_group'),
+          'invoicer': t('prod_type_invoicer'),
+        } %}
+        {% for pid, meta in providers.items() %}
+        <div class="provider-card" title="{{ meta.get('name') }}">
+          <span class="provider-icon">{{ meta.get('icon', '🏷️') }}</span>
           <div class="provider-info">
-            <h4>Premier Energy</h4>
-            <span>{{ t('prod_type_premier_energy') }}</span>
+            <h4>{{ meta.get('name') }}</h4>
+            <span>{{ skin.get(pid, meta.get('name')) }}</span>
           </div>
         </div>
-        <div class="provider-card">
-          <span class="provider-icon">🔥</span>
-          <div class="provider-info">
-            <h4>Energocom</h4>
-            <span>{{ t('prod_type_energocom') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🌡️</span>
-          <div class="provider-info">
-            <h4>Termoelectrica</h4>
-            <span>{{ t('prod_type_termoelectrica') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">⚡</span>
-          <div class="provider-info">
-            <h4>FEE Nord</h4>
-            <span>{{ t('prod_type_fee_nord') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">💧</span>
-          <div class="provider-info">
-            <h4>Apă-Canal Chișinău</h4>
-            <span>{{ t('prod_type_apa_canal') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🌐</span>
-          <div class="provider-info">
-            <h4>Starnet</h4>
-            <span>{{ t('prod_type_starnet') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🏠</span>
-          <div class="provider-info">
-            <h4>InfoSapr</h4>
-            <span>{{ t('prod_type_infosapr') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">📡</span>
-          <div class="provider-info">
-            <h4>INFOCOM</h4>
-            <span>{{ t('prod_type_infocom') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🚪</span>
-          <div class="provider-info">
-            <h4>Stroy Master Domofon</h4>
-            <span>{{ t('prod_type_domofon') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🔥</span>
-          <div class="provider-info">
-            <h4>CET Nord</h4>
-            <span>{{ t('prod_type_cet_nord') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🔒</span>
-          <div class="provider-info">
-            <h4>Paza a MAI</h4>
-            <span>{{ t('prod_type_paza_a_mai') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">📋</span>
-          <div class="provider-info">
-            <h4>Probon</h4>
-            <span>{{ t('prod_type_probon') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🌿</span>
-          <div class="provider-info">
-            <h4>Eco-Mereni</h4>
-            <span>{{ t('prod_type_eco_mereni') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🗑️</span>
-          <div class="provider-info">
-            <h4>ANTAR SALUBRIZARE</h4>
-            <span>{{ t('prod_type_antar_salubrizare') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🏢</span>
-          <div class="provider-info">
-            <h4>Anintercom</h4>
-            <span>{{ t('prod_type_anintercom') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🏠</span>
-          <div class="provider-info">
-            <h4>Sagaidac Service</h4>
-            <span>{{ t('prod_type_sagaidac_service') }}</span>
-          </div>
-        </div>
-        <div class="provider-card">
-          <span class="provider-icon">🚪</span>
-          <div class="provider-info">
-            <h4>VIP Interfon</h4>
-            <span>{{ t('prod_type_vipinterfon') }}</span>
-          </div>
-        </div>
+        {% endfor %}
       </div>
     </div>
   </section>

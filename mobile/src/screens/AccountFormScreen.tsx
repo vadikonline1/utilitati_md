@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 import { RouteProp } from '@react-navigation/native';
 
 import {
+  Account,
   ApiError,
   createAccount,
   listAccounts,
@@ -29,7 +31,7 @@ type ParamList = {
 };
 
 interface Props {
-  navigation: { goBack: () => void; navigate: (name: string, params?: object) => void };
+  navigation: { goBack: () => void };
   route: RouteProp<ParamList, 'AccountForm'>;
 }
 
@@ -40,6 +42,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
 
   const [homeId, setHomeId] = useState<string>(fixedHomeId != null ? String(fixedHomeId) : '');
   const [provider, setProvider] = useState(route.params?.provider || '');
+  const [providerModal, setProviderModal] = useState(false);
   const [label, setLabel] = useState(route.params?.label || '');
   const [contractNumber, setContractNumber] = useState('');
   const [placeOfConsumption, setPlaceOfConsumption] = useState('');
@@ -90,22 +93,30 @@ export default function AccountFormScreen({ navigation, route }: Props) {
 
   const selectedProvider = providers.find((p) => p.id === provider);
   const needsFullName = selectedProvider?.fields?.includes('full_name') ?? false;
-  const selectedHome = homes.find((h) => h.id === Number(homeId));
+
+  const chooseProvider = (id: string) => {
+    setProvider(id);
+    setProviderModal(false);
+  };
 
   const save = async () => {
-    if (!label.trim() || !provider.trim() || !contractNumber.trim()) {
-      Alert.alert('Atenție', 'Completează eticheta, furnizorul și numărul contractului.');
+    if (!provider.trim()) {
+      Alert.alert('Atenție', 'Selectează un furnizor.');
       return;
     }
-    if (!homeId || !selectedHome) {
-      Alert.alert('Atenție', 'Selectează o locuință.');
+    if (!contractNumber.trim()) {
+      Alert.alert('Atenție', 'Completează numărul de contract / identificatorul.');
+      return;
+    }
+    if (!homeId.trim()) {
+      Alert.alert('Atenție', 'Selectează locuința.');
       return;
     }
     setSaving(true);
     const payload = {
-      home_id: homeId ? Number(homeId) : null,
+      home_id: Number(homeId),
       provider,
-      label,
+      label: label.trim() || selectedProvider?.name || provider,
       contract_number: contractNumber,
       place_of_consumption: placeOfConsumption,
       username,
@@ -133,81 +144,98 @@ export default function AccountFormScreen({ navigation, route }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>{isEdit ? 'Editează contul' : 'Cont nou'}</Text>
+        <Text style={styles.title}>{isEdit ? 'Editează contul' : 'Utilitate nouă'}</Text>
 
-        {homes.length === 0 && !isEdit ? (
-          <View>
-            <Text style={styles.muted}>
-              Nu există nicio locuință. Creează mai întâi o locuință pentru a adăuga o utilitate.
-            </Text>
-            <Button title="Creează locuință" onPress={() => navigation.navigate('HomeForm', {})} />
-          </View>
-        ) : (
-          <View>
-            <Input
-              label="Etichetă *"
-              value={label}
-              onChangeText={setLabel}
-              placeholder="ex. Energie Electrică"
-            />
-            <Text style={styles.section}>Furnizor *</Text>
-            {providers.map((p) => (
-              <TouchableChip
-                key={p.id}
-                label={p.name || p.label || p.id}
-                selected={provider === p.id}
-                onPress={() => !isEdit && setProvider(p.id)}
-              />
-            ))}
-            {needsFullName && !isEdit ? (
-              <Input
-                label="Nume complet (Nume, Prenume)"
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder={selectedProvider?.full_name_placeholder}
-              />
-            ) : null}
-            <Input
-              label="Număr contract *"
-              value={contractNumber}
-              onChangeText={setContractNumber}
-              placeholder={selectedProvider?.placeholder}
-            />
-            <Input
-              label="Loc de consum"
-              value={placeOfConsumption}
-              onChangeText={setPlaceOfConsumption}
-              editable={!isEdit}
-            />
-            <Input
-              label="Username (utilizator furnizor)"
-              value={username}
-              onChangeText={setUsername}
-              editable={!isEdit}
-            />
-            <Input
-              label="Parolă (utilizator furnizor)"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              editable={!isEdit}
-            />
-
-            <Text style={styles.section}>Locuință</Text>
+        <Text style={styles.section}>Locuință *</Text>
+        {homes.length > 0 ? (
+          <View style={styles.chipWrap}>
             {homes.map((h) => (
               <TouchableChip
                 key={h.id}
                 label={h.name}
                 selected={homeId === String(h.id)}
-                onPress={() => !isEdit && setHomeId(String(h.id))}
+                onPress={() => setHomeId(String(h.id))}
               />
             ))}
-
-            <Button title="Salvează" onPress={save} loading={saving} />
           </View>
+        ) : (
+          <Text style={styles.mutedInline}>Nu ai nicio locuință. Creează întâi o locuință.</Text>
         )}
+
+        <Text style={styles.section}>Furnizor *</Text>
+        <TouchableOpacity style={styles.picker} onPress={() => setProviderModal(true)}>
+          <Text style={provider ? styles.pickerValue : styles.pickerPlaceholder}>
+            {selectedProvider?.name || 'Selectează furnizorul'}
+          </Text>
+          <Text style={styles.pickerCaret}>▾</Text>
+        </TouchableOpacity>
+        {isEdit ? (
+          <Text style={styles.readonlyNote}>Furnizorul nu poate fi schimbat după creare.</Text>
+        ) : null}
+
+        <Input
+          label="Etichetă"
+          value={label}
+          onChangeText={setLabel}
+          placeholder="ex. Energie Electrică"
+        />
+        {needsFullName ? (
+          <Input
+            label="Nume complet (Nume, Prenume)"
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder={selectedProvider?.full_name_placeholder || 'ex. Popescu Ion'}
+          />
+        ) : null}
+        <Input
+          label="Număr contract / identificator *"
+          value={contractNumber}
+          onChangeText={setContractNumber}
+          placeholder={selectedProvider?.placeholder}
+        />
+        <Input
+          label="Loc de consum"
+          value={placeOfConsumption}
+          onChangeText={setPlaceOfConsumption}
+        />
+        <Input label="Username (utilizator furnizor)" value={username} onChangeText={setUsername} />
+        <Input
+          label="Parolă (utilizator furnizor)"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+
+        <Button title="Salvează" onPress={save} loading={saving} />
         {loading ? <Text style={styles.muted}>Se încarcă…</Text> : null}
       </ScrollView>
+
+      <Modal visible={providerModal} transparent animationType="slide">
+        <View style={styles.modalWrap}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Furnizor</Text>
+            <ScrollView style={styles.modalScroll}>
+              {providers
+                .map((p) => ({ id: p.id, name: p.name || p.label || p.id, icon: p.icon }))
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={styles.providerRow}
+                    onPress={() => chooseProvider(p.id)}
+                  >
+                    <Text style={styles.providerLabel}>
+                      {p.icon ? `${p.icon}  ` : ''}
+                      {p.name}
+                    </Text>
+                    {provider === p.id ? <Text style={styles.check}>✓</Text> : null}
+                  </TouchableOpacity>
+                ))}
+            </ScrollView>
+            <Button title="Anulează" variant="ghost" onPress={() => setProviderModal(false)} />
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -222,10 +250,7 @@ function TouchableChip({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity
-      style={[styles.chip, selected && styles.chipSelected]}
-      onPress={onPress}
-    >
+    <TouchableOpacity style={[styles.chip, selected && styles.chipSelected]} onPress={onPress}>
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -242,7 +267,25 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap' },
   muted: { color: colors.muted, textAlign: 'center', marginTop: spacing.lg },
+  mutedInline: { color: colors.muted, fontSize: 14 },
+  picker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    minHeight: 48,
+    backgroundColor: colors.card,
+  },
+  pickerValue: { fontSize: 16, color: colors.text },
+  pickerPlaceholder: { fontSize: 16, color: colors.muted },
+  pickerCaret: { fontSize: 18, color: colors.muted },
+  readonlyNote: { fontSize: 12, color: colors.muted, marginTop: spacing.xs },
   chip: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
@@ -250,9 +293,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginVertical: spacing.xs,
-    alignSelf: 'flex-start',
+    marginRight: spacing.sm,
   },
   chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { color: colors.text },
   chipTextSelected: { color: '#fff', fontWeight: '600' },
+  modalWrap: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  modal: { backgroundColor: colors.card, borderRadius: 16, padding: spacing.xl, maxHeight: '70%' },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  modalScroll: { marginBottom: spacing.sm },
+  providerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  providerLabel: { fontSize: 15, color: colors.text },
+  check: { color: colors.primary, fontWeight: '800' },
 });

@@ -77,6 +77,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -146,8 +147,32 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
           </Text>
         }
       />
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('HomeForm', {})}>
-        <Ionicons name="add" size={30} color="#fff" />
+      {menuOpen ? (
+        <View style={styles.menu}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              setMenuOpen(false);
+              navigation.navigate('HomeForm', {});
+            }}
+          >
+            <Ionicons name="home-outline" size={20} color={colors.primary} />
+            <Text style={styles.menuText}>Locuință</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              setMenuOpen(false);
+              navigation.navigate('AccountForm', {});
+            }}
+          >
+            <Ionicons name="flash-outline" size={20} color={colors.primary} />
+            <Text style={styles.menuText}>Utilitate</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+      <TouchableOpacity style={styles.fab} onPress={() => setMenuOpen((v) => !v)}>
+        <Ionicons name={menuOpen ? 'close' : 'add'} size={30} color="#fff" />
       </TouchableOpacity>
     </View>
   );
@@ -170,6 +195,24 @@ const styles = StyleSheet.create({
   muted: { color: colors.muted, marginTop: 2 },
   vezi: { color: colors.primary, fontWeight: '700' },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xl },
+  menu: {
+    position: 'absolute',
+    right: spacing.xl,
+    bottom: 90,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  menuText: { color: colors.text, fontSize: 15, fontWeight: '600', marginLeft: spacing.sm },
   fab: {
     position: 'absolute',
     right: spacing.xl,
