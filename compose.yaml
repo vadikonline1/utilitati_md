@@ -1,23 +1,4 @@
 services:
-  db:
-    image: mysql:8
-    container_name: utilitati-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: rootsecret
-      MYSQL_DATABASE: utilitati
-      MYSQL_USER: utilitati_usr
-      MYSQL_PASSWORD: utilitati_usr
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   web:
     build: .
     image: utilitati-md:latest
@@ -25,9 +6,8 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - path: .env
         #required: false
@@ -40,4 +20,3 @@ services:
 
 volumes:
   utilitati-data:
-  mysql-data:
