@@ -15,9 +15,17 @@ from ..auth import (
     authenticate,
     create_session_token,
     get_user,
+    get_user_lang,
     register,
+    resolve_reset_token,
+    set_password_for_user,
+    set_reset_token,
+    user_by_email,
 )
+from ..config import SITE_URL
 from ..deps import get_auth_token
+from ..services import email as email_svc
+from ..services import telegram as telegram_svc
 from ..services.utilities import (
     create_home,
     delete_account,
@@ -103,6 +111,36 @@ async def auth_me(user_id: int = Depends(get_auth_token)):
     if user is None:
         raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
     return user
+
+
+@router.post("/auth/forgot-password")
+async def auth_forgot_password(payload: dict):
+    email = str(payload.get("email", "")).strip()
+    user = user_by_email(email)
+    if user:
+        token = set_reset_token(user["id"])
+        reset_url = f"{SITE_URL}/reset-password/{token}"
+        lang = get_user_lang(user["id"]) or "ro"
+        email_svc.send_reset_link(email, user.get("full_name", ""), reset_url, lang=lang)
+        full = get_user(user["id"]) or {}
+        chat_ids = full.get("telegram_chat_ids", "")
+        if chat_ids:
+            await telegram_svc.send_reset_link_to_chats(chat_ids, reset_url, lang)
+    # Always return ok to avoid leaking which emails are registered.
+    return {"ok": True}
+
+
+@router.post("/auth/reset-password")
+async def auth_reset_password(payload: dict):
+    token = str(payload.get("token", "")).strip()
+    new_password = str(payload.get("new_password", ""))
+    user_id = resolve_reset_token(token)
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="Linkul este invalid sau a expirat")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Parola trebuie să aibă minim 6 caractere")
+    set_password_for_user(user_id, new_password)
+    return {"ok": True}
 
 
 def _provider_error(err):

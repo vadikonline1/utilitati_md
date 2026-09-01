@@ -77,3 +77,33 @@ Aplicația se loghează prin `POST /api/auth/login` cu username + parolă,
 primește un **token de sesiune**, pe care îl trimite mai departe ca
 `Authorization: Bearer <token>` pentru toate celelalte cereri. Token-ul este
 păstrat securizat în `expo-secure-store`.
+
+## Resetare parolă (în aplicație)
+
+Din ecranul de autentificare → „Ai uitat parola?”:
+
+1. Introdu adresa de email → aplicația apelează `POST /api/auth/forgot-password`
+   și primești un link de resetare prin email.
+2. Deschide linkul (sau lipește codul în aplicație) → ecranul „Resetare parolă”
+   apelează `POST /api/auth/reset-password` cu noul token + parola nouă.
+
+Aplicația suportă și **deep linking**: un link `utilitati://reset-password/<token>`
+deschide direct ecranul de resetare din aplicație (`scheme: "utilitati"` în `app.json`).
+
+## Build Android în Docker (APK)
+
+Imaginea `Dockerfile` instalează Node + Android SDK + Java, generează proiectul
+nativ (`expo prebuild --platform android`) și poate produce un APK release:
+
+```bash
+cd mobile
+docker build -t utilitati-mobile .
+mkdir -p dist
+docker run --rm -v "$(pwd)/dist:/output" utilitati-mobile \
+  sh -c 'cd android && ./gradlew assembleRelease && cp app/build/outputs/apk/release/app-release.apk /output/utilitati-md-release.apk'
+# sau doar:
+docker run --rm -v "$(pwd)/dist:/output" utilitati-mobile
+```
+
+Rezultatul: `dist/utilitati-md-release.apk`. Pentru iOS, build-ul nativ necesită
+Xcode/macOS (EAS Build de la Expo gestionează asta drept alternativă).

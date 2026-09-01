@@ -14,7 +14,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import { colors, spacing } from '../theme';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }: { navigation?: { navigate: (name: string, params?: object) => void } }) {
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
@@ -111,6 +111,13 @@ export default function LoginScreen() {
               setMode(mode === 'login' ? 'register' : 'login');
             }}
           />
+          {mode === 'login' ? (
+            <Button
+              title="Ai uitat parola?"
+              variant="ghost"
+              onPress={() => navigation?.navigate('ForgotPassword')}
+            />
+          ) : null}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

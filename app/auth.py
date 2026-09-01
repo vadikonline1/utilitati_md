@@ -8,7 +8,7 @@ import secrets
 import sqlite3
 from datetime import datetime, timedelta
 
-from .config import DEFAULT_PASSWORD, DEFAULT_USERNAME, SECRET_KEY
+from .config import DEFAULT_PASSWORD, DEFAULT_USERNAME, SECRET_KEY, _first_token
 from .db import _conn
 
 
@@ -284,15 +284,30 @@ def ensure_default_user() -> None:
         row = conn.execute(
             "SELECT id, is_active FROM users WHERE username = ?", (DEFAULT_USERNAME,)
         ).fetchone()
-        if row is None:
-            conn.execute(
-                "INSERT INTO users (username, password_hash, is_active) VALUES (?, ?, 1)",
-                (DEFAULT_USERNAME, _hash_password(DEFAULT_PASSWORD)),
-            )
-        elif not row["is_active"]:
-            conn.execute(
-                "UPDATE users SET is_active = 1 WHERE id = ?", (row["id"],)
-            )
+        if row is not None:
+            if not row["is_active"]:
+                conn.execute(
+                    "UPDATE users SET is_active = 1 WHERE id = ?", (row["id"],)
+                )
+            return
+        # If the env previously created a mangled account (e.g. UTILITATI_USERNAME
+        # was accidentally set to "admin, administrator"), adopt that account under
+        # the clean default username instead of leaving a second/broken account.
+        users = conn.execute("SELECT id, username, is_active FROM users").fetchall()
+        for u in users:
+            if (
+                u["username"] != DEFAULT_USERNAME
+                and _first_token(u["username"], "") == DEFAULT_USERNAME
+            ):
+                conn.execute(
+                    "UPDATE users SET username = ?, is_active = 1 WHERE id = ?",
+                    (DEFAULT_USERNAME, u["id"]),
+                )
+                return
+        conn.execute(
+            "INSERT INTO users (username, password_hash, is_active) VALUES (?, ?, 1)",
+            (DEFAULT_USERNAME, _hash_password(DEFAULT_PASSWORD)),
+        )
 
 
 def authenticate(username: str, password: str) -> int | None:

@@ -31,10 +31,17 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+# Use --unsafe-perm so postinstall scripts run reliably as root in the container.
+RUN npm install --unsafe-perm
 
 COPY . .
 
+# Generate the native Android project (android/ folder) inside the image.
 RUN npx expo prebuild --platform android
 
-CMD ["./gradlew", "assembleDebug"]
+# The generated Gradle wrapper lives in /app/android; the project root is /app.
+# Default action: build a release APK (signed with the default Expo/debug keystore).
+# Usable directly, or override with your own gradle command:
+#   docker run --rm -v "$(pwd)/dist:/output" utilitati-mobile \
+#     sh -c 'cd android && ./gradlew assembleRelease && cp app/build/outputs/apk/release/app-release.apk /output/utilitati-md-release.apk'
+CMD ["sh", "-c", "cd android && ./gradlew assembleRelease"]

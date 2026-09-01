@@ -99,6 +99,18 @@ export function me(): Promise<PublicUser> {
   return request('/auth/me');
 }
 
+export function forgotPassword(email: string): Promise<{ ok: boolean }> {
+  return request('/auth/forgot-password', { method: 'POST', body: { email }, token: null });
+}
+
+export function resetPassword(token: string, newPassword: string): Promise<{ ok: boolean }> {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    body: { token, new_password: newPassword },
+    token: null,
+  });
+}
+
 // --------------------------------------------------------------------------- //
 // Homes
 // --------------------------------------------------------------------------- //
