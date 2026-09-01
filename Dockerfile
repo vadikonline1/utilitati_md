@@ -25,8 +25,8 @@ RUN mkdir -p /app/data
 
 EXPOSE 8000
 
-# Persist the SQLite database in a volume-friendly location.
-ENV UTILITATI_DB=/app/data/utilitati.db
+# Connection settings come from the compose `.env` (see .env.example). No DB
+# default is hardcoded here: MySQL is selected via UTILITATI_MYSQL_* / engine.
 
 # Non-root user for better isolation. The entrypoint (as root) fixes ownership
 # of the mounted data dir on startup, then drops privileges to appuser.
