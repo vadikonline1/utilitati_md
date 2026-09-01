@@ -403,8 +403,6 @@ def _mysql_conn() -> Iterator[_MyConnection]:
             "MySQL is enabled but PyMySQL is not installed. "
             "Add `pymysql` to requirements.txt."
         )
-    kw = dict(cfg)
-    kw.pop("db", None)
     conn = pymysql.connect(
         host=cfg["host"],
         port=cfg.get("port", 3306),
@@ -414,7 +412,6 @@ def _mysql_conn() -> Iterator[_MyConnection]:
         charset=cfg.get("charset", "utf8mb4"),
         cursorclass=pymysql.cursors.DictCursor,
         autocommit=False,
-        **kw,
     )
     wrapped = _MyConnection(conn)
     try:
