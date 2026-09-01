@@ -4,18 +4,21 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import * as Linking from 'expo-linking';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../api/auth-context';
 import { colors } from '../theme';
 import LoginScreen from '../screens/LoginScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import DashboardScreen from '../screens/DashboardScreen';
 import HomesScreen from '../screens/HomesScreen';
+import FacturiScreen from '../screens/FacturiScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import HomeDetailScreen from '../screens/HomeDetailScreen';
 import HomeFormScreen from '../screens/HomeFormScreen';
 import AccountFormScreen from '../screens/AccountFormScreen';
 import AccountDetailScreen from '../screens/AccountDetailScreen';
-import ProfileScreen from '../screens/ProfileScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -31,6 +34,51 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 
+type TabIcon =
+  | 'apps'
+  | 'apps-outline'
+  | 'home'
+  | 'home-outline'
+  | 'receipt'
+  | 'receipt-outline'
+  | 'person'
+  | 'person-outline'
+  | 'pie-chart'
+  | 'pie-chart-outline';
+
+const TAB_ICONS: Record<string, { active: TabIcon; inactive: TabIcon }> = {
+  Dashboard: { active: 'pie-chart', inactive: 'pie-chart-outline' },
+  Locuințe: { active: 'home', inactive: 'home-outline' },
+  Facturi: { active: 'receipt', inactive: 'receipt-outline' },
+  Profil: { active: 'person', inactive: 'person-outline' },
+};
+
+function HomeTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarActiveTintColor: colors.primary,
+        headerShown: false,
+        tabBarIcon: ({ focused, color, size }) => {
+          const icons = TAB_ICONS[route.name];
+          return (
+            <Ionicons
+              name={focused ? icons.active : icons.inactive}
+              size={size}
+              color={color}
+            />
+          );
+        },
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Locuințe" component={HomesScreen} />
+      <Tab.Screen name="Facturi" component={FacturiScreen} />
+      <Tab.Screen name="Profil" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+}
+
 function HomesStack() {
   return (
     <Stack.Navigator>
@@ -43,20 +91,6 @@ function HomesStack() {
   );
 }
 
-function HomeTabs() {
-  return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen name="Locuințe" component={HomesScreen} />
-      <Tab.Screen name="Profil" component={ProfileScreen} />
-    </Tab.Navigator>
-  );
-}
-
 export default function RootNavigator() {
   const { user, initializing } = useAuth();
 
@@ -64,8 +98,6 @@ export default function RootNavigator() {
     return <ActivityIndicator style={styles.loading} size="large" color={colors.primary} />;
   }
 
-  // Allow the emailed reset link to open straight into the reset screen:
-  //   utilitati://reset-password/<token>  (or https://utilitati.nistorlazar.md/reset-password/<token>)
   const linking = {
     prefixes: [Linking.createURL('/'), 'utilitati://'],
     config: {

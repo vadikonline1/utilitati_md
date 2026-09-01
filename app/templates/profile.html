@@ -7,6 +7,25 @@
 
   <div class="config-grid">
     <div class="card">
+      <h2>{{ t('profile_full_name') }}</h2>
+      <form method="post" action="/profile" class="form-stack">
+        <div class="form-row">
+          <label>{{ t('register_first_name') }}
+            <input type="text" name="first_name" value="{{ user_full_name.split(' ', 1)[0] if user_full_name else '' }}" autocomplete="off">
+          </label>
+          <label>{{ t('register_last_name') }}
+            <input type="text" name="last_name" value="{{ user_full_name.split(' ', 1)[1] if user_full_name and ' ' in user_full_name else '' }}" autocomplete="off">
+          </label>
+        </div>
+        <label>{{ t('register_email') }}
+          <input type="email" name="email" value="{{ user_email }}" disabled>
+        </label>
+        <p class="field-hint">{{ t('profile_email_readonly') }}</p>
+        <button type="submit">{{ t('profile_save') }}</button>
+      </form>
+    </div>
+
+    <div class="card">
       <h2>{{ t('profile_change_password') }}</h2>
       <form method="post" action="/profile" class="form-stack">
         <label>{{ t('profile_old_password') }}

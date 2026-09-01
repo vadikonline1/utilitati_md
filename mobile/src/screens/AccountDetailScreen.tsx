@@ -2,12 +2,9 @@ import React, { useCallback, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Modal,
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -18,7 +15,6 @@ import {
   accountInvoices,
   listAccounts,
   refreshAccount,
-  submitMeterReading,
   Invoice,
 } from '../api/client';
 import Button from '../components/Button';
@@ -42,8 +38,6 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
   const [account, setAccount] = useState<Account | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [modal, setModal] = useState<'reading' | 'refresh' | null>(null);
-  const [reading, setReading] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(
@@ -83,26 +77,6 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
       await load();
     } catch (e) {
       Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Actualizarea a eșuat.');
-    } finally {
-      setBusy(false);
-      setModal(null);
-    }
-  };
-
-  const doReading = async () => {
-    const value = parseFloat(reading);
-    if (isNaN(value) || value < 0) {
-      Alert.alert('Atenție', 'Introdu o valoare validă.');
-      return;
-    }
-    setBusy(true);
-    try {
-      await submitMeterReading(accountId, value);
-      Alert.alert('Gata', 'Citirea contorului a fost trimisă.');
-      setReading('');
-      setModal(null);
-    } catch (e) {
-      Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Trimiterea a eșuat.');
     } finally {
       setBusy(false);
     }
@@ -153,14 +127,8 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
                 <View style={styles.actions}>
                   <Button
                     title="Actualizează facturi"
-                    onPress={() => setModal('refresh')}
-                    loading={busy && modal === 'refresh'}
-                    style={styles.smallBtn}
-                  />
-                  <Button
-                    title="Citire contor"
-                    onPress={() => setModal('reading')}
-                    variant="ghost"
+                    onPress={doRefresh}
+                    loading={busy}
                     style={styles.smallBtn}
                   />
                   <Button
@@ -177,24 +145,6 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
         }
         ListEmptyComponent={<Text style={styles.empty}>Nicio factură. Apasă „Actualizează facturi”.</Text>}
       />
-
-      <Modal visible={modal === 'reading'} transparent animationType="slide">
-        <View style={styles.modalWrap}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Citire contor</Text>
-            <TextInput
-              style={styles.bigInput}
-              value={reading}
-              onChangeText={setReading}
-              keyboardType="decimal-pad"
-              placeholder="Valoare"
-              autoFocus
-            />
-            <Button title="Trimite" onPress={doReading} loading={busy} />
-            <Button title="Anulează" variant="ghost" onPress={() => setModal(null)} />
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -217,25 +167,4 @@ const styles = StyleSheet.create({
   paid: { color: colors.success },
   unpaid: { color: colors.danger },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xl },
-  modalWrap: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  modal: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: spacing.xl,
-  },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
-  bigInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: spacing.md,
-    fontSize: 20,
-    marginBottom: spacing.md,
-    minHeight: 56,
-  },
 });

@@ -234,6 +234,15 @@ def set_user_active(user_id: int, is_active: bool) -> None:
         )
 
 
+def set_user_full_name(user_id: int, full_name: str) -> None:
+    """Update the user's display full name (used as the default for utilities)."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET full_name = ? WHERE id = ?",
+            (full_name.strip(), user_id),
+        )
+
+
 def change_password(user_id: int, old_password: str, new_password: str) -> bool:
     """Change a user's password, verifying the old one first."""
     old_password = old_password.strip()

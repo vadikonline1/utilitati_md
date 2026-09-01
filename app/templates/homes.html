@@ -4,7 +4,7 @@
 <main class="dashboard">
   <div class="dash-head">
     <h1>{{ t('homes_title') }}</h1>
-    <button type="button" class="btn" onclick="openModal('modal-home')">{{ t('homes_add') }}</button>
+    <button type="button" class="btn" onclick="openAddHome()">{{ t('homes_add') }}</button>
   </div>
 
   {% if homes %}
@@ -18,7 +18,14 @@
         <div class="dl-cell">{{ t('homes_actions') }}</div>
       </div>
       {% for home in homes %}
-        <div class="dl-row">
+        <div class="dl-row"
+          data-id="{{ home.id }}"
+          data-name="{{ home.name }}"
+          data-address="{{ home.address or '' }}"
+          data-floor="{{ home.floor or '' }}"
+          data-metro="{{ home.metro_area or '' }}"
+          data-status="{{ home.status }}"
+          data-created="{{ home.created_at or '' }}">
           <div class="dl-cell" data-label="{{ t('homes_name') }}"><a href="/homes/{{ home.id }}">{{ home.name }}</a></div>
           <div class="dl-cell" data-label="{{ t('homes_address') }}">{{ home.address }}</div>
           <div class="dl-cell" data-label="{{ t('homes_floor') }}">{{ home.floor or '—' }}</div>
@@ -28,7 +35,7 @@
           </div>
           <div class="dl-cell row-actions">
             <a class="btn small" href="/homes/{{ home.id }}">{{ t('homes_details') }}</a>
-            <button type="button" class="btn small ghost" onclick='openEditHome({{ home|tojson }})'>{{ t('homes_edit') }}</button>
+            <button type="button" class="btn small ghost" onclick="openEditHome(this.closest('.dl-row'))">{{ t('homes_edit') }}</button>
             <form method="post" action="/homes/{{ home.id }}/status" class="inline-form">
               {% if home.status == 'enabled' %}
                 <input type="hidden" name="status" value="disabled">
@@ -46,7 +53,7 @@
   {% else %}
     <div class="empty">
       <p>{{ t('homes_empty') }}</p>
-      <button type="button" class="btn" onclick="openModal('modal-home')">{{ t('homes_add_first') }}</button>
+      <button type="button" class="btn" onclick="openAddHome()">{{ t('homes_add_first') }}</button>
     </div>
   {% endif %}
 
@@ -63,14 +70,15 @@
   {% endif %}
 </main>
 
-<div class="modal-overlay" id="modal-home" hidden>
+<div class="modal-overlay" id="modal-edit-home" hidden>
   <div class="modal">
     <div class="modal-head">
-      <h2 id="modal-home-title">{{ t('home_add_modal') }}</h2>
-      <button type="button" class="modal-close" onclick="closeModal('modal-home')">×</button>
+      <h2 id="modal-edit-home-title">{{ t('home_add_modal') }}</h2>
+      <button type="button" class="modal-close" onclick="closeModal('modal-edit-home')">×</button>
     </div>
     <form method="post" action="/homes" id="home-form" class="form-stack">
       <input type="hidden" name="home_id" id="f_home_id" value="">
+      <input type="hidden" name="status" id="f_status" value="enabled">
       <label>{{ t('homes_name') }}
         <input type="text" name="name" id="f_name" placeholder="{{ t('home_placeholder') }}" required>
       </label>
@@ -85,34 +93,59 @@
           <input type="text" name="metro_area" id="f_metro" placeholder="Ciocana">
         </label>
       </div>
-      <button type="submit">{{ t('home_save') }}</button>
+      <div class="home-info-block" id="home-system-info" hidden>
+        <p class="muted">{{ t('home_system_info') }}</p>
+        <div class="info-row">
+          <span class="info-label">ID:</span>
+          <span id="f_info_id"></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">{{ t('admin_users_created') }}:</span>
+          <span id="f_info_created"></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">{{ t('homes_status') }}:</span>
+          <span id="f_info_status"></span>
+        </div>
+      </div>
+      <button type="submit" id="home-form-submit">{{ t('home_save') }}</button>
     </form>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-  document.getElementById("home-form").addEventListener("submit", function (e) {
-    const form = this;
-    const id = document.getElementById("f_home_id").value;
-    if (id) {
-      e.preventDefault();
-      form.action = `/homes/${id}/edit`;
-      form.submit();
-    }
-  });
-});
 function openModal(id) { document.getElementById(id).hidden = false; }
 function closeModal(id) { document.getElementById(id).hidden = true; }
-function openEditHome(home) {
-  document.getElementById("modal-home-title").textContent = "{{ t('home_edit_modal') }}";
-  document.getElementById("f_home_id").value = home.id;
-  document.getElementById("f_name").value = home.name;
-  document.getElementById("f_address").value = home.address || "";
-  document.getElementById("f_floor").value = home.floor || "";
-  document.getElementById("f_metro").value = home.metro_area || "";
-  openModal("modal-home");
+function openAddHome() {
+  const form = document.getElementById("home-form");
+  form.reset();
+  document.getElementById("modal-edit-home-title").textContent = "{{ t('home_add_modal') }}";
+  document.getElementById("f_home_id").value = "";
+  document.getElementById("f_status").value = "enabled";
+  document.getElementById("home-system-info").hidden = true;
+  form.action = "/homes";
+  document.getElementById("home-form-submit").textContent = "{{ t('home_save') }}";
+  openModal("modal-edit-home");
+}
+function openEditHome(row) {
+  const data = row.dataset;
+  const form = document.getElementById("home-form");
+  form.reset();
+  document.getElementById("modal-edit-home-title").textContent = "{{ t('home_edit_modal') }}";
+  document.getElementById("f_home_id").value = data.id;
+  document.getElementById("f_status").value = data.status || "enabled";
+  document.getElementById("f_name").value = data.name || "";
+  document.getElementById("f_address").value = data.address || "";
+  document.getElementById("f_floor").value = data.floor || "";
+  document.getElementById("f_metro").value = data.metro || "";
+  document.getElementById("f_info_id").textContent = data.id;
+  document.getElementById("f_info_created").textContent = data.created || "—";
+  document.getElementById("f_info_status").textContent = data.status === "disabled" ? "{{ t('homes_disable') }}" : "{{ t('homes_enable') }}";
+  document.getElementById("home-system-info").hidden = false;
+  form.action = "/homes/" + data.id + "/edit";
+  document.getElementById("home-form-submit").textContent = "{{ t('home_save_changes') }}";
+  openModal("modal-edit-home");
 }
 </script>
 {% endblock %}

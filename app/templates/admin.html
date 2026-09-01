@@ -76,6 +76,33 @@
           </div>
 
           <div class="card">
+            <h2>{{ t('admin_mysql') }}</h2>
+            <div class="form-stack">
+              {% if mysql_enabled %}<span class="env-badge">{{ t('admin_mysql_active') }}</span>{% endif %}
+              {% if mysql_from_env %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+              <label>{{ t('admin_mysql_host') }}
+                <input type="text" name="mysql_host" value="{{ mysql_cfg.get('host', '127.0.0.1') }}" placeholder="127.0.0.1">
+              </label>
+              <label>{{ t('admin_mysql_port') }}
+                <input type="number" name="mysql_port" value="{{ mysql_cfg.get('port', '3306') }}" placeholder="3306">
+              </label>
+              <label>{{ t('admin_mysql_user') }}
+                <input type="text" name="mysql_user" value="{{ mysql_cfg.get('user', 'root') }}" placeholder="root">
+              </label>
+              <label>{{ t('admin_mysql_password') }}
+                <input type="password" name="mysql_password" value="{{ mysql_cfg.get('password', '') }}" autocomplete="new-password" placeholder="{{ t('admin_secret_ph') }}">
+              </label>
+              <label>{{ t('admin_mysql_db') }}
+                <input type="text" name="mysql_db" value="{{ mysql_cfg.get('db', 'utilitati') }}" placeholder="utilitati">
+              </label>
+              <label>{{ t('admin_mysql_charset') }}
+                <input type="text" name="mysql_charset" value="{{ mysql_cfg.get('charset', 'utf8mb4') }}" placeholder="utf8mb4">
+              </label>
+              <p class="field-hint">{{ t('admin_mysql_hint') }}</p>
+            </div>
+          </div>
+
+          <div class="card">
             <h2>{{ t('admin_sync') }}</h2>
             <div class="form-stack">
               <label class="radio">

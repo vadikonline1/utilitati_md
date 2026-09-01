@@ -30,6 +30,10 @@ PROVIDER_CLASSES: dict[str, type[BaseUtilityProvider]] = {
     "anintercom": OplataUtilityProvider,
     "sagaidac_service": OplataUtilityProvider,
     "vipinterfon": OplataUtilityProvider,
+    "econdominiu": OplataUtilityProvider,
+    "salubeco": OplataUtilityProvider,
+    "legion_security_group": OplataUtilityProvider,
+    "invoicer": OplataUtilityProvider,
 }
 
 
@@ -39,6 +43,7 @@ def get_provider_instance(
     place_of_consumption: str | None = None,
     username: str | None = None,
     password: str | None = None,
+    full_name: str | None = None,
     session: ClientSession | None = None,
     extra_config: dict[str, Any] | None = None,
 ) -> BaseUtilityProvider:
@@ -52,6 +57,7 @@ def get_provider_instance(
         place_of_consumption=place_of_consumption,
         username=username,
         password=password,
+        full_name=full_name,
         session=session,
         extra_config=extra_config,
     )

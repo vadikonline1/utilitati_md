@@ -30,15 +30,25 @@ export default function LoginScreen({ navigation }: { navigation?: { navigate: (
       setError('Completează username-ul și parola.');
       return;
     }
+    if (mode === 'register') {
+      if (!email) {
+        setError('Completează email-ul.');
+        return;
+      }
+      if (password.length < 6) {
+        setError('Parola trebuie să aibă minim 6 caractere.');
+        return;
+      }
+      if (!fullName.trim()) {
+        setError('Completează numele și prenumele.');
+        return;
+      }
+    }
     setLoading(true);
     try {
       if (mode === 'login') {
         await signIn(username, password);
       } else {
-        if (!email) {
-          setError('Completează email-ul.');
-          return;
-        }
         await signUp(username, password, email, fullName);
       }
     } catch (e) {
@@ -58,7 +68,7 @@ export default function LoginScreen({ navigation }: { navigation?: { navigate: (
         <Text style={styles.subtitle}>
           {mode === 'login'
             ? 'Autentifică-te pentru a vedea facturile tale'
-            : 'Creează un cont nou'}
+            : 'Creare cont'}
         </Text>
 
         <View style={styles.form}>
@@ -69,6 +79,15 @@ export default function LoginScreen({ navigation }: { navigation?: { navigate: (
             autoCapitalize="none"
             autoCorrect={false}
           />
+          {mode === 'register' ? (
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          ) : null}
           <Input
             label="Parolă"
             value={password}
@@ -76,20 +95,12 @@ export default function LoginScreen({ navigation }: { navigation?: { navigate: (
             secureTextEntry
           />
           {mode === 'register' ? (
-            <>
-              <Input
-                label="Nume complet (opțional)"
-                value={fullName}
-                onChangeText={setFullName}
-              />
-              <Input
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </>
+            <Input
+              label="Nume, Prenume *"
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="ex. Popescu Ion"
+            />
           ) : null}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -13,7 +13,9 @@ from pyutilitati_md import (
 
 from ..auth import (
     authenticate,
+    change_password,
     create_session_token,
+    deactivate_user,
     get_user,
     get_user_lang,
     register,
@@ -140,6 +142,23 @@ async def auth_reset_password(payload: dict):
     if len(new_password) < 6:
         raise HTTPException(status_code=400, detail="Parola trebuie să aibă minim 6 caractere")
     set_password_for_user(user_id, new_password)
+    return {"ok": True}
+
+
+@router.post("/auth/change-password")
+async def auth_change_password(payload: dict, user_id: int = Depends(get_auth_token)):
+    old_password = str(payload.get("current_password", ""))
+    new_password = str(payload.get("new_password", ""))
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Parola trebuie să aibă minim 6 caractere")
+    if not change_password(user_id, old_password, new_password):
+        raise HTTPException(status_code=400, detail="Parola actuală este incorectă")
+    return {"ok": True}
+
+
+@router.post("/auth/deactivate")
+async def auth_deactivate(user_id: int = Depends(get_auth_token)):
+    deactivate_user(user_id, days=30)
     return {"ok": True}
 
 

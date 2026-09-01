@@ -44,6 +44,10 @@ OPLATA_SERVICE_IDS: dict[str, int] = {
     "anintercom": 1191,
     "sagaidac_service": 1253,
     "vipinterfon": 1047,
+    "econdominiu": 760,
+    "salubeco": 1202,
+    "legion_security_group": 1295,
+    "invoicer": 904,
 }
 
 # Display names (kept in sync with the web UI provider meta).
@@ -64,6 +68,10 @@ OPLATA_NAMES: dict[str, str] = {
     "anintercom": "Anintercom",
     "sagaidac_service": "Sagaidac Service",
     "vipinterfon": "VIP Interfon",
+    "econdominiu": "E-Condominiu",
+    "salubeco": "SALUBECO",
+    "legion_security_group": "LEGION SECURITY GROUP",
+    "invoicer": "Invoicer",
 }
 
 # oplata.md "Pasul 1" account field name submitted in the request (Items[0].Name)
@@ -85,7 +93,26 @@ OPLATA_ACCOUNT_NAMES: dict[str, str] = {
     "anintercom": "Numar contract",
     "sagaidac_service": "Numarul contractului",
     "vipinterfon": "Numar contract",
+    "econdominiu": "Cod Consumator",
+    "salubeco": "Numarul contractului",
+    "legion_security_group": "Personal ID",
+    "invoicer": " ID platitor",
 }
+
+# Providers that verify the account by name + surname. The account's `full_name`
+# is sent as a second oplata.md field (Items[1]) when connecting/checking.
+OPLATA_FULLNAME_REQUIRED: frozenset[str] = frozenset(
+    {"stroy_master_domofon", "vipinterfon", "legion_security_group"}
+)
+
+# Label used for the name+surname field on oplata.md (Items[1].Name), and whether
+# the field is oplata.md's "special1" type (personal-passport style entry).
+OPLATA_FULLNAME_LABELS: dict[str, str] = {
+    "stroy_master_domofon": "Nume, Prenume",
+    "vipinterfon": "Nume, Prenume",
+    "legion_security_group": "Nume, Prenume",
+}
+OPLATA_FULLNAME_SPECIAL: frozenset[str] = frozenset({"legion_security_group"})
 
 # Providers that accept the generic single-account oplata flow.
 OPLATA_PROVIDERS: frozenset[str] = frozenset(OPLATA_NAMES)
@@ -101,6 +128,7 @@ class OplataUtilityProvider(BaseUtilityProvider):
         self._name = OPLATA_NAMES.get(provider_id, provider_id)
         self._account_name = OPLATA_ACCOUNT_NAMES.get(provider_id, "Cont personal")
         self._service_id = OPLATA_SERVICE_IDS.get(provider_id, 0)
+        self._needs_fullname = provider_id in OPLATA_FULLNAME_REQUIRED
         self.client = OplataMDClient(session=self.session)
 
     @property
@@ -113,6 +141,23 @@ class OplataUtilityProvider(BaseUtilityProvider):
         """Return human-readable provider name."""
         return self._name
 
+    def _extra_fields(self) -> list[dict[str, Any]]:
+        """Build the oplata.md second field for name+surname providers."""
+        if not self._needs_fullname:
+            return []
+        full_name = (self.full_name or "").strip()
+        if not full_name:
+            return []
+        label = OPLATA_FULLNAME_LABELS.get(self._id, "Nume, Prenume")
+        return [
+            {
+                "key": "special1" if self._id in OPLATA_FULLNAME_SPECIAL else "fullname",
+                "name": label,
+                "value": full_name,
+                "special": self._id in OPLATA_FULLNAME_SPECIAL,
+            }
+        ]
+
     async def async_authenticate(self) -> bool:
         """Validate the account reference against oplata.md."""
         try:
@@ -121,6 +166,7 @@ class OplataUtilityProvider(BaseUtilityProvider):
                 service_id=self._service_id,
                 account_key="account",
                 account_name=self._account_name,
+                extra_items=self._extra_fields(),
             )
             return res.total_amount_mdl is not None
         except Exception as err:
@@ -146,6 +192,7 @@ class OplataUtilityProvider(BaseUtilityProvider):
             service_id=self._service_id,
             account_key="account",
             account_name=self._account_name,
+            extra_items=self._extra_fields(),
         )
 
         # oplata.md returns one line item per billing/service element. Some

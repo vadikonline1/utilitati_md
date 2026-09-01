@@ -11,8 +11,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 
 import { Home, listHomes } from '../api/client';
+import AppHeader from '../components/AppHeader';
 import Card from '../components/Card';
 import { colors, spacing } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
 
 type Nav = {
   navigate: (name: string, params?: object) => void;
@@ -71,6 +73,7 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
 
   return (
     <View style={styles.container}>
+      <AppHeader />
       <FlatList
         data={homes}
         keyExtractor={(h) => String(h.id)}
@@ -91,7 +94,7 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
         style={styles.fab}
         onPress={() => navigation.navigate('HomeForm', {})}
       >
-        <Text style={styles.fabText}>+</Text>
+        <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
     </View>
   );
@@ -127,5 +130,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 4,
   },
-  fabText: { color: '#fff', fontSize: 28, lineHeight: 30 },
 });

@@ -111,6 +111,20 @@ export function resetPassword(token: string, newPassword: string): Promise<{ ok:
   });
 }
 
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ ok: boolean }> {
+  return request('/auth/change-password', {
+    method: 'POST',
+    body: { current_password: currentPassword, new_password: newPassword },
+  });
+}
+
+export function deactivateAccount(): Promise<{ ok: boolean }> {
+  return request('/auth/deactivate', { method: 'POST' });
+}
+
 // --------------------------------------------------------------------------- //
 // Homes
 // --------------------------------------------------------------------------- //
@@ -135,6 +149,7 @@ export interface Account {
   place_of_consumption: string;
   username: string;
   password?: string;
+  full_name?: string;
   icon?: string;
   status: string;
   created_at?: string;
@@ -144,6 +159,12 @@ export interface Provider {
   id: string;
   name?: string;
   label?: string;
+  full_name_label?: string;
+  full_name_placeholder?: string;
+  account_label?: string;
+  placeholder?: string;
+  icon?: string;
+  fields?: string[];
 }
 
 export interface Invoice {
@@ -233,12 +254,6 @@ export function refreshAccount(
   invoices: Invoice[];
 }> {
   return request(`/accounts/${id}/refresh`, { method: 'POST' });
-}
-
-export function submitMeterReading(id: number, value: number): Promise<{ submitted: boolean }> {
-  return request(`/accounts/${id}/meter-reading?reading_value=${encodeURIComponent(value)}`, {
-    method: 'POST',
-  });
 }
 
 // --------------------------------------------------------------------------- //

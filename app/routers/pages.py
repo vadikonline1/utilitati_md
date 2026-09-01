@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import os
 import re
 import secrets
 from datetime import datetime, timedelta
@@ -38,12 +39,19 @@ from ..auth import (
     set_password_for_user,
     set_reset_token,
     set_user_active,
+    set_user_full_name,
     set_user_lang,
     user_by_email,
     user_state,
     verify_password,
 )
 from ..config import SECRET_KEY, is_admin_username, SITE_URL, TEMPLATES_DIR
+from ..db import (
+    _mysql_env,
+    load_mysql_config_file,
+    save_mysql_config_file,
+    using_mysql,
+)
 from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import contact as contact_svc
@@ -125,7 +133,7 @@ PROVIDER_META = {
     "apa_canal_chisinau": {"icon": "💧", "name": "Apă-Canal Chișinău", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "5-9 caractere (A, P, cifre)"},
     "starnet": {"icon": "🌐", "name": "StarNet", "fields": ["contract"], "account_label": "Codul personal", "placeholder": "1-12 cifre"},
     "fee_nord": {"icon": "⚡", "name": "FEE Nord", "fields": ["contract"], "account_label": "Numărul contractului", "placeholder": "ex: 12-1234567890"},
-    "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract"], "account_label": "Cont Abonat", "placeholder": "ex: 123456"},
+    "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract", "full_name"], "account_label": "Cont Abonat", "placeholder": "ex: 123456", "full_name_label": "Nume, Prenume", "full_name_placeholder": "ex: Popescu Ion"},
     "cet_nord": {"icon": "🔥", "name": "CET Nord", "fields": ["contract"], "account_label": "Numărul facturii", "placeholder": "1-9 cifre (ex: 123456789)"},
     "paza_a_mai": {"icon": "🔒", "name": "Paza a MAI", "fields": ["contract"], "account_label": "Factura", "placeholder": "1-20 caractere (ex: 12345)"},
     "probon": {"icon": "📋", "name": "Probon", "fields": ["contract"], "account_label": "ID Client", "placeholder": "1-10 caractere (ex: 1234567890)"},
@@ -133,7 +141,11 @@ PROVIDER_META = {
     "antar_salubrizare": {"icon": "🗑️", "name": "ANTAR SALUBRIZARE", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
     "anintercom": {"icon": "🏢", "name": "Anintercom", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "7 cifre (ex: 1234567)"},
     "sagaidac_service": {"icon": "🏠", "name": "Sagaidac Service", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
-    "vipinterfon": {"icon": "🚪", "name": "VIP Interfon", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "4-5 cifre (ex: 1234)"},
+    "vipinterfon": {"icon": "🚪", "name": "VIP Interfon", "fields": ["contract", "full_name"], "account_label": "Numar contract", "placeholder": "4-5 cifre (ex: 1234)", "full_name_label": "Nume, Prenume", "full_name_placeholder": "ex: Popescu Ion"},
+    "econdominiu": {"icon": "🏢", "name": "E-Condominiu", "fields": ["contract"], "account_label": "Cod Consumator", "placeholder": "max 11 caractere (ex: 12345678901)"},
+    "salubeco": {"icon": "🗑️", "name": "SALUBECO", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "max 9 cifre (ex: 123456789)"},
+    "legion_security_group": {"icon": "🛡️", "name": "LEGION SECURITY GROUP", "fields": ["contract", "full_name"], "account_label": "Personal ID", "placeholder": "max 5 caractere (ex: 12345)", "full_name_label": "Nume, Prenume", "full_name_placeholder": "ex: Popescu Ion"},
+    "invoicer": {"icon": "🧾", "name": "Invoicer", "fields": ["contract"], "account_label": "ID platitor", "placeholder": "max 14 caractere (ex: 12345678901234)"},
 }
 
 
@@ -143,6 +155,11 @@ def _ctx(request, **extra):
     lang = get_user_lang(uid) if uid is not None else None
     if lang is None:
         lang = get_lang(request.cookies.get("lang"))
+    user_full_name = ""
+    if uid is not None:
+        _user = get_user(uid)
+        if _user:
+            user_full_name = _user.get("full_name") or ""
     ctx = {
         "request": request,
         "now": datetime.now(),
@@ -152,6 +169,7 @@ def _ctx(request, **extra):
         "t": make_translator(lang),
         "langs": LANG_NAMES,
         "logged_in": uid is not None and is_usable_user(uid),
+        "user_full_name": user_full_name,
         "is_admin": uid is not None and is_usable_user(uid)
         and is_admin_username(get_username(uid)),
         "seo": _seo(),
@@ -669,26 +687,34 @@ async def logout():
     return response
 
 
+def _profile_ctx(request: Request, user_id: int, message: str | None = None, **extra) -> dict:
+    """Profile page context: identity, language, notification prefs and admin flag."""
+    prefs = get_notification_prefs(user_id)
+    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
+    user = get_user(user_id) or {}
+    return _ctx(
+        request,
+        message=message,
+        username=get_username(user_id),
+        user_lang=lang,
+        user_full_name=user.get("full_name") or "",
+        user_email=user.get("email") or "",
+        emails=prefs["emails"],
+        telegram_chat_ids=prefs["telegram"],
+        email_configured=_email_cfg(),
+        telegram_configured=_telegram_cfg(),
+        telegram_bot_url=_telegram_bot_url(),
+        is_admin=_is_admin(user_id),
+        **extra,
+    )
+
+
 @router.get("/profile", response_class=HTMLResponse)
 async def profile_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
-    prefs = get_notification_prefs(user_id)
-    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
     return templates.TemplateResponse(
-        request, "profile.html",
-        _ctx(
-            request,
-            message=None,
-            username=get_username(user_id),
-            user_lang=lang,
-            emails=prefs["emails"],
-            telegram_chat_ids=prefs["telegram"],
-            email_configured=_email_cfg(),
-            telegram_configured=_telegram_cfg(),
-            telegram_bot_url=_telegram_bot_url(),
-            is_admin=_is_admin(user_id),
-        ),
+        request, "profile.html", _profile_ctx(request, user_id),
     )
 
 
@@ -696,21 +722,30 @@ async def profile_page(request: Request, user_id: int | None = Depends(optional_
 async def profile_submit(request: Request, user_id: int | None = Depends(optional_auth_token)):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
-    _t = make_translator(get_lang(request.cookies.get("lang")))
+    _t = make_translator(get_user_lang(user_id) or get_lang(request.cookies.get("lang")))
     form = await request.form()
+    if form.get("first_name") is not None or form.get("last_name") is not None:
+        first_name = str(form.get("first_name", "")).strip()
+        last_name = str(form.get("last_name", "")).strip()
+        full_name = f"{first_name} {last_name}".strip()
+        set_user_full_name(user_id, full_name)
+        return templates.TemplateResponse(
+            request, "profile.html",
+            _profile_ctx(request, user_id, message=_t("profile_name_saved")),
+        )
     old = str(form.get("old_password", "")).strip()
     new = str(form.get("new_password", "")).strip()
     confirm = str(form.get("confirm", "")).strip()
     if new != confirm:
         return templates.TemplateResponse(
-            request, "profile.html", _ctx(request, message=_t("profile_mismatch")),
+            request, "profile.html", _profile_ctx(request, user_id, message=_t("profile_mismatch")),
         )
     if change_password(user_id, old, new):
         return templates.TemplateResponse(
-            request, "profile.html", _ctx(request, message=_t("profile_changed")),
+            request, "profile.html", _profile_ctx(request, user_id, message=_t("profile_changed")),
         )
     return templates.TemplateResponse(
-        request, "profile.html", _ctx(request, message=_t("profile_wrong_old")),
+        request, "profile.html", _profile_ctx(request, user_id, message=_t("profile_wrong_old")),
     )
 
 
@@ -727,22 +762,9 @@ async def profile_notifications_submit(
         str(form.get("emails", "")).strip(),
         str(form.get("telegram_chat_ids", "")).strip(),
     )
-    prefs = get_notification_prefs(user_id)
-    lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
     return templates.TemplateResponse(
         request, "profile.html",
-        _ctx(
-            request,
-            message=_t("profile_notif_saved"),
-            username=get_username(user_id),
-            user_lang=lang,
-            emails=prefs["emails"],
-            telegram_chat_ids=prefs["telegram"],
-            email_configured=_email_cfg(),
-            telegram_configured=_telegram_cfg(),
-            telegram_bot_url=_telegram_bot_url(),
-            is_admin=_is_admin(user_id),
-        ),
+        _profile_ctx(request, user_id, message=_t("profile_notif_saved")),
     )
 
 
@@ -771,22 +793,9 @@ async def profile_deactivate_submit(
     form = await request.form()
     password = str(form.get("password", "")).strip()
     if not verify_password(user_id, password):
-        prefs = get_notification_prefs(user_id)
-        lang = get_user_lang(user_id) or get_lang(request.cookies.get("lang"))
         return templates.TemplateResponse(
             request, "profile.html",
-            _ctx(
-                request,
-                message=_t("profile_deactivate_wrong_password"),
-                username=get_username(user_id),
-                user_lang=lang,
-                emails=prefs["emails"],
-                telegram_chat_ids=prefs["telegram"],
-                email_configured=_email_cfg(),
-                telegram_configured=_telegram_cfg(),
-                telegram_bot_url=_telegram_bot_url(),
-                is_admin=_is_admin(user_id),
-            ),
+            _profile_ctx(request, user_id, message=_t("profile_deactivate_wrong_password")),
         )
     delete_after = deactivate_user(user_id)
     # Log the user out: their session is no longer usable.
@@ -846,9 +855,32 @@ def _msg_defaults_data() -> dict:
 
 def _admin_base_ctx() -> dict:
     """Context values shared by every /admin render."""
+    env_cfg = _mysql_env()
+    if env_cfg is not None:
+        mysql_cfg = dict(env_cfg)
+        mysql_from_env = bool(
+            any(os.getenv(v) for v in (
+                "UTILITATI_DB_ENGINE", "UTILITATI_MYSQL_HOST", "UTILITATI_MYSQL_PORT",
+                "UTILITATI_MYSQL_USER", "UTILITATI_MYSQL_PASSWORD", "UTILITATI_MYSQL_DB",
+            ))
+        )
+    else:
+        mysql_cfg = load_mysql_config_file() or {
+            "host": "127.0.0.1", "port": "3306", "user": "root",
+            "password": "", "db": "utilitati", "charset": "utf8mb4",
+        }
+        mysql_from_env = False
+    # Never echo the configured MySQL password back to the admin form; use the
+    # masked sentinel instead so an unchanged submission keeps it.
+    if mysql_cfg.get("password"):
+        mysql_cfg = dict(mysql_cfg)
+        mysql_cfg["password"] = MASKED
     return {
         "denied": False,
         "settings": all_settings(),
+        "mysql_enabled": using_mysql(),
+        "mysql_from_env": mysql_from_env,
+        "mysql_cfg": mysql_cfg,
         "retention_enabled": retention_enabled(),
         "inactive_months": inactive_months(),
         "warn_days_list": warn_days(),
@@ -927,6 +959,22 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         if not sub or sub == MASKED:
             values.pop(secret_key, None)
     set_settings(values)
+    # MySQL connection settings: persisted to the admin-editable JSON sidecar.
+    # Environment variables (UTILITATI_MYSQL_*) always take precedence, so the
+    # saved values only apply when the app is started without those env vars.
+    if form.get("mysql_host") is not None:
+        mysql_password = str(form.get("mysql_password", "")).strip()
+        if not mysql_password or mysql_password == MASKED:
+            existing = load_mysql_config_file() or {}
+            mysql_password = existing.get("password", "")
+        save_mysql_config_file({
+            "host": str(form.get("mysql_host", "")).strip(),
+            "port": str(form.get("mysql_port", "3306")).strip(),
+            "user": str(form.get("mysql_user", "")).strip(),
+            "password": mysql_password,
+            "db": str(form.get("mysql_db", "utilitati")).strip(),
+            "charset": str(form.get("mysql_charset", "utf8mb4")).strip(),
+        })
     return _admin_render(request, user_id, message=_t("admin_saved"))
 
 
@@ -1446,12 +1494,19 @@ async def utility_connect(
         "icon": meta.get("icon", "📄"),
         "username": None,
         "password": None,
+        "full_name": None,
         "place_of_consumption": None,
     }
     if "username" in fields:
         data["username"] = str(form.get("username") or "").strip() or None
     if "password" in fields:
         data["password"] = str(form.get("password") or "").strip() or None
+    if "full_name" in fields:
+        full_name = str(form.get("full_name") or "").strip()
+        if not full_name:
+            _user = get_user(user_id) or {}
+            full_name = _user.get("full_name") or ""
+        data["full_name"] = full_name or None
 
     acc_id = upsert_account(user_id, data)
     new_account = get_account_row(user_id, acc_id)
@@ -1461,6 +1516,47 @@ async def utility_connect(
         if created_ids:
             await _notify_invoices_found(user_id, new_account, fetched, created_ids, SITE_URL)
     return RedirectResponse(f"/homes/{home_id}?added={acc_id}", status_code=303)
+
+
+@router.post("/homes/{home_id}/utilities/{account_id}/edit")
+async def utility_edit_submit(
+    home_id: int, account_id: int, request: Request,
+    user_id: int | None = Depends(optional_auth_token),
+):
+    if user_id is None:
+        return RedirectResponse("/login", status_code=303)
+    account = get_account_row(user_id, account_id)
+    if account is None or account.get("home_id") != home_id:
+        return RedirectResponse(f"/homes/{home_id}", status_code=303)
+    form = await request.form()
+    provider = str(account.get("provider", "")).strip()
+    meta = PROVIDER_META.get(provider, {})
+    fields = meta.get("fields", ["contract"])
+    contract_number = str(form.get("contract_number", "")).strip()
+    if not contract_number:
+        return RedirectResponse(f"/homes/{home_id}", status_code=303)
+    data = {
+        "home_id": home_id,
+        "provider": provider,
+        "label": str(form.get("label") or "").strip() or meta.get("name", provider),
+        "contract_number": contract_number,
+        "icon": meta.get("icon", account.get("icon", "📄")),
+        "username": account.get("username"),
+        "password": account.get("password"),
+        "full_name": account.get("full_name"),
+        "place_of_consumption": account.get("place_of_consumption"),
+        "status": account.get("status", "enabled"),
+    }
+    if "username" in fields:
+        data["username"] = (str(form.get("username") or "").strip()
+                            or account.get("username") or None)
+    if "password" in fields:
+        data["password"] = (str(form.get("password") or "").strip()
+                            or account.get("password") or None)
+    if "full_name" in fields:
+        data["full_name"] = str(form.get("full_name") or "").strip() or None
+    upsert_account(user_id, data, account_id=account_id)
+    return RedirectResponse(f"/homes/{home_id}", status_code=303)
 
 
 @router.post("/homes/{home_id}/utilities/{account_id}/status")
@@ -1585,6 +1681,23 @@ async def invoices_all_page(
         generated_msg = _t(
             "invoices_generated",
         ).replace("{updated}", str(generated_updated)).replace("{errors}", str(generated_errors))
+    edit_accounts = {}
+    for acc in accounts:
+        meta = PROVIDER_META.get(acc["provider"], {})
+        edit_accounts[acc["id"]] = {
+            "account_id": acc["id"],
+            "home_id": acc["home_id"],
+            "provider": acc["provider"],
+            "provider_name": meta.get("name", acc["provider"]),
+            "fields": meta.get("fields", ["contract"]),
+            "full_name_label": meta.get("full_name_label", ""),
+            "full_name_placeholder": meta.get("full_name_placeholder", ""),
+            "account_label": meta.get("account_label", ""),
+            "label": acc.get("label") or "",
+            "contract_number": acc.get("contract_number") or "",
+            "full_name": acc.get("full_name") or "",
+            "username": acc.get("username") or "",
+        }
     return templates.TemplateResponse(
         request, "invoices_all.html",
         _ctx(
@@ -1593,6 +1706,7 @@ async def invoices_all_page(
             accounts=accounts,
             homes=list_homes(user_id),
             current_home=current_home,
+            edit_accounts=edit_accounts,
             page=page,
             total_pages=total_pages,
             total=total,

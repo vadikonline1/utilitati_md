@@ -430,6 +430,14 @@ textarea {
 .modal-head h2 { margin: 0; }
 .modal-close { background: none; border: none; color: var(--muted); font-size: 1.6rem; cursor: pointer; }
 
+/* Edit-home modal: read-only / system info block */
+.home-info-block {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; display: flex; flex-direction: column; gap: 6px; margin-top: 8px;
+}
+.info-row { display: flex; gap: 8px; font-size: 0.9rem; }
+.info-label { color: var(--muted); min-width: 90px; }
+
 button { font-family: inherit; }
 
 /* Responsive: small screens collapse the header nav into a dropdown menu */

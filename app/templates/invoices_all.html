@@ -59,6 +59,7 @@
           <div class="dl-cell" data-label="{{ t('invoice_due') }}">{{ inv.due_date or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('homes_status') }}"><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></div>
           <div class="dl-cell row-actions">
+            <button type="button" class="btn small ghost" onclick="openEditAccount({{ inv.account_id }})">{{ t('homes_edit') }}</button>
             <a class="btn small" href="/accounts/{{ inv.account_id }}/invoices">{{ t('invoice_check') }}</a>
             <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
               <input type="hidden" name="status" value="{{ 'disabled' if inv.status == 'enabled' else 'enabled' }}">
@@ -108,7 +109,7 @@
       <label>{{ t('home_provider') }}
         <select name="provider" id="provider-select" required onchange="updateProviderFields()">
           {% for pid, meta in providers.items() %}
-            <option value="{{ pid }}" data-fields="{% for f in meta.fields %}{{ f }}{% if not loop.last %},{% endif %}{% endfor %}" data-account-label="{{ meta.account_label or t('home_contract_number') }}" data-placeholder="{{ meta.placeholder or t('account_number_ph') }}">{{ meta.icon }} {{ meta.name }}</option>
+            <option value="{{ pid }}" data-fields="{% for f in meta.fields %}{{ f }}{% if not loop.last %},{% endif %}{% endfor %}" data-account-label="{{ meta.account_label or t('home_contract_number') }}" data-placeholder="{{ meta.placeholder or t('account_number_ph') }}" data-fullname-label="{{ meta.full_name_label or t('home_full_name') }}" data-fullname-placeholder="{{ meta.full_name_placeholder or t('home_full_name_ph') }}">{{ meta.icon }} {{ meta.name }}</option>
           {% endfor %}
         </select>
       </label>
@@ -127,13 +128,58 @@
           <input type="password" name="password" autocomplete="off">
         </label>
       </div>
+      <div class="provider-field-fullname" hidden>
+        <label id="fullname-field-label">{{ t('home_full_name') }}
+          <input type="text" name="full_name" id="fullname-field-input" value="{{ user_full_name or '' }}" autocomplete="off">
+        </label>
+      </div>
       <button type="submit">{{ t('home_connect_btn') }}</button>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-account" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2>{{ t('account_edit_title') }}</h2>
+      <button type="button" class="modal-close" onclick="closeModal('modal-edit-account')">×</button>
+    </div>
+    <form method="post" id="account-edit-form" class="form-stack">
+      <label>{{ t('home_provider') }}
+        <select name="provider" id="edit-account-provider" disabled>
+          <option id="edit-account-provider-option"></option>
+        </select>
+      </label>
+      <p class="field-hint">{{ t('account_provider_readonly') }}</p>
+      <label>{{ t('account_label_field') }}
+        <input type="text" name="label" id="f_edit_label">
+      </label>
+      <label>{{ t('home_contract_number') }}
+        <input type="text" name="contract_number" id="f_edit_contract" required>
+      </label>
+      <div class="provider-edit-username" id="edit-account-username" hidden>
+        <label>{{ t('home_username') }}
+          <input type="text" name="username" id="f_edit_username" autocomplete="off">
+        </label>
+      </div>
+      <div class="provider-edit-password" id="edit-account-password" hidden>
+        <label>{{ t('home_password') }}
+          <input type="password" name="password" id="f_edit_password" autocomplete="off" placeholder="{{ t('account_password_keep') }}">
+        </label>
+      </div>
+      <div class="provider-edit-fullname" id="edit-account-fullname" hidden>
+        <label id="edit-fullname-label">{{ t('home_full_name') }}
+          <input type="text" name="full_name" id="f_edit_fullname" autocomplete="off">
+        </label>
+      </div>
+      <button type="submit">{{ t('account_save_changes') }}</button>
     </form>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
+const editAccounts = {{ edit_accounts|tojson }};
 function openModal(id) { document.getElementById(id).hidden = false; }
 function closeModal(id) { document.getElementById(id).hidden = true; }
 function updateProviderFields() {
@@ -142,8 +188,31 @@ function updateProviderFields() {
   const fields = (opt.dataset.fields || "contract").split(",");
   document.querySelector(".provider-field-username").hidden = !fields.includes("username");
   document.querySelector(".provider-field-password").hidden = !fields.includes("password");
+  document.querySelector(".provider-field-fullname").hidden = !fields.includes("full_name");
   document.getElementById("contract-field-label").childNodes[0].nodeValue = opt.dataset.accountLabel + " ";
   document.getElementById("contract-field-input").placeholder = opt.dataset.placeholder;
+  document.getElementById("fullname-field-label").childNodes[0].nodeValue = (opt.dataset.fullnameLabel || "{{ t('home_full_name') }}") + " ";
+  document.getElementById("fullname-field-input").placeholder = opt.dataset.fullnamePlaceholder || "{{ t('home_full_name_ph') }}";
+}
+function openEditAccount(accountId) {
+  const acc = editAccounts[accountId];
+  if (!acc) return;
+  document.getElementById("edit-account-provider-option").value = acc.provider;
+  document.getElementById("edit-account-provider-option").textContent = acc.provider_name;
+  document.getElementById("f_edit_label").value = acc.label || "";
+  document.getElementById("f_edit_contract").value = acc.contract_number || "";
+  document.getElementById("f_edit_username").value = acc.username || "";
+  document.getElementById("f_edit_password").value = "";
+  document.getElementById("f_edit_fullname").value = acc.full_name || "";
+  const fields = acc.fields || ["contract"];
+  document.getElementById("edit-account-username").hidden = !fields.includes("username");
+  document.getElementById("edit-account-password").hidden = !fields.includes("password");
+  document.getElementById("edit-account-fullname").hidden = !fields.includes("full_name");
+  document.getElementById("edit-fullname-label").childNodes[0].nodeValue = (acc.full_name_label || "{{ t('home_full_name') }}") + " ";
+  document.getElementById("f_edit_fullname").placeholder = acc.full_name_placeholder || "{{ t('home_full_name_ph') }}";
+  document.getElementById("f_edit_contract").placeholder = acc.account_label || "{{ t('home_contract_number') }}";
+  document.getElementById("account-edit-form").action = "/homes/" + acc.home_id + "/utilities/" + acc.account_id + "/edit";
+  openModal("modal-edit-account");
 }
 document.addEventListener("DOMContentLoaded", function () {
   updateProviderFields();

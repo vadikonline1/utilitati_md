@@ -46,6 +46,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
   const [placeOfConsumption, setPlaceOfConsumption] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [providers, setProviders] = useState<Provider[]>([]);
   const [homes, setHomes] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -79,6 +80,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
             setPlaceOfConsumption(acc.place_of_consumption || '');
             setUsername(acc.username || '');
             setPassword(acc.password || '');
+            setFullName(acc.full_name || '');
           }
         } catch {
           /* ignore */
@@ -86,6 +88,9 @@ export default function AccountFormScreen({ navigation, route }: Props) {
       }
     })();
   }, [isEdit, accountId, fixedHomeId]);
+
+  const selectedProvider = providers.find((p) => p.id === provider);
+  const needsFullName = selectedProvider?.fields?.includes('full_name') ?? false;
 
   const save = async () => {
     if (!label.trim() || !provider.trim() || !contractNumber.trim()) {
@@ -101,6 +106,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
       place_of_consumption: placeOfConsumption,
       username,
       password,
+      full_name: needsFullName ? fullName : undefined,
       status: 'enabled',
     };
     try {
@@ -135,13 +141,22 @@ export default function AccountFormScreen({ navigation, route }: Props) {
           label="Furnizor *"
           value={provider}
           onChangeText={setProvider}
+          editable={!isEdit}
           placeholder="ex. Premier Energy"
         />
+        {needsFullName ? (
+          <Input
+            label="Nume complet (Nume, Prenume)"
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder={selectedProvider?.full_name_placeholder}
+          />
+        ) : null}
         <Input
           label="Număr contract *"
           value={contractNumber}
           onChangeText={setContractNumber}
-          placeholder="ex. 123456789"
+          placeholder={selectedProvider?.placeholder}
         />
         <Input
           label="Loc de consum"

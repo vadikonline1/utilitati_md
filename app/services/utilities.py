@@ -205,6 +205,7 @@ def upsert_account(
 ) -> int:
     home_id = data.get("home_id")
     status = data.get("status", "enabled")
+    full_name = data.get("full_name")
     # Credentials are encrypted at rest; every read path decrypts them on use.
     enc_username = crypto.safe_encrypt(data.get("username") or None)
     enc_password = crypto.safe_encrypt(data.get("password") or None)
@@ -213,24 +214,24 @@ def upsert_account(
             conn.execute(
                 """UPDATE accounts SET provider = ?, label = ?, contract_number = ?,
                    place_of_consumption = ?, username = ?, password = ?, icon = ?,
-                   home_id = ?, status = ?
+                   full_name = ?, home_id = ?, status = ?
                    WHERE id = ? AND user_id = ?""",
                 (
                     data["provider"], data.get("label", ""), data["contract_number"],
                     data.get("place_of_consumption"), enc_username, enc_password,
-                    data.get("icon"), home_id, status, account_id, user_id,
+                    data.get("icon"), full_name, home_id, status, account_id, user_id,
                 ),
             )
             return account_id
         cur = conn.execute(
             """INSERT INTO accounts
                (user_id, home_id, provider, label, contract_number,
-                place_of_consumption, username, password, icon, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                place_of_consumption, username, password, icon, full_name, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 user_id, home_id, data["provider"], data.get("label", ""),
                 data["contract_number"], data.get("place_of_consumption"),
-                enc_username, enc_password, data.get("icon"), status,
+                enc_username, enc_password, data.get("icon"), full_name, status,
             ),
         )
         return cur.lastrowid
@@ -515,6 +516,7 @@ def _build_client(account: dict[str, Any]):
         contract_number=account["contract_number"],
         username=account.get("username"),
         password=account.get("password"),
+        full_name=account.get("full_name"),
         place_of_consumption=account.get("place_of_consumption"),
     )
 
