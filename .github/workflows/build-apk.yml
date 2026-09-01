@@ -34,11 +34,21 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Generate native android project (expo prebuild)
         run: npx expo prebuild --platform android --no-install
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Configure Gradle heap + local.properties
+        run: |
+          # local.properties pointing to the runner SDK
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          # Bump Gradle memory to avoid OOM on small runners
+          if [ -f android/gradle.properties ]; then
+            echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=768m" >> android/gradle.properties
+            echo "org.gradle.daemon=false" >> android/gradle.properties
+          fi
 
       - name: Build release APK
         run: |
