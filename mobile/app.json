@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Utilitati.MD",
+    "slug": "utilitati-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0f766e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "md.utilitati.app"
+    },
+    "android": {
+      "package": "md.utilitati.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f766e"
+      }
+    },
+    "extra": {
+      "apiUrl": "https://utilitati.nistorlazar.md/api"
+    }
+  }
+}

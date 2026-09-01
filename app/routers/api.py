@@ -11,6 +11,12 @@ from pyutilitati_md import (
     UtilitatiMDConnectionError,
 )
 
+from ..auth import (
+    authenticate,
+    create_session_token,
+    get_user,
+    register,
+)
 from ..deps import get_auth_token
 from ..services.utilities import (
     create_home,
@@ -46,6 +52,57 @@ def _iso(value):
     if hasattr(value, "isoformat"):
         return value.isoformat()
     return str(value)
+
+
+def _public_user(user_id: int) -> dict | None:
+    u = get_user(user_id)
+    if u is None:
+        return None
+    return {
+        "id": u["id"],
+        "username": u["username"],
+        "full_name": u.get("full_name") or "",
+        "email": u.get("email") or "",
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Auth (JSON, used by the mobile app)
+# --------------------------------------------------------------------------- #
+@router.post("/auth/login")
+async def auth_login(payload: dict):
+    username = str(payload.get("username", "")).strip()
+    password = str(payload.get("password", ""))
+    user_id = authenticate(username, password)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Autentificare eșuată")
+    return {"token": create_session_token(user_id), "user": _public_user(user_id)}
+
+
+@router.post("/auth/register")
+async def auth_register(payload: dict):
+    username = str(payload.get("username", "")).strip()
+    password = str(payload.get("password", ""))
+    email = str(payload.get("email", "")).strip()
+    full_name = str(payload.get("full_name", "")).strip()
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username și parola sunt obligatorii")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Parola trebuie să aibă minim 6 caractere")
+    try:
+        # Mobile self-service registration creates an active account directly.
+        user_id = register(username, password, full_name, email, is_active=1)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    return {"token": create_session_token(user_id), "user": _public_user(user_id)}
+
+
+@router.get("/auth/me")
+async def auth_me(user_id: int = Depends(get_auth_token)):
+    user = _public_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
+    return user
 
 
 def _provider_error(err):
