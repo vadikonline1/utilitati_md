@@ -253,9 +253,14 @@ def using_mysql() -> bool:
 # --------------------------------------------------------------------------- #
 @contextmanager
 def _sqlite_conn() -> Iterator[sqlite3.Connection]:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # Concurrent-read/write friendliness: WAL journaling + busy timeout let the
+    # server handle many readers and (serialized) writers without locking up.
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
+    conn.execute("PRAGMA synchronous = NORMAL")
     try:
         yield conn
         conn.commit()
@@ -621,6 +626,8 @@ def init_db() -> None:
     else:
         Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
         with _sqlite_conn() as conn:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA busy_timeout = 5000")
             conn.executescript(SCHEMA)
             _migrate_sqlite(conn)
     _seed_common()

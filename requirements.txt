@@ -5,7 +5,5 @@ python-multipart>=0.0.9
 aiohttp>=3.9
 itsdangerous>=2.1
 cryptography>=41
-# MySQL backend (optional: only needed when UTILITATI_MYSQL_* / ENGINE=mysql).
-pymysql>=1.1
 # Optional: only needed by the (currently unwired) runpay provider engine.
 # playwright>=1.44
