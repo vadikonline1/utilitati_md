@@ -133,9 +133,9 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.grid}>
-            <StatCard label="Sold neplătit" value={`${stats.unpaidBalance.toFixed(2)} MDL`} accent={colors.danger} />
+            <StatCard label="Sold total neachitat" value={`${stats.unpaidBalance.toFixed(2)} MDL`} accent={colors.danger} />
             <StatCard label="Facturi deschise" value={String(stats.openInvoices)} />
-            <StatCard label="Plătite" value={String(stats.paidInvoices)} accent={colors.success} />
+            <StatCard label="Facturi achitate" value={String(stats.paidInvoices)} accent={colors.success} />
             <StatCard label="Restanțe" value={`${stats.arrears.toFixed(2)} MDL`} accent={colors.warning} />
             <StatCard label="Locuințe" value={String(stats.homeCount)} />
           </View>

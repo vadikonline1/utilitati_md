@@ -5,7 +5,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import os
 import re
 import secrets
 from datetime import datetime, timedelta
@@ -46,12 +45,6 @@ from ..auth import (
     verify_password,
 )
 from ..config import SECRET_KEY, is_admin_username, SITE_URL, TEMPLATES_DIR
-from ..db import (
-    _mysql_env,
-    load_mysql_config_file,
-    save_mysql_config_file,
-    using_mysql,
-)
 from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import contact as contact_svc
@@ -855,32 +848,9 @@ def _msg_defaults_data() -> dict:
 
 def _admin_base_ctx() -> dict:
     """Context values shared by every /admin render."""
-    env_cfg = _mysql_env()
-    if env_cfg is not None:
-        mysql_cfg = dict(env_cfg)
-        mysql_from_env = bool(
-            any(os.getenv(v) for v in (
-                "UTILITATI_DB_ENGINE", "UTILITATI_MYSQL_HOST", "UTILITATI_MYSQL_PORT",
-                "UTILITATI_MYSQL_USER", "UTILITATI_MYSQL_PASSWORD", "UTILITATI_MYSQL_DB",
-            ))
-        )
-    else:
-        mysql_cfg = load_mysql_config_file() or {
-            "host": "127.0.0.1", "port": "3306", "user": "root",
-            "password": "", "db": "utilitati", "charset": "utf8mb4",
-        }
-        mysql_from_env = False
-    # Never echo the configured MySQL password back to the admin form; use the
-    # masked sentinel instead so an unchanged submission keeps it.
-    if mysql_cfg.get("password"):
-        mysql_cfg = dict(mysql_cfg)
-        mysql_cfg["password"] = MASKED
     return {
         "denied": False,
         "settings": all_settings(),
-        "mysql_enabled": using_mysql(),
-        "mysql_from_env": mysql_from_env,
-        "mysql_cfg": mysql_cfg,
         "retention_enabled": retention_enabled(),
         "inactive_months": inactive_months(),
         "warn_days_list": warn_days(),
@@ -959,22 +929,6 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         if not sub or sub == MASKED:
             values.pop(secret_key, None)
     set_settings(values)
-    # MySQL connection settings: persisted to the admin-editable JSON sidecar.
-    # Environment variables (UTILITATI_MYSQL_*) always take precedence, so the
-    # saved values only apply when the app is started without those env vars.
-    if form.get("mysql_host") is not None:
-        mysql_password = str(form.get("mysql_password", "")).strip()
-        if not mysql_password or mysql_password == MASKED:
-            existing = load_mysql_config_file() or {}
-            mysql_password = existing.get("password", "")
-        save_mysql_config_file({
-            "host": str(form.get("mysql_host", "")).strip(),
-            "port": str(form.get("mysql_port", "3306")).strip(),
-            "user": str(form.get("mysql_user", "")).strip(),
-            "password": mysql_password,
-            "db": str(form.get("mysql_db", "utilitati")).strip(),
-            "charset": str(form.get("mysql_charset", "utf8mb4")).strip(),
-        })
     return _admin_render(request, user_id, message=_t("admin_saved"))
 
 

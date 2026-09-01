@@ -12,7 +12,6 @@ import {
 import { RouteProp } from '@react-navigation/native';
 
 import {
-  Account,
   ApiError,
   createAccount,
   listAccounts,
@@ -30,7 +29,7 @@ type ParamList = {
 };
 
 interface Props {
-  navigation: { goBack: () => void };
+  navigation: { goBack: () => void; navigate: (name: string, params?: object) => void };
   route: RouteProp<ParamList, 'AccountForm'>;
 }
 
@@ -91,10 +90,15 @@ export default function AccountFormScreen({ navigation, route }: Props) {
 
   const selectedProvider = providers.find((p) => p.id === provider);
   const needsFullName = selectedProvider?.fields?.includes('full_name') ?? false;
+  const selectedHome = homes.find((h) => h.id === Number(homeId));
 
   const save = async () => {
     if (!label.trim() || !provider.trim() || !contractNumber.trim()) {
       Alert.alert('Atenție', 'Completează eticheta, furnizorul și numărul contractului.');
+      return;
+    }
+    if (!homeId || !selectedHome) {
+      Alert.alert('Atenție', 'Selectează o locuință.');
       return;
     }
     setSaving(true);
@@ -131,61 +135,77 @@ export default function AccountFormScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{isEdit ? 'Editează contul' : 'Cont nou'}</Text>
 
-        <Input
-          label="Etichetă *"
-          value={label}
-          onChangeText={setLabel}
-          placeholder="ex. Energie Electrică"
-        />
-        <Input
-          label="Furnizor *"
-          value={provider}
-          onChangeText={setProvider}
-          editable={!isEdit}
-          placeholder="ex. Premier Energy"
-        />
-        {needsFullName ? (
-          <Input
-            label="Nume complet (Nume, Prenume)"
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder={selectedProvider?.full_name_placeholder}
-          />
-        ) : null}
-        <Input
-          label="Număr contract *"
-          value={contractNumber}
-          onChangeText={setContractNumber}
-          placeholder={selectedProvider?.placeholder}
-        />
-        <Input
-          label="Loc de consum"
-          value={placeOfConsumption}
-          onChangeText={setPlaceOfConsumption}
-        />
-        <Input label="Username (utilizator furnizor)" value={username} onChangeText={setUsername} />
-        <Input
-          label="Parolă (utilizator furnizor)"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        {homes.length > 0 ? (
+        {homes.length === 0 && !isEdit ? (
           <View>
+            <Text style={styles.muted}>
+              Nu există nicio locuință. Creează mai întâi o locuință pentru a adăuga o utilitate.
+            </Text>
+            <Button title="Creează locuință" onPress={() => navigation.navigate('HomeForm', {})} />
+          </View>
+        ) : (
+          <View>
+            <Input
+              label="Etichetă *"
+              value={label}
+              onChangeText={setLabel}
+              placeholder="ex. Energie Electrică"
+            />
+            <Text style={styles.section}>Furnizor *</Text>
+            {providers.map((p) => (
+              <TouchableChip
+                key={p.id}
+                label={p.name || p.label || p.id}
+                selected={provider === p.id}
+                onPress={() => !isEdit && setProvider(p.id)}
+              />
+            ))}
+            {needsFullName && !isEdit ? (
+              <Input
+                label="Nume complet (Nume, Prenume)"
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder={selectedProvider?.full_name_placeholder}
+              />
+            ) : null}
+            <Input
+              label="Număr contract *"
+              value={contractNumber}
+              onChangeText={setContractNumber}
+              placeholder={selectedProvider?.placeholder}
+            />
+            <Input
+              label="Loc de consum"
+              value={placeOfConsumption}
+              onChangeText={setPlaceOfConsumption}
+              editable={!isEdit}
+            />
+            <Input
+              label="Username (utilizator furnizor)"
+              value={username}
+              onChangeText={setUsername}
+              editable={!isEdit}
+            />
+            <Input
+              label="Parolă (utilizator furnizor)"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!isEdit}
+            />
+
             <Text style={styles.section}>Locuință</Text>
             {homes.map((h) => (
               <TouchableChip
                 key={h.id}
                 label={h.name}
                 selected={homeId === String(h.id)}
-                onPress={() => setHomeId(String(h.id))}
+                onPress={() => !isEdit && setHomeId(String(h.id))}
               />
             ))}
-          </View>
-        ) : null}
 
-        <Button title="Salvează" onPress={save} loading={saving} />
+            <Button title="Salvează" onPress={save} loading={saving} />
+          </View>
+        )}
         {loading ? <Text style={styles.muted}>Se încarcă…</Text> : null}
       </ScrollView>
     </KeyboardAvoidingView>

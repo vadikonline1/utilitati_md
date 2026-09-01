@@ -11,9 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Input from '../components/Input';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { ApiError, changePassword, deactivateAccount } from '../api/client';
+import { ApiError, changePassword, deactivateAccount, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
@@ -51,7 +52,7 @@ function SettingsRow({
 }
 
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, setUser } = useAuth();
   const [lang, setLang] = useState('ro');
   const [langModal, setLangModal] = useState(false);
   const [passModal, setPassModal] = useState(false);
@@ -60,6 +61,7 @@ export default function ProfileScreen() {
   const [confirmPass, setConfirmPass] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [editName, setEditName] = useState(user?.full_name || '');
 
   useEffect(() => {
     (async () => {
@@ -132,15 +134,40 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const saveName = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const updated = await updateSelf(editName.trim());
+      if (updated) setUser(updated);
+      Alert.alert('Gata', 'Numele a fost salvat.');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Salvarea numelui a eșuat.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profile}>
           <Ionicons name="person-circle-outline" size={64} color={colors.primary} />
-          <Text style={styles.name}>{user?.full_name || user?.username}</Text>
+          <View style={styles.nameInput}>
+            <Input
+              label="Nume, Prenume"
+              value={editName}
+              onChangeText={setEditName}
+            />
+          </View>
+          <Button
+            title="Salvează numele"
+            onPress={saveName}
+            loading={busy}
+          />
           <Text style={styles.muted}>@{user?.username}</Text>
-          {user?.email ? <Text style={styles.muted}>{user.email}</Text> : null}
+          <Text style={styles.email}>{user?.email}</Text>
         </View>
 
         <Text style={styles.section}>Setări</Text>
@@ -151,7 +178,7 @@ export default function ProfileScreen() {
         />
         <SettingsRow
           icon="language-outline"
-          title="Limba"
+          title="Limba platformei"
           subtitle={LANGUAGES.find((l) => l.code === lang)?.label}
           onPress={() => setLangModal(true)}
         />
@@ -168,7 +195,7 @@ export default function ProfileScreen() {
         />
         <SettingsRow
           icon="person-remove-outline"
-          title="Dezactivare cont"
+          title="Dezactivarea contului"
           onPress={deactivate}
         />
 
@@ -242,8 +269,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.xl },
   profile: { alignItems: 'center', marginTop: spacing.md },
+  nameInput: { width: '100%', marginTop: spacing.sm },
   name: { fontSize: 22, fontWeight: '800', color: colors.text, marginTop: spacing.sm },
   muted: { color: colors.muted, marginTop: 2 },
+  email: { color: colors.muted, marginTop: spacing.xs },
   section: {
     fontSize: 14,
     fontWeight: '700',

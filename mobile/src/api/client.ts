@@ -99,6 +99,12 @@ export function me(): Promise<PublicUser> {
   return request('/auth/me');
 }
 
+export function updateSelf(
+  fullName: string,
+): Promise<PublicUser> {
+  return request('/auth/me', { method: 'PUT', body: { full_name: fullName } });
+}
+
 export function forgotPassword(email: string): Promise<{ ok: boolean }> {
   return request('/auth/forgot-password', { method: 'POST', body: { email }, token: null });
 }

@@ -22,6 +22,7 @@ from ..auth import (
     resolve_reset_token,
     set_password_for_user,
     set_reset_token,
+    set_user_full_name,
     user_by_email,
 )
 from ..config import SITE_URL
@@ -109,6 +110,18 @@ async def auth_register(payload: dict):
 
 @router.get("/auth/me")
 async def auth_me(user_id: int = Depends(get_auth_token)):
+    user = _public_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
+    return user
+
+
+@router.put("/auth/me")
+async def auth_me_update(payload: dict, user_id: int = Depends(get_auth_token)):
+    full_name = str(payload.get("full_name", "")).strip()
+    if not full_name:
+        raise HTTPException(status_code=400, detail="Numele complet nu poate fi gol")
+    set_user_full_name(user_id, full_name)
     user = _public_user(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
