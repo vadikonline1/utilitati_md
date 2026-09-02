@@ -9,15 +9,19 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "backgroundColor": "#0f766e"
+      "image": "./assets/splash-icon.png",
+      "backgroundColor": "#0f766e",
+      "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "md.utilitati.app"
+      "bundleIdentifier": "md.utilitati.app",
+      "icon": "./assets/icon.png"
     },
     "android": {
       "package": "md.utilitati.app",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f766e"
       }
     },
