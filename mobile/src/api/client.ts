@@ -244,6 +244,16 @@ export function setAccountStatus(id: number, status: string): Promise<Account> {
   });
 }
 
+export function registerDeviceToken(
+  token: string,
+  platform: 'android' | 'ios' = 'android',
+): Promise<{ registered: boolean }> {
+  return request('/devices/token', {
+    method: 'POST',
+    body: { token, platform },
+  });
+}
+
 export function deleteAccount(id: number): Promise<{ deleted: boolean }> {
   return request(`/accounts/${id}`, { method: 'DELETE' });
 }

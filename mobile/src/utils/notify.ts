@@ -1,5 +1,8 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+
+import { registerDeviceToken } from '../api/client';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -12,7 +15,7 @@ Notifications.setNotificationHandler({
 
 let permissionPromise: Promise<boolean> | null = null;
 
-async function ensurePermission(): Promise<boolean> {
+export async function ensurePermission(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   if (!permissionPromise) {
     permissionPromise = (async () => {
@@ -37,6 +40,23 @@ async function ensureChannel(): Promise<void> {
     });
   } catch {
     // channel creation is best-effort
+  }
+}
+
+export async function registerPushToken(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const granted = await ensurePermission();
+  if (!granted) return;
+  try {
+    const projectId = Constants.expoConfig?.extra?.expo?.projectId as string | undefined;
+    const { data } = await Notifications.getExpoPushTokenAsync({
+      projectId: projectId || undefined,
+    });
+    if (data) {
+      await registerDeviceToken(data, Platform.OS === 'ios' ? 'ios' : 'android').catch(() => undefined);
+    }
+  } catch {
+    // push registration must not break login/startup
   }
 }
 

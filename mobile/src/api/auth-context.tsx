@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 
 import { PublicUser, clearToken, getToken, login as apiLogin, me as apiMe, registerInvite, saveToken } from './client';
+import { registerPushToken } from '../utils/notify';
 
 interface AuthState {
   user: PublicUser | null;
@@ -59,6 +60,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearToken();
     setUser(null);
   }, []);
+
+  useEffect(() => {
+    if (user && !initializing) {
+      // Register this device for server→Expo push notifications for new invoices.
+      registerPushToken().catch(() => undefined);
+    }
+  }, [user, initializing]);
 
   const value = useMemo(
     () => ({ user, initializing, signIn, signUp, signOut, setUser }),

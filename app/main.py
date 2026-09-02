@@ -13,7 +13,7 @@ from .auth import ensure_user_created
 from .config import APP_NAME, STATIC_DIR
 from .db import init_db
 from .routers import api, pages
-from .services.sync import sync_loop
+from .services.sync import invoice_job_worker, sync_loop
 
 
 @asynccontextmanager
@@ -21,14 +21,17 @@ async def lifespan(app: FastAPI):
     init_db()
     ensure_user_created()
     task = asyncio.create_task(sync_loop())
+    job_worker = asyncio.create_task(invoice_job_worker())
     try:
         yield
     finally:
         task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        job_worker.cancel()
+        for t in (task, job_worker):
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(title=APP_NAME, lifespan=lifespan)

@@ -497,6 +497,19 @@ def active_unpaid_balance(account_id: int) -> float:
     return round(float(dict(row)["s"]), 2)
 
 
+def account_is_paid(account_id: int) -> bool:
+    """True when the account has no active unpaid invoice (nothing due)."""
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT 1 FROM invoices
+               WHERE account_id = ? AND is_paid = 0 AND status != 'disabled'
+               AND pay_status IN ('UNPAID','OVERDUE','PARTIALLY_PAID')
+               LIMIT 1""",
+            (account_id,),
+        ).fetchone()
+    return row is None
+
+
 def list_invoice_history(user_id: int, invoice_id: int) -> list[dict[str, Any]]:
     with _conn() as conn:
         rows = conn.execute(

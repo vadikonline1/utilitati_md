@@ -72,7 +72,7 @@ from ..services.settings import (
     unconfirmed_hours,
     warn_days,
 )
-from ..services.sync import dashboard_stats, generate_invoices_for_user
+from ..services.sync import dashboard_stats, enqueue_invoice_job
 from ..services.utilities import (
     create_home,
     delete_account,
@@ -1552,9 +1552,9 @@ async def invoice_page(
         return RedirectResponse("/dashboard", status_code=303)
     invoices = list_invoices(user_id, account_id)
     if not invoices:
-        data = await fetch_account_data(account)
-        persist_invoices(account_id, data)
-        invoices = list_invoices(user_id, account_id)
+        # Queue a background refresh instead of blocking the request on
+        # oplata.md; the worker fills the page shortly after.
+        enqueue_invoice_job(user_id, account_id=account_id)
     history = (
         list_invoice_history(user_id, invoices[0]["id"]) if invoices else []
     )
@@ -1580,11 +1580,9 @@ async def invoice_refresh(
     account = get_account_row(user_id, account_id)
     if account is None:
         return RedirectResponse("/dashboard", status_code=303)
-    data = await fetch_account_data(account)
-    error = None
-    persist_invoices(account_id, data)
-    if not data.is_connected:
-        error = data.error_message
+    # Queue the refresh in the background: the worker fetches + persists and
+    # the page shows the fresh data on the next visit.
+    enqueue_invoice_job(user_id, account_id=account_id)
     invoices = list_invoices(user_id, account_id)
     history = (
         list_invoice_history(user_id, invoices[0]["id"]) if invoices else []
@@ -1597,7 +1595,7 @@ async def invoice_refresh(
             invoices=invoices,
             history=history,
             provider_meta=PROVIDER_META.get(account["provider"], {}),
-            refresh_error=error,
+            refresh_error=None,
         ),
     )
 
@@ -1682,14 +1680,13 @@ async def invoices_generate(
         account_id = int(account_id_raw) if str(account_id_raw).isdigit() else None
     except (TypeError, ValueError):
         account_id = None
-    result = await generate_invoices_for_user(user_id, account_id=account_id)
+    enqueue_invoice_job(user_id, account_id=account_id)
     back = str(form.get("back", "/invoices"))
     if not back.startswith("/") or back.startswith("//"):
         back = "/invoices"
-    return RedirectResponse(
-        f"{back}?generated=1&updated={result['updated_accounts']}&errors={result['errors']}",
-        status_code=303,
-    )
+    # Non-blocking: the refresh runs in the background worker, so concurrent
+    # users do not overload the provider. Redirect with a "queued" flag.
+    return RedirectResponse(f"{back}?generated=1&queued=1", status_code=303)
 
 
 @router.post("/invoices/{invoice_id}/status")

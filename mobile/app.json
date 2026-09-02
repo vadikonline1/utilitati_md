@@ -40,7 +40,10 @@
       }
     },
     "extra": {
-      "apiUrl": "https://utilitati.nistorlazar.md/api"
+      "apiUrl": "https://utilitati.nistorlazar.md/api",
+      "expo": {
+        "projectId": "YOUR_EXPO_PROJECT_ID"
+      }
     }
   }
 }

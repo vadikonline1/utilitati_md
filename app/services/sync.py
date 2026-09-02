@@ -40,6 +40,9 @@ async def sync_all() -> dict:
     notified = 0
     for account in accounts:
         try:
+            if utilities.account_is_paid(account["id"]):
+                # Nothing due — skip the provider call for already-paid accounts.
+                continue
             data = await utilities.fetch_account_data(account)
             created, _saved = utilities.persist_invoices(account["id"], data)
             if created:
@@ -150,6 +153,125 @@ def list_user_enabled_accounts(user_id: int) -> list[dict]:
             (user_id,),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+# --------------------------------------------------------------------------- #
+# Background invoice job queue
+# --------------------------------------------------------------------------- #
+def enqueue_invoice_job(user_id: int, *, account_id: int | None = None) -> int:
+    """Queue a background refresh for the user's account(s).
+
+    Inserting a row lets any worker (and any number of uvicorn workers) process
+    it once, keeping oplata.md traffic serialized even when many users trigger a
+    refresh at the same time. Returns the job id, or 0 when nothing to enqueue.
+    """
+    if account_id is not None:
+        with _conn() as conn:
+            exists = conn.execute(
+                "SELECT id FROM accounts WHERE id = ? AND user_id = ? AND status = 'enabled'",
+                (account_id, user_id),
+            ).fetchone()
+        if not exists:
+            return 0
+    elif not list_user_enabled_accounts(user_id):
+        return 0
+    with _conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO invoice_jobs (user_id, account_id, status) VALUES (?, ?, 'pending')",
+            (user_id, account_id),
+        )
+        return int(cur.lastrowid)
+
+
+def _claim_next_job() -> dict | None:
+    """Atomically claim the oldest pending job (single-writer-safe)."""
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT id, user_id, account_id FROM invoice_jobs
+               WHERE status = 'pending' ORDER BY id LIMIT 1"""
+        ).fetchone()
+        if row is None:
+            return None
+        conn.execute(
+            "UPDATE invoice_jobs SET status = 'running', started_at = datetime('now')"
+            " WHERE id = ? AND status = 'pending'",
+            (row["id"],),
+        )
+        if conn.total_changes == 0:
+            return None
+    return dict(row)
+
+
+def _finish_job(job_id: int, ok: bool, result: str = "") -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE invoice_jobs SET status = ?, finished_at = datetime('now'), result = ? "
+            "WHERE id = ?",
+            ("done" if ok else "failed", (result or "")[:500], job_id),
+        )
+
+
+def _cleanup_old_jobs(keep_days: int = 7) -> None:
+    keep_days = max(1, int(keep_days))
+    with _conn() as conn:
+        conn.execute(
+            f"DELETE FROM invoice_jobs WHERE status IN ('done','failed') "
+            f"AND finished_at < datetime('now', '-{keep_days} days')"
+        )
+
+
+async def _process_job(job: dict) -> None:
+    """Fetch + persist invoices for the job's account(s), then push if new."""
+    user_id, account_id = job["user_id"], job["account_id"]
+    accounts = (
+        list_user_enabled_accounts(user_id)
+        if account_id is None
+        else [a for a in list_user_enabled_accounts(user_id) if a["id"] == account_id]
+    )
+    try:
+        all_new: list[int] = []
+        for account in accounts:
+            if utilities.account_is_paid(account["id"]):
+                # Nothing due — avoid an unnecessary provider call.
+                continue
+            data = await utilities.fetch_account_data(account)
+            created, _saved = utilities.persist_invoices(account["id"], data)
+            if created:
+                all_new.extend(created)
+                await _notify_user_new_invoices(user_id, account, created)
+        if all_new:
+            await notify.send_push_new_invoices(user_id, all_new)
+        _finish_job(job["id"], True, f"accounts={len(accounts)}")
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("Invoice job %s failed for user %s", job["id"], user_id)
+        _finish_job(job["id"], False, "error")
+
+
+async def _notify_user_new_invoices(
+    user_id: int, account: dict, created_ids: list[int]
+) -> None:
+    """Fire the web (email/Telegram) template for newly discovered invoices."""
+    try:
+        await notify.notify_new_invoices(user_id, account, None, created_ids, SITE_URL)
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("Web new-invoice notification failed for user %s", user_id)
+
+
+async def invoice_job_worker() -> None:
+    """Continuously process queued invoice refreshes, one at a time."""
+    throttle = 2.0
+    while True:
+        job = _claim_next_job()
+        if job is None:
+            _cleanup_old_jobs()
+            await asyncio.sleep(5)
+            continue
+        try:
+            await _process_job(job)
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Invoice job worker crashed on job %s", job["id"])
+        if throttle > 0:
+            await asyncio.sleep(throttle)
 
 
 async def generate_invoices_for_user(

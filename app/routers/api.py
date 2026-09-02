@@ -29,6 +29,7 @@ from ..auth import (
 from ..config import SITE_URL
 from ..deps import get_auth_token
 from ..services import email as email_svc
+from ..services import push as push_svc
 from ..services import telegram as telegram_svc
 from ..services.utilities import (
     active_unpaid_balance,
@@ -139,6 +140,19 @@ async def auth_register(payload: dict):
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
     return {"token": create_session_token(user_id), "user": _public_user(user_id)}
+
+
+@router.post("/devices/token")
+async def device_token_register(
+    payload: dict, user_id: int = Depends(get_auth_token)
+):
+    """Register a mobile Expo push token for the authenticated user."""
+    token = str(payload.get("token", "")).strip()
+    if not token or token == "ExponentPushToken[InvalidToken]":
+        raise HTTPException(status_code=400, detail="Token invalid")
+    platform = str(payload.get("platform", "android") or "android").lower()
+    push_svc.register_device_token(user_id, token, platform)
+    return {"registered": True}
 
 
 @router.get("/auth/me")
