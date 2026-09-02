@@ -117,9 +117,19 @@ jobs:
       - name: Build iOS app (simulator, unsigned)
         run: |
           cd ios
-          WS=$(ls -1 *.xcworkspace 2>/dev/null | head -1)
-          SCHEME=$(xcodebuild -list -workspace "$WS" 2>/dev/null | awk '/Schemes:/{f=1;next} /^$/{f=0} f{print; exit}')
-          echo "workspace=$WS scheme=$SCHEME"
+          # Use a real .xcworkspace directory (ignore stray files like contents.xcworkspacedata)
+          WS=$(find . -maxdepth 1 -type d -name '*.xcworkspace' | head -1)
+          if [ -z "$WS" ]; then
+            # fall back to any .xcworkspace file path (directory or not)
+            WS=$(ls -1d *.xcworkspace 2>/dev/null | head -1)
+          fi
+          echo "workspace=${WS:-<none>}"
+          # First configured scheme that is not the Pods aggregate
+          SCHEME=$(xcodebuild -list -workspace "$WS" 2>/dev/null \
+            | sed -n '/Schemes:/,$p' | tail -n +2 \
+            | grep -v '^\s*$' | grep -iv 'pod' | head -1 | xargs)
+          echo "scheme=${SCHEME:-<none>}"
+          if [ -z "$SCHEME" ]; then echo "::error::Could not detect an Xcode scheme under ios/"; exit 1; fi
           xcodebuild -workspace "$WS" \
             -scheme "$SCHEME" \
             -configuration Release \
