@@ -20,6 +20,7 @@ import {
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { colors, spacing } from '../theme';
+import { notifyNewInvoice } from '../utils/notify';
 
 type ParamList = {
   AccountDetail: { id: number; label: string };
@@ -73,6 +74,12 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
         Alert.alert('Nu s-a putut conecta', res.error_message || 'Conectare eșuată la furnizor.');
       } else {
         Alert.alert('Gata', `Facturile au fost actualizate. Sold neplătit: ${res.unpaid_balance_mdl} MDL.`);
+        if ((res.created_count ?? 0) > 0) {
+          notifyNewInvoice(
+            'Factură nouă 🔔',
+            `A apărut o factură nouă la ${account?.label ?? 'utilități'} (${res.unpaid_balance_mdl} MDL).`,
+          );
+        }
       }
       await load();
     } catch (e) {

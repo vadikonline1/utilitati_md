@@ -431,6 +431,27 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
         return inv_id, is_new
 
 
+def _deactivate_superseded_infosapr(account_id: int, keep_ids: list[int]) -> None:
+    """Deactivate unpaid INFOSAPR invoices that are superseded by a newer one.
+
+    INFOSAPR returns a single cumulative amount that already includes prior
+    invoices, so any older unresolved invoice of the same account is fully
+    contained in the newest one. Hide invoices that are NOT in the list just
+    saved (keep_ids), leaving the newest active.
+    """
+    placeholders = ",".join("?" for _ in keep_ids)
+    with _conn() as conn:
+        conn.execute(
+            f"""UPDATE invoices SET status = 'disabled', updated_at = datetime('now')
+                WHERE account_id = ?
+                  AND is_paid = 0
+                  AND pay_status != 'PAID'
+                  AND status != 'disabled'
+                  AND id NOT IN ({placeholders})""",
+            (account_id, *keep_ids),
+        )
+
+
 def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
     """Persist all invoices returned by a provider (falling back to last_invoice).
 
@@ -450,6 +471,18 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
             saved.append(inv_id)
             if is_new:
                 created.append(inv_id)
+
+    # INFOSAPR ("summed invoice") providers emit a single cumulative total that
+    # already contains any previously-invoiced amount. Keep only the newest
+    # unpaid invoice: deactivate the superseded ones so old + new do not both
+    # count toward the balance.
+    with _conn() as conn:
+        acc = conn.execute(
+            "SELECT provider FROM accounts WHERE id = ?", (account_id,)
+        ).fetchone()
+    if acc is not None and (acc["provider"] or "") == "infosapr" and saved:
+        _deactivate_superseded_infosapr(account_id, saved)
+
     return created, saved
 
 

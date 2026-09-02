@@ -257,7 +257,10 @@ export function refreshAccount(
   is_connected: boolean;
   error_message?: string;
   unpaid_balance_mdl: number;
+  invoice_count: number;
+  created_count: number;
   invoices: Invoice[];
+  last_invoice?: Invoice | null;
 }> {
   return request(`/accounts/${id}/refresh`, { method: 'POST' });
 }

@@ -9,7 +9,7 @@ export default function AppHeader() {
   return (
     <View style={styles.wrap}>
       <Text style={styles.logo}>🇲🇩 UTILITĂȚI.MD</Text>
-      {user?.full_name ? <Text style={styles.name}>{user.full_name}</Text> : null}
+      {user?.full_name ? <Text style={styles.name} numberOfLines={1}>{user.full_name}</Text> : null}
     </View>
   );
 }
@@ -17,10 +17,10 @@ export default function AppHeader() {
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.primary,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
     paddingHorizontal: spacing.lg,
   },
-  logo: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
-  name: { color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: spacing.xs },
+  logo: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.5 },
+  name: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 2 },
 });

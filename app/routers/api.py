@@ -311,6 +311,7 @@ async def account_refresh(account_id: int, user_id: int = Depends(get_auth_token
         "error_message": data.error_message,
         "unpaid_balance_mdl": data.unpaid_balance_mdl,
         "invoice_count": len(saved_ids),
+        "created_count": len(_created),
         "invoices": _serialize_invoices(data),
         "last_invoice": _serialize_provider_invoice(data.last_invoice),
     }
