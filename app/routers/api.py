@@ -11,7 +11,24 @@ from pyutilitati_md import (
     UtilitatiMDConnectionError,
 )
 
+from ..auth import (
+    authenticate,
+    change_password,
+    create_session_token,
+    deactivate_user,
+    get_user,
+    get_user_lang,
+    register,
+    resolve_reset_token,
+    set_password_for_user,
+    set_reset_token,
+    set_user_full_name,
+    user_by_email,
+)
+from ..config import SITE_URL
 from ..deps import get_auth_token
+from ..services import email as email_svc
+from ..services import telegram as telegram_svc
 from ..services.utilities import (
     create_home,
     delete_account,
@@ -46,6 +63,116 @@ def _iso(value):
     if hasattr(value, "isoformat"):
         return value.isoformat()
     return str(value)
+
+
+def _public_user(user_id: int) -> dict | None:
+    u = get_user(user_id)
+    if u is None:
+        return None
+    return {
+        "id": u["id"],
+        "username": u["username"],
+        "full_name": u.get("full_name") or "",
+        "email": u.get("email") or "",
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Auth (JSON, used by the mobile app)
+# --------------------------------------------------------------------------- #
+@router.post("/auth/login")
+async def auth_login(payload: dict):
+    username = str(payload.get("username", "")).strip()
+    password = str(payload.get("password", ""))
+    user_id = authenticate(username, password)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Autentificare eșuată")
+    return {"token": create_session_token(user_id), "user": _public_user(user_id)}
+
+
+@router.post("/auth/register")
+async def auth_register(payload: dict):
+    username = str(payload.get("username", "")).strip()
+    password = str(payload.get("password", ""))
+    email = str(payload.get("email", "")).strip()
+    full_name = str(payload.get("full_name", "")).strip()
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username și parola sunt obligatorii")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Parola trebuie să aibă minim 6 caractere")
+    try:
+        # Mobile self-service registration creates an active account directly.
+        user_id = register(username, password, full_name, email, is_active=1)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    return {"token": create_session_token(user_id), "user": _public_user(user_id)}
+
+
+@router.get("/auth/me")
+async def auth_me(user_id: int = Depends(get_auth_token)):
+    user = _public_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
+    return user
+
+
+@router.put("/auth/me")
+async def auth_me_update(payload: dict, user_id: int = Depends(get_auth_token)):
+    full_name = str(payload.get("full_name", "")).strip()
+    if not full_name:
+        raise HTTPException(status_code=400, detail="Numele complet nu poate fi gol")
+    set_user_full_name(user_id, full_name)
+    user = _public_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
+    return user
+
+
+@router.post("/auth/forgot-password")
+async def auth_forgot_password(payload: dict):
+    email = str(payload.get("email", "")).strip()
+    user = user_by_email(email)
+    if user:
+        token = set_reset_token(user["id"])
+        reset_url = f"{SITE_URL}/reset-password/{token}"
+        lang = get_user_lang(user["id"]) or "ro"
+        email_svc.send_reset_link(email, user.get("full_name", ""), reset_url, lang=lang)
+        full = get_user(user["id"]) or {}
+        chat_ids = full.get("telegram_chat_ids", "")
+        if chat_ids:
+            await telegram_svc.send_reset_link_to_chats(chat_ids, reset_url, lang)
+    # Always return ok to avoid leaking which emails are registered.
+    return {"ok": True}
+
+
+@router.post("/auth/reset-password")
+async def auth_reset_password(payload: dict):
+    token = str(payload.get("token", "")).strip()
+    new_password = str(payload.get("new_password", ""))
+    user_id = resolve_reset_token(token)
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="Linkul este invalid sau a expirat")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Parola trebuie să aibă minim 6 caractere")
+    set_password_for_user(user_id, new_password)
+    return {"ok": True}
+
+
+@router.post("/auth/change-password")
+async def auth_change_password(payload: dict, user_id: int = Depends(get_auth_token)):
+    old_password = str(payload.get("current_password", ""))
+    new_password = str(payload.get("new_password", ""))
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Parola trebuie să aibă minim 6 caractere")
+    if not change_password(user_id, old_password, new_password):
+        raise HTTPException(status_code=400, detail="Parola actuală este incorectă")
+    return {"ok": True}
+
+
+@router.post("/auth/deactivate")
+async def auth_deactivate(user_id: int = Depends(get_auth_token)):
+    deactivate_user(user_id, days=30)
+    return {"ok": True}
 
 
 def _provider_error(err):

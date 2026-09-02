@@ -57,8 +57,18 @@ class OplataMDClient:
         account_key: str = "account",
         account_name: str = "Cont personal ",
         sub_srv: int = 0,
+        extra_items: list[dict[str, Any] | None] | None = None,
     ) -> OplataMDInvoiceResult:
-        """Fetch and parse invoice data from oplata.md /payment/check endpoint."""
+        """Fetch and parse invoice data from oplata.md /payment/check endpoint.
+
+        ``extra_items`` optionally appends additional ``Items[N]`` fields (used
+        when a provider verifies by name + surname, e.g. Stroy Master Domofon,
+        VIP Interfon and LEGION SECURITY GROUP). Each entry may carry:
+          * ``key``   – the oplata.md item key (e.g. "special1" or "fullname")
+          * ``name``  – the displayed field label ("Nume, Prenume")
+          * ``value`` – the submitted value
+          * ``special`` – when True, also submit ``Items[N].Special=1``
+        """
         payload = {
             "Id": str(service_id),
             "SubSrv": str(sub_srv),
@@ -66,6 +76,12 @@ class OplataMDClient:
             "Items[0].Name": account_name,
             "Items[0].Value": contract_number,
         }
+        for index, item in enumerate(extra_items or [], start=1):
+            payload[f"Items[{index}].Key"] = str(item.get("key", "account"))
+            payload[f"Items[{index}].Name"] = str(item.get("name", ""))
+            payload[f"Items[{index}].Value"] = str(item.get("value", ""))
+            if item.get("special"):
+                payload[f"Items[{index}].Special"] = "1"
         return await self._post_and_parse(OPLATA_MD_CHECK_URL, payload, contract_number)
 
     async def _post_and_parse(

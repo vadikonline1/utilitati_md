@@ -1,11 +1,21 @@
-"""SQLite persistence layer: users, homes, accounts (utilities), invoices, history."""
+"""Persistence layer for Utilități Moldova — SQLite only.
+
+The entire code base talks to the database through a single helper, `_conn()`,
+which opens a fresh SQLite connection per operation (context manager). Every
+connection configures WAL journaling + a busy timeout so the server can handle
+many concurrent readers and (serialized) writers without `database is locked`
+errors.
+
+Schema covers: users, contact_messages, faq_items, settings, pages, homes,
+accounts (utilities), invoices, invoice_history.
+"""
 
 from __future__ import annotations
 
-import sqlite3
 from contextlib import contextmanager
+import sqlite3
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 
 from .config import DB_PATH
 
@@ -24,6 +34,9 @@ CREATE TABLE IF NOT EXISTS users (
     telegram_chat_ids TEXT NOT NULL DEFAULT '',
     deactivated INTEGER NOT NULL DEFAULT 0,
     delete_after TEXT,
+    lang TEXT NOT NULL DEFAULT '',
+    last_login TEXT,
+    last_inactivity_email TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -90,6 +103,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     place_of_consumption TEXT,
     username TEXT,
     password TEXT,
+    full_name TEXT,
     icon TEXT,
     status TEXT NOT NULL DEFAULT 'enabled',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -135,10 +149,15 @@ CREATE INDEX IF NOT EXISTS idx_history_invoice ON invoice_history (invoice_id, c
 
 
 @contextmanager
-def _conn() -> Iterator[sqlite3.Connection]:
-    conn = sqlite3.connect(DB_PATH)
+def _sqlite_conn() -> Iterator[sqlite3.Connection]:
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # Concurrent-read/write friendliness: WAL journaling + busy timeout let the
+    # server handle many readers and (serialized) writers without locking up.
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
+    conn.execute("PRAGMA synchronous = NORMAL")
     try:
         yield conn
         conn.commit()
@@ -146,24 +165,27 @@ def _conn() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-def init_db() -> None:
-    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-    with _conn() as conn:
-        conn.executescript(SCHEMA)
-        _migrate(conn)
+@contextmanager
+def _conn() -> Iterator[Any]:
+    """Open a fresh SQLite connection (the single DB entry point)."""
+    with _sqlite_conn() as conn:
+        yield conn
 
 
-def _migrate(conn: sqlite3.Connection) -> None:
-    """Add columns/tables introduced in later versions to existing databases."""
+def _sqlite_has_column(conn, table: str, column: str) -> bool:
+    cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    return column in cols
+
+
+def _migrate_sqlite(conn) -> None:
     tables = {
-        row["name"]
-        for row in conn.execute(
+        r["name"] for r in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
         ).fetchall()
     }
 
     if "invoices" in tables:
-        cols = {row["name"] for row in conn.execute("PRAGMA table_info(invoices)")}
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(invoices)").fetchall()}
         for col, ddl in {
             "external_invoice_id": "ALTER TABLE invoices ADD COLUMN external_invoice_id TEXT",
             "currency": "ALTER TABLE invoices ADD COLUMN currency TEXT NOT NULL DEFAULT 'MDL'",
@@ -176,17 +198,13 @@ def _migrate(conn: sqlite3.Connection) -> None:
             if col not in cols:
                 conn.execute(ddl)
 
-    # Contact messages: GDPR request subject.
     if "contact_messages" in tables:
-        ccols = {row["name"] for row in conn.execute("PRAGMA table_info(contact_messages)")}
+        ccols = {r["name"] for r in conn.execute("PRAGMA table_info(contact_messages)").fetchall()}
         if "subject" not in ccols:
-            conn.execute(
-                "ALTER TABLE contact_messages ADD COLUMN subject TEXT NOT NULL DEFAULT ''"
-            )
+            conn.execute("ALTER TABLE contact_messages ADD COLUMN subject TEXT NOT NULL DEFAULT ''")
 
-    # Users: notification preferences (email list + telegram chat ids).
     if "users" in tables:
-        ucols = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
+        ucols = {r["name"] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
         for col, ddl in {
             "notification_emails": "ALTER TABLE users ADD COLUMN notification_emails TEXT NOT NULL DEFAULT ''",
             "telegram_chat_ids": "ALTER TABLE users ADD COLUMN telegram_chat_ids TEXT NOT NULL DEFAULT ''",
@@ -204,20 +222,19 @@ def _migrate(conn: sqlite3.Connection) -> None:
         }.items():
             if col not in ucols:
                 conn.execute(ddl)
-        # For existing users with no record of a login, treat account creation as
-        # their last login so the inactivity retention window starts from now.
         conn.execute(
             "UPDATE users SET last_login = COALESCE(last_login, created_at) "
             "WHERE is_active = 1"
         )
 
-    # Moldovagaz is Energocom: migrate legacy accounts/contracts to energocom.
     if "accounts" in tables:
+        acols = {r["name"] for r in conn.execute("PRAGMA table_info(accounts)").fetchall()}
+        if "full_name" not in acols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN full_name TEXT")
         conn.execute(
             "UPDATE accounts SET provider = 'energocom' WHERE provider = 'moldovagaz'"
         )
 
-    # FAQ: seed the default Q&A on first creation (idempotent).
     if "faq_items" not in tables:
         conn.executescript(
             """
@@ -233,7 +250,22 @@ def _migrate(conn: sqlite3.Connection) -> None:
             )
             """
         )
-    from .services.faq import seed_default_faq
-    seed_default_faq(conn)
-    from .services.pages import seed_default_pages
-    seed_default_pages(conn)
+
+
+def init_db() -> None:
+    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+    with _sqlite_conn() as conn:
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA busy_timeout = 5000")
+        conn.executescript(SCHEMA)
+        _migrate_sqlite(conn)
+    _seed_common()
+
+
+def _seed_common() -> None:
+    """Seed FAQ + pages (kept so the tables exist)."""
+    with _conn() as conn:
+        from .services.faq import seed_default_faq
+        seed_default_faq(conn)
+        from .services.pages import seed_default_pages
+        seed_default_pages(conn)

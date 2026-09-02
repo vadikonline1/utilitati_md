@@ -25,11 +25,11 @@ DEFAULT_FAQ: list[dict[str, str]] = [
     },
     {
         "question_ro": "Ce furnizori sunt suportați?",
-        "answer_ro": "Premier Energy, Energocom, Termoelectrica, FEE Nord, CET Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr, Stroy Master Domofon, Paza a MAI, Probon, Eco-Mereni, ANTAR Salubrizare, Anintercom, Sagaidac Service și VIP Interfon.",
+        "answer_ro": "Premier Energy, Energocom, Termoelectrica, FEE Nord, CET Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr, Stroy Master Domofon, Paza a MAI, Probon, Eco-Mereni, ANTAR Salubrizare, Anintercom, Sagaidac Service, VIP Interfon, E-Condominiu, SALUBECO, LEGION SECURITY GROUP și Invoicer.",
         "question_ru": "Какие поставщики поддерживаются?",
-        "answer_ru": "Premier Energy, Energocom, Termoelectrica, FEE Nord, CET Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr, Stroy Master Domofon, Paza a MAI, Probon, Eco-Mereni, ANTAR Salubrizare, Anintercom, Sagaidac Service и VIP Interfon.",
+        "answer_ru": "Premier Energy, Energocom, Termoelectrica, FEE Nord, CET Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr, Stroy Master Domofon, Paza a MAI, Probon, Eco-Mereni, ANTAR Salubrizare, Anintercom, Sagaidac Service, VIP Interfon, E-Condominiu, SALUBECO, LEGION SECURITY GROUP и Invoicer.",
         "question_en": "Which providers are supported?",
-        "answer_en": "Premier Energy, Energocom, Termoelectrica, FEE Nord, CET Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr, Stroy Master Domofon, Paza a MAI, Probon, Eco-Mereni, ANTAR Salubrizare, Anintercom, Sagaidac Service and VIP Interfon.",
+        "answer_en": "Premier Energy, Energocom, Termoelectrica, FEE Nord, CET Nord, Apă-Canal Chișinău, StarNet, INFOCOM, InfoSapr, Stroy Master Domofon, Paza a MAI, Probon, Eco-Mereni, ANTAR Salubrizare, Anintercom, Sagaidac Service, VIP Interfon, E-Condominiu, SALUBECO, LEGION SECURITY GROUP and Invoicer.",
     },
     {
         "question_ro": "Cum conectez o utilitate?",

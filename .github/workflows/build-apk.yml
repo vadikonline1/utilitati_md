@@ -1,0 +1,84 @@
+name: Build Android APK
+
+# Rulează la fiecare push pe `deploy` și manual (Actions -> Run workflow).
+on:
+  push:
+    branches: [deploy]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Generate native android project (expo prebuild)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Configure Gradle heap + local.properties
+        run: |
+          # local.properties pointing to the runner SDK
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          # Bump Gradle memory to avoid OOM on small runners
+          if [ -f android/gradle.properties ]; then
+            echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=768m" >> android/gradle.properties
+            echo "org.gradle.daemon=false" >> android/gradle.properties
+          fi
+
+      - name: Build release APK
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon
+          cd ..
+
+      - name: Upload APK (workflow artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: utilitati-mobile-apk
+          path: mobile/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Publish APK to GitHub Release
+        uses: softprops/action-gh-release@v3
+        if: success()
+        with:
+          tag_name: apk-${{ github.sha }}
+          name: APK ${{ github.ref_name }} (${{ github.sha }})
+          body: |
+            Build automat APK Android (debug-signed, instalabil direct).
+
+            **Versiune aplicație:** 1.0.0
+            **API URL:** https://utilitati.nistorlazar.md/api
+          files: mobile/android/app/build/outputs/apk/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

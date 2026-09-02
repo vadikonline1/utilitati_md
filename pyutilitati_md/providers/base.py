@@ -22,6 +22,7 @@ class BaseUtilityProvider(ABC):
         place_of_consumption: str | None = None,
         username: str | None = None,
         password: str | None = None,
+        full_name: str | None = None,
         session: ClientSession | None = None,
         extra_config: dict[str, Any] | None = None,
     ) -> None:
@@ -30,6 +31,7 @@ class BaseUtilityProvider(ABC):
         self.place_of_consumption = place_of_consumption
         self.username = username
         self.password = password
+        self.full_name = full_name
         self.session = session
         self.extra_config = extra_config or {}
 

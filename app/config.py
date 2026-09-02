@@ -12,16 +12,30 @@ DB_PATH = Path(os.getenv("UTILITATI_DB", BASE_DIR / "utilitati.db"))
 
 APP_NAME = "Utilități.MD"
 SECRET_KEY = os.getenv("UTILITATI_SECRET_KEY", "change-me-in-production")
-DEFAULT_USERNAME = os.getenv("UTILITATI_USERNAME", "admin")
+
+
+def _first_token(value: str, fallback: str) -> str:
+    """Return the first clean word of a value (handles accidentally pasted
+    comma/space-separated lists, e.g. UTILITATI_USERNAME='admin, administrator')."""
+    for part in (value or "").replace(",", " ").split():
+        if part:
+            return part
+    return fallback
+
+
+DEFAULT_USERNAME = _first_token(
+    os.getenv("UTILITATI_USERNAME"), "admin"
+)
 DEFAULT_PASSWORD = os.getenv("UTILITATI_PASSWORD", "admin")
 # Usernames granted access to the /admin dashboard. Comma-separated list, e.g.
 # "admin,ion.popusoi,ion,ustroi". Set in utilitati.env (UTILITATI_ADMIN_USERNAME).
 ADMIN_USERNAMES = {
-    name.strip()
-    for name in os.getenv(
+    token
+    for raw in os.getenv(
         "UTILITATI_ADMIN_USERNAME", DEFAULT_USERNAME
     ).split(",")
-    if name.strip()
+    for token in (raw.strip(),)
+    if token
 }
 
 
