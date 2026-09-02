@@ -27,12 +27,26 @@ async function ensurePermission(): Promise<boolean> {
   return permissionPromise;
 }
 
+async function ensureChannel(): Promise<void> {
+  try {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Facturi',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#0f766e',
+    });
+  } catch {
+    // channel creation is best-effort
+  }
+}
+
 export async function notifyNewInvoice(title: string, body: string): Promise<void> {
   if (Platform.OS === 'web') return;
+  await ensureChannel();
   const granted = await ensurePermission();
   if (!granted) return;
   await Notifications.scheduleNotificationAsync({
-    content: { title, body },
+    content: { title, body, sound: 'default' },
     trigger: null,
   }).catch(() => undefined);
 }

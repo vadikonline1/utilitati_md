@@ -7,13 +7,13 @@ import React, {
   useState,
 } from 'react';
 
-import { PublicUser, clearToken, getToken, login as apiLogin, me as apiMe, register as apiRegister, saveToken } from './client';
+import { PublicUser, clearToken, getToken, login as apiLogin, me as apiMe, registerInvite, saveToken } from './client';
 
 interface AuthState {
   user: PublicUser | null;
   initializing: boolean;
   signIn: (username: string, password: string) => Promise<void>;
-  signUp: (username: string, password: string, email: string, fullName: string) => Promise<void>;
+  signUp: (username: string, first_name: string, last_name: string, email: string) => Promise<void>;
   signOut: () => Promise<void>;
   setUser: (user: PublicUser | null) => void;
 }
@@ -47,10 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(
-    async (username: string, password: string, email: string, fullName: string) => {
-      const { token, user: u } = await apiRegister(username, password, email, fullName);
-      await saveToken(token);
-      setUser(u);
+    async (username: string, first_name: string, last_name: string, email: string) => {
+      // Web-identical email-invitation flow: creates an inactive account and
+      // emails a confirmation link. No session is created here.
+      await registerInvite(username, first_name, last_name, email);
     },
     [],
   );

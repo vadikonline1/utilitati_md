@@ -20,37 +20,52 @@ export default function LoginScreen({ navigation }: { navigation?: { navigate: (
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [info, setInfo] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
     setError('');
-    if (!username || !password) {
-      setError('Completează username-ul și parola.');
+    setInfo('');
+    if (mode === 'login') {
+      if (!username || !password) {
+        setError('Completează username-ul și parola.');
+        return;
+      }
+      setLoading(true);
+      try {
+        await signIn(username, password);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : 'A apărut o eroare.');
+      } finally {
+        setLoading(false);
+      }
       return;
     }
-    if (mode === 'register') {
-      if (!email) {
-        setError('Completează email-ul.');
-        return;
-      }
-      if (password.length < 6) {
-        setError('Parola trebuie să aibă minim 6 caractere.');
-        return;
-      }
-      if (!fullName.trim()) {
-        setError('Completează numele și prenumele.');
-        return;
-      }
+    // register (email invitation, same as web — no password)
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('Completează prenumele și numele.');
+      return;
+    }
+    if (!email.trim()) {
+      setError('Completează email-ul.');
+      return;
+    }
+    if (email.indexOf('@') < 1 || !email.split('@')[1]?.includes('.')) {
+      setError('Adresa de email nu este validă.');
+      return;
+    }
+    if (!username.trim()) {
+      setError('Completează username-ul.');
+      return;
     }
     setLoading(true);
     try {
-      if (mode === 'login') {
-        await signIn(username, password);
-      } else {
-        await signUp(username, password, email, fullName);
-      }
+      await signUp(username, firstName.trim(), lastName.trim(), email.trim());
+      setInfo('Contul a fost creat. Verifică-ți emailul pentru link-ul de confirmare și parola.');
+      setPassword('');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'A apărut o eroare.');
     } finally {
@@ -68,7 +83,7 @@ export default function LoginScreen({ navigation }: { navigation?: { navigate: (
         <Text style={styles.subtitle}>
           {mode === 'login'
             ? 'Autentifică-te pentru a vedea facturile tale'
-            : 'Creare cont'}
+            : 'Creare cont (confirmare pe email)'}
         </Text>
 
         <View style={styles.form}>
@@ -80,33 +95,39 @@ export default function LoginScreen({ navigation }: { navigation?: { navigate: (
             autoCorrect={false}
           />
           {mode === 'register' ? (
+            <>
+              <Input
+                label="Prenume"
+                value={firstName}
+                onChangeText={setFirstName}
+              />
+              <Input
+                label="Nume"
+                value={lastName}
+                onChangeText={setLastName}
+              />
+              <Input
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </>
+          ) : (
             <Input
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
+              label="Parolă"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
             />
-          ) : null}
-          <Input
-            label="Parolă"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-          {mode === 'register' ? (
-            <Input
-              label="Nume, Prenume *"
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="ex. Popescu Ion"
-            />
-          ) : null}
+          )}
 
+          {info ? <Text style={styles.info}>{info}</Text> : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Button
-            title={mode === 'login' ? 'Autentificare' : 'Creare cont'}
+            title={mode === 'login' ? 'Autentificare' : 'Trimite confirmare'}
             onPress={submit}
             loading={loading}
           />
@@ -119,6 +140,7 @@ export default function LoginScreen({ navigation }: { navigation?: { navigate: (
             variant="ghost"
             onPress={() => {
               setError('');
+              setInfo('');
               setMode(mode === 'login' ? 'register' : 'login');
             }}
           />
@@ -158,6 +180,11 @@ const styles = StyleSheet.create({
   form: { width: '100%' },
   error: {
     color: colors.danger,
+    textAlign: 'center',
+    marginVertical: spacing.sm,
+  },
+  info: {
+    color: colors.success,
     textAlign: 'center',
     marginVertical: spacing.sm,
   },

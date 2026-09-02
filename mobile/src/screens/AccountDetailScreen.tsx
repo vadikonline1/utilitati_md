@@ -74,7 +74,8 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
         Alert.alert('Nu s-a putut conecta', res.error_message || 'Conectare eșuată la furnizor.');
       } else {
         Alert.alert('Gata', `Facturile au fost actualizate. Sold neplătit: ${res.unpaid_balance_mdl} MDL.`);
-        if ((res.created_count ?? 0) > 0) {
+        const hasNew = (res.created_count ?? 0) > 0 || Boolean(res.balance_increased);
+        if (hasNew) {
           notifyNewInvoice(
             'Factură nouă 🔔',
             `A apărut o factură nouă la ${account?.label ?? 'utilități'} (${res.unpaid_balance_mdl} MDL).`,

@@ -14,6 +14,7 @@ from pyutilitati_md import (
 from ..auth import (
     authenticate,
     change_password,
+    create_invitation,
     create_session_token,
     deactivate_user,
     get_user,
@@ -30,6 +31,7 @@ from ..deps import get_auth_token
 from ..services import email as email_svc
 from ..services import telegram as telegram_svc
 from ..services.utilities import (
+    active_unpaid_balance,
     create_home,
     delete_account,
     delete_home,
@@ -88,6 +90,37 @@ async def auth_login(payload: dict):
     if user_id is None:
         raise HTTPException(status_code=401, detail="Autentificare eșuată")
     return {"token": create_session_token(user_id), "user": _public_user(user_id)}
+
+
+@router.post("/auth/register-invite")
+async def auth_register_invite(payload: dict):
+    """Register identical to the web flow: an email invitation (no password).
+
+    The account is created inactive; after the user confirms the emailed link a
+    password is generated and the account becomes active.
+    """
+    first_name = str(payload.get("first_name", "")).strip()
+    last_name = str(payload.get("last_name", "")).strip()
+    email = str(payload.get("email", "")).strip()
+    username = str(payload.get("username", "")).strip()
+
+    if not first_name or not last_name or not email or not username:
+        raise HTTPException(status_code=400, detail="Completează toate câmpurile.")
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(status_code=400, detail="Adresa de email nu este validă.")
+
+    full_name = f"{first_name} {last_name}".strip()
+    lang = str(payload.get("lang", "ro") or "ro")[:2]
+    if lang not in ("ro", "ru", "en"):
+        lang = "ro"
+    try:
+        _, token = create_invitation(username, full_name, email)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
+    confirm_url = f"{SITE_URL}/confirm/{token}"
+    email_svc.send_invitation(email, full_name, confirm_url, lang=lang)
+    return {"sent": True, "email": email}
 
 
 @router.post("/auth/register")
@@ -304,14 +337,17 @@ async def account_invoices(account_id: int, user_id: int = Depends(get_auth_toke
 @router.post("/accounts/{account_id}/refresh")
 async def account_refresh(account_id: int, user_id: int = Depends(get_auth_token)):
     row = await _get_account(user_id, account_id)
+    prev_balance = active_unpaid_balance(account_id)
     data = await fetch_account_data(row)
     _created, saved_ids = persist_invoices(account_id, data)
+    new_balance = active_unpaid_balance(account_id) if data.is_connected else prev_balance
     return {
         "is_connected": data.is_connected,
         "error_message": data.error_message,
         "unpaid_balance_mdl": data.unpaid_balance_mdl,
         "invoice_count": len(saved_ids),
         "created_count": len(_created),
+        "balance_increased": bool(new_balance > prev_balance),
         "invoices": _serialize_invoices(data),
         "last_invoice": _serialize_provider_invoice(data.last_invoice),
     }

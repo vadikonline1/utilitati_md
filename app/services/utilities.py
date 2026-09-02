@@ -486,6 +486,17 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
     return created, saved
 
 
+def active_unpaid_balance(account_id: int) -> float:
+    """Sum unpaid amounts of the active (enabled) invoices for an account."""
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT COALESCE(SUM(amount_mdl), 0) AS s FROM invoices
+               WHERE account_id = ? AND is_paid = 0 AND status != 'disabled'""",
+            (account_id,),
+        ).fetchone()
+    return round(float(dict(row)["s"]), 2)
+
+
 def list_invoice_history(user_id: int, invoice_id: int) -> list[dict[str, Any]]:
     with _conn() as conn:
         rows = conn.execute(

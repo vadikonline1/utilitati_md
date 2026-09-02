@@ -82,15 +82,16 @@ export function login(username: string, password: string): Promise<{ token: stri
   return request('/auth/login', { method: 'POST', body: { username, password }, token: null });
 }
 
-export function register(
+export function registerInvite(
   username: string,
-  password: string,
+  first_name: string,
+  last_name: string,
   email: string,
-  full_name: string,
-): Promise<{ token: string; user: PublicUser }> {
-  return request('/auth/register', {
+  lang = 'ro',
+): Promise<{ sent: boolean; email: string }> {
+  return request('/auth/register-invite', {
     method: 'POST',
-    body: { username, password, email, full_name },
+    body: { username, first_name, last_name, email, lang },
     token: null,
   });
 }
@@ -259,6 +260,7 @@ export function refreshAccount(
   unpaid_balance_mdl: number;
   invoice_count: number;
   created_count: number;
+  balance_increased: boolean;
   invoices: Invoice[];
   last_invoice?: Invoice | null;
 }> {

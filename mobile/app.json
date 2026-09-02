@@ -8,6 +8,16 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0f766e",
+          "sounds": []
+        }
+      ]
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "backgroundColor": "#0f766e",
@@ -23,6 +33,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f766e"
+      },
+      "notification": {
+        "icon": "./assets/icon.png",
+        "color": "#0f766e"
       }
     },
     "extra": {
