@@ -126,7 +126,7 @@ PROVIDER_META = {
     "apa_canal_chisinau": {"icon": "💧", "name": "Apă-Canal Chișinău", "fields": ["contract"], "account_label": "Numărul contului", "placeholder": "5-9 caractere (A, P, cifre)"},
     "starnet": {"icon": "🌐", "name": "StarNet", "fields": ["contract"], "account_label": "Codul personal", "placeholder": "1-12 cifre"},
     "fee_nord": {"icon": "⚡", "name": "FEE Nord", "fields": ["contract"], "account_label": "Numărul contractului", "placeholder": "ex: 12-1234567890"},
-    "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract", "full_name"], "account_label": "Cont Abonat", "placeholder": "ex: 123456", "full_name_label": "Nume, Prenume", "full_name_placeholder": "ex: Popescu Ion"},
+    "stroy_master_domofon": {"icon": "🚪", "name": "Stroy Master Domofon", "fields": ["contract"], "account_label": "Cont Abonat", "placeholder": "ex: 123456"},
     "cet_nord": {"icon": "🔥", "name": "CET Nord", "fields": ["contract"], "account_label": "Numărul facturii", "placeholder": "1-9 cifre (ex: 123456789)"},
     "paza_a_mai": {"icon": "🔒", "name": "Paza a MAI", "fields": ["contract"], "account_label": "Factura", "placeholder": "1-20 caractere (ex: 12345)"},
     "probon": {"icon": "📋", "name": "Probon", "fields": ["contract"], "account_label": "ID Client", "placeholder": "1-10 caractere (ex: 1234567890)"},
@@ -134,10 +134,10 @@ PROVIDER_META = {
     "antar_salubrizare": {"icon": "🗑️", "name": "ANTAR SALUBRIZARE", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
     "anintercom": {"icon": "🏢", "name": "Anintercom", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "7 cifre (ex: 1234567)"},
     "sagaidac_service": {"icon": "🏠", "name": "Sagaidac Service", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
-    "vipinterfon": {"icon": "🚪", "name": "VIP Interfon", "fields": ["contract", "full_name"], "account_label": "Numar contract", "placeholder": "4-5 cifre (ex: 1234)", "full_name_label": "Nume, Prenume", "full_name_placeholder": "ex: Popescu Ion"},
+    "vipinterfon": {"icon": "🚪", "name": "VIP Interfon", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "4-5 cifre (ex: 1234)"},
     "econdominiu": {"icon": "🏢", "name": "E-Condominiu", "fields": ["contract"], "account_label": "Cod Consumator", "placeholder": "max 11 caractere (ex: 12345678901)"},
     "salubeco": {"icon": "🗑️", "name": "SALUBECO", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "max 9 cifre (ex: 123456789)"},
-    "legion_security_group": {"icon": "🛡️", "name": "LEGION SECURITY GROUP", "fields": ["contract", "full_name"], "account_label": "Personal ID", "placeholder": "max 5 caractere (ex: 12345)", "full_name_label": "Nume, Prenume", "full_name_placeholder": "ex: Popescu Ion"},
+    "legion_security_group": {"icon": "🛡️", "name": "LEGION SECURITY GROUP", "fields": ["contract"], "account_label": "Personal ID", "placeholder": "max 5 caractere (ex: 12345)"},
     "invoicer": {"icon": "🧾", "name": "Invoicer", "fields": ["contract"], "account_label": "ID platitor", "placeholder": "max 14 caractere (ex: 12345678901234)"},
 }
 
@@ -1441,6 +1441,7 @@ async def utility_connect(
 
     meta = PROVIDER_META.get(provider, {})
     fields = meta.get("fields", ["contract"])
+    _user = get_user(user_id) or {}
     data = {
         "home_id": home_id,
         "provider": provider,
@@ -1449,7 +1450,7 @@ async def utility_connect(
         "icon": meta.get("icon", "📄"),
         "username": None,
         "password": None,
-        "full_name": None,
+        "full_name": _user.get("full_name") or None,
         "place_of_consumption": None,
     }
     if "username" in fields:
@@ -1459,7 +1460,6 @@ async def utility_connect(
     if "full_name" in fields:
         full_name = str(form.get("full_name") or "").strip()
         if not full_name:
-            _user = get_user(user_id) or {}
             full_name = _user.get("full_name") or ""
         data["full_name"] = full_name or None
 
@@ -1490,6 +1490,7 @@ async def utility_edit_submit(
     contract_number = str(form.get("contract_number", "")).strip()
     if not contract_number:
         return RedirectResponse(f"/homes/{home_id}", status_code=303)
+    _user = get_user(user_id) or {}
     data = {
         "home_id": home_id,
         "provider": provider,
@@ -1498,7 +1499,7 @@ async def utility_edit_submit(
         "icon": meta.get("icon", account.get("icon", "📄")),
         "username": account.get("username"),
         "password": account.get("password"),
-        "full_name": account.get("full_name"),
+        "full_name": account.get("full_name") or _user.get("full_name") or None,
         "place_of_consumption": account.get("place_of_consumption"),
         "status": account.get("status", "enabled"),
     }
@@ -1645,12 +1646,9 @@ async def invoices_all_page(
             "provider": acc["provider"],
             "provider_name": meta.get("name", acc["provider"]),
             "fields": meta.get("fields", ["contract"]),
-            "full_name_label": meta.get("full_name_label", ""),
-            "full_name_placeholder": meta.get("full_name_placeholder", ""),
             "account_label": meta.get("account_label", ""),
             "label": acc.get("label") or "",
             "contract_number": acc.get("contract_number") or "",
-            "full_name": acc.get("full_name") or "",
             "username": acc.get("username") or "",
         }
     return templates.TemplateResponse(

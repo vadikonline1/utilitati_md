@@ -109,7 +109,7 @@
       <label>{{ t('home_provider') }}
         <select name="provider" id="provider-select" required onchange="updateProviderFields()">
           {% for pid, meta in providers.items() %}
-            <option value="{{ pid }}" data-fields="{% for f in meta.fields %}{{ f }}{% if not loop.last %},{% endif %}{% endfor %}" data-account-label="{{ meta.account_label or t('home_contract_number') }}" data-placeholder="{{ meta.placeholder or t('account_number_ph') }}" data-fullname-label="{{ meta.full_name_label or t('home_full_name') }}" data-fullname-placeholder="{{ meta.full_name_placeholder or t('home_full_name_ph') }}">{{ meta.icon }} {{ meta.name }}</option>
+            <option value="{{ pid }}" data-fields="{% for f in meta.fields %}{{ f }}{% if not loop.last %},{% endif %}{% endfor %}" data-account-label="{{ meta.account_label or t('home_contract_number') }}" data-placeholder="{{ meta.placeholder or t('account_number_ph') }}">{{ meta.icon }} {{ meta.name }}</option>
           {% endfor %}
         </select>
       </label>
@@ -126,11 +126,6 @@
       <div class="provider-field-password" hidden>
         <label>{{ t('home_password') }}
           <input type="password" name="password" autocomplete="off">
-        </label>
-      </div>
-      <div class="provider-field-fullname" hidden>
-        <label id="fullname-field-label">{{ t('home_full_name') }}
-          <input type="text" name="full_name" id="fullname-field-input" value="{{ user_full_name or '' }}" autocomplete="off">
         </label>
       </div>
       <button type="submit">{{ t('home_connect_btn') }}</button>
@@ -167,11 +162,6 @@
           <input type="password" name="password" id="f_edit_password" autocomplete="off" placeholder="{{ t('account_password_keep') }}">
         </label>
       </div>
-      <div class="provider-edit-fullname" id="edit-account-fullname" hidden>
-        <label id="edit-fullname-label">{{ t('home_full_name') }}
-          <input type="text" name="full_name" id="f_edit_fullname" autocomplete="off">
-        </label>
-      </div>
       <button type="submit">{{ t('account_save_changes') }}</button>
     </form>
   </div>
@@ -188,11 +178,8 @@ function updateProviderFields() {
   const fields = (opt.dataset.fields || "contract").split(",");
   document.querySelector(".provider-field-username").hidden = !fields.includes("username");
   document.querySelector(".provider-field-password").hidden = !fields.includes("password");
-  document.querySelector(".provider-field-fullname").hidden = !fields.includes("full_name");
   document.getElementById("contract-field-label").childNodes[0].nodeValue = opt.dataset.accountLabel + " ";
   document.getElementById("contract-field-input").placeholder = opt.dataset.placeholder;
-  document.getElementById("fullname-field-label").childNodes[0].nodeValue = (opt.dataset.fullnameLabel || "{{ t('home_full_name') }}") + " ";
-  document.getElementById("fullname-field-input").placeholder = opt.dataset.fullnamePlaceholder || "{{ t('home_full_name_ph') }}";
 }
 function openEditAccount(accountId) {
   const acc = editAccounts[accountId];
@@ -203,13 +190,9 @@ function openEditAccount(accountId) {
   document.getElementById("f_edit_contract").value = acc.contract_number || "";
   document.getElementById("f_edit_username").value = acc.username || "";
   document.getElementById("f_edit_password").value = "";
-  document.getElementById("f_edit_fullname").value = acc.full_name || "";
   const fields = acc.fields || ["contract"];
   document.getElementById("edit-account-username").hidden = !fields.includes("username");
   document.getElementById("edit-account-password").hidden = !fields.includes("password");
-  document.getElementById("edit-account-fullname").hidden = !fields.includes("full_name");
-  document.getElementById("edit-fullname-label").childNodes[0].nodeValue = (acc.full_name_label || "{{ t('home_full_name') }}") + " ";
-  document.getElementById("f_edit_fullname").placeholder = acc.full_name_placeholder || "{{ t('home_full_name_ph') }}";
   document.getElementById("f_edit_contract").placeholder = acc.account_label || "{{ t('home_contract_number') }}";
   document.getElementById("account-edit-form").action = "/homes/" + acc.home_id + "/utilities/" + acc.account_id + "/edit";
   openModal("modal-edit-account");

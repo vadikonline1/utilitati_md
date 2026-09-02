@@ -47,9 +47,7 @@
       {% for acc in accounts %}
         {% set acc_meta = providers.get(acc.provider, {}) %}
         <div class="dl-row {{ 'row-disabled' if acc.status == 'disabled' }}">
-          <div class="dl-cell" data-label="{{ t('home_utility') }}">{{ acc.icon }} {{ acc.label }}
-            {% if acc.full_name %}<br><span class="muted">{{ acc.full_name }}</span>{% endif %}
-          </div>
+          <div class="dl-cell" data-label="{{ t('home_utility') }}">{{ acc.icon }} {{ acc.label }}</div>
           <div class="dl-cell" data-label="{{ t('home_contract') }}">{{ acc.contract_number }}</div>
           <div class="dl-cell" data-label="{{ t('homes_status') }}">
             <span class="badge {{ acc.status }}">{{ t('home_account_active') if acc.status == 'enabled' else t('home_account_disabled') }}</span>
@@ -61,12 +59,9 @@
               data-provider="{{ acc.provider }}"
               data-provider-name="{{ acc_meta.get('name') or acc.provider }}"
               data-fields="{{ (acc_meta.get('fields') or ['contract'])|join(',') }}"
-              data-fullname-label="{{ acc_meta.get('full_name_label') or '' }}"
-              data-fullname-placeholder="{{ acc_meta.get('full_name_placeholder') or '' }}"
               data-account-label="{{ acc_meta.get('account_label') or '' }}"
               data-label="{{ acc.label }}"
               data-contract="{{ acc.contract_number }}"
-              data-fullname="{{ acc.full_name or '' }}"
               data-username="{{ acc.username or '' }}"
               onclick="openEditAccount(this)">{{ t('homes_edit') }}</button>
             <a class="btn small" href="/accounts/{{ acc.id }}/invoices">{{ t('nav_invoices') }}</a>
@@ -89,28 +84,24 @@
       <button type="button" class="modal-close" onclick="closeModal('modal-edit-home')">×</button>
     </div>
     <form method="post" action="/homes/{{ home.id }}/edit" class="form-stack">
-      <div class="form-row">
-        <label>{{ t('home_name') }}
-          <input type="text" name="name" value="{{ home.name }}" required>
-        </label>
-        <label>{{ t('homes_address') }}
-          <input type="text" name="address" value="{{ home.address }}">
-        </label>
-      </div>
-      <div class="form-row">
-        <label>{{ t('home_floor') }}
-          <input type="text" name="floor" value="{{ home.floor }}">
-        </label>
-        <label>{{ t('home_area_field') }}
-          <input type="text" name="metro_area" value="{{ home.metro_area }}">
-        </label>
-        <label>{{ t('home_status_title') }}
-          <select name="status">
-            <option value="enabled" {% if home.status == 'enabled' %}selected{% endif %}>{{ t('home_activate_opt') }}</option>
-            <option value="disabled" {% if home.status == 'disabled' %}selected{% endif %}>{{ t('home_disable_opt') }}</option>
-          </select>
-        </label>
-      </div>
+      <label>{{ t('home_name') }}
+        <input type="text" name="name" value="{{ home.name }}" required>
+      </label>
+      <label>{{ t('homes_address') }}
+        <input type="text" name="address" value="{{ home.address }}">
+      </label>
+      <label>{{ t('home_floor') }}
+        <input type="text" name="floor" value="{{ home.floor }}">
+      </label>
+      <label>{{ t('home_area_field') }}
+        <input type="text" name="metro_area" value="{{ home.metro_area }}">
+      </label>
+      <label>{{ t('home_status_title') }}
+        <select name="status">
+          <option value="enabled" {% if home.status == 'enabled' %}selected{% endif %}>{{ t('home_activate_opt') }}</option>
+          <option value="disabled" {% if home.status == 'disabled' %}selected{% endif %}>{{ t('home_disable_opt') }}</option>
+        </select>
+      </label>
       <button type="submit">{{ t('home_save_changes') }}</button>
     </form>
   </div>
@@ -126,7 +117,7 @@
       <label>{{ t('home_provider') }}
         <select name="provider" id="provider-select" required onchange="updateProviderFields()">
           {% for pid, meta in providers.items() %}
-            <option value="{{ pid }}" data-fields="{% for f in meta.fields %}{{ f }}{% if not loop.last %},{% endif %}{% endfor %}" data-account-label="{{ meta.account_label or t('home_contract_number') }}" data-placeholder="{{ meta.placeholder or t('account_number_ph') }}" data-fullname-label="{{ meta.full_name_label or t('home_full_name') }}" data-fullname-placeholder="{{ meta.full_name_placeholder or t('home_full_name_ph') }}">{{ meta.icon }} {{ meta.name }}</option>
+            <option value="{{ pid }}" data-fields="{% for f in meta.fields %}{{ f }}{% if not loop.last %},{% endif %}{% endfor %}" data-account-label="{{ meta.account_label or t('home_contract_number') }}" data-placeholder="{{ meta.placeholder or t('account_number_ph') }}">{{ meta.icon }} {{ meta.name }}</option>
           {% endfor %}
         </select>
       </label>
@@ -143,11 +134,6 @@
       <div class="provider-field-password" hidden>
         <label>{{ t('home_password') }}
           <input type="password" name="password" autocomplete="off">
-        </label>
-      </div>
-      <div class="provider-field-fullname" hidden>
-        <label id="fullname-field-label">{{ t('home_full_name') }}
-          <input type="text" name="full_name" id="fullname-field-input" value="{{ user_full_name or '' }}" autocomplete="off">
         </label>
       </div>
       <button type="submit">{{ t('home_connect_btn') }}</button>
@@ -185,11 +171,6 @@
           <input type="password" name="password" id="f_edit_password" autocomplete="off" placeholder="{{ t('account_password_keep') }}">
         </label>
       </div>
-      <div class="provider-edit-fullname" id="edit-account-fullname" hidden>
-        <label id="edit-fullname-label">{{ t('home_full_name') }}
-          <input type="text" name="full_name" id="f_edit_fullname" autocomplete="off">
-        </label>
-      </div>
       <button type="submit">{{ t('account_save_changes') }}</button>
     </form>
   </div>
@@ -205,11 +186,8 @@ function updateProviderFields() {
   const fields = (opt.dataset.fields || "contract").split(",");
   document.querySelector(".provider-field-username").hidden = !fields.includes("username");
   document.querySelector(".provider-field-password").hidden = !fields.includes("password");
-  document.querySelector(".provider-field-fullname").hidden = !fields.includes("full_name");
   document.getElementById("contract-field-label").childNodes[0].nodeValue = opt.dataset.accountLabel + " ";
   document.getElementById("contract-field-input").placeholder = opt.dataset.placeholder;
-  document.getElementById("fullname-field-label").childNodes[0].nodeValue = (opt.dataset.fullnameLabel || "{{ t('home_full_name') }}") + " ";
-  document.getElementById("fullname-field-input").placeholder = opt.dataset.fullnamePlaceholder || "{{ t('home_full_name_ph') }}";
 }
 function openEditAccount(btn) {
   const d = btn.dataset;
@@ -220,13 +198,9 @@ function openEditAccount(btn) {
   document.getElementById("f_edit_contract").value = d.contract || "";
   document.getElementById("f_edit_username").value = d.username || "";
   document.getElementById("f_edit_password").value = "";
-  document.getElementById("f_edit_fullname").value = d.fullname || "";
   const fields = (d.fields || "contract").split(",");
   document.getElementById("edit-account-username").hidden = !fields.includes("username");
   document.getElementById("edit-account-password").hidden = !fields.includes("password");
-  document.getElementById("edit-account-fullname").hidden = !fields.includes("full_name");
-  document.getElementById("edit-fullname-label").childNodes[0].nodeValue = (d.fullnameLabel || "{{ t('home_full_name') }}") + " ";
-  document.getElementById("f_edit_fullname").placeholder = d.fullnamePlaceholder || "{{ t('home_full_name_ph') }}";
   document.getElementById("f_edit_contract").placeholder = d.accountLabel || "{{ t('home_contract_number') }}";
   document.getElementById("account-edit-form").action = "/homes/" + d.homeId + "/utilities/" + d.accountId + "/edit";
   openModal("modal-edit-account");

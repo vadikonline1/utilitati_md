@@ -206,6 +206,15 @@ def upsert_account(
     home_id = data.get("home_id")
     status = data.get("status", "enabled")
     full_name = data.get("full_name")
+    # Providers that need a full name get the user's profile full_name as the
+    # default (e.g. Stroy Master Domofon, VIP Interfon, LEGION SECURITY GROUP).
+    if not full_name:
+        with _conn() as conn:
+            row = conn.execute(
+                "SELECT full_name FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+        if row:
+            full_name = row["full_name"] or None
     # Credentials are encrypted at rest; every read path decrypts them on use.
     enc_username = crypto.safe_encrypt(data.get("username") or None)
     enc_password = crypto.safe_encrypt(data.get("password") or None)

@@ -27,7 +27,7 @@ import Input from '../components/Input';
 import { colors, spacing } from '../theme';
 
 type ParamList = {
-  AccountForm: { id?: number; homeId?: number; provider?: string; label?: string };
+  AccountForm: { id?: number; homeId?: number; provider?: string };
 };
 
 interface Props {
@@ -43,12 +43,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
   const [homeId, setHomeId] = useState<string>(fixedHomeId != null ? String(fixedHomeId) : '');
   const [provider, setProvider] = useState(route.params?.provider || '');
   const [providerModal, setProviderModal] = useState(false);
-  const [label, setLabel] = useState(route.params?.label || '');
   const [contractNumber, setContractNumber] = useState('');
-  const [placeOfConsumption, setPlaceOfConsumption] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [providers, setProviders] = useState<Provider[]>([]);
   const [homes, setHomes] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,12 +72,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
           if (acc) {
             setHomeId(acc.home_id != null ? String(acc.home_id) : '');
             setProvider(acc.provider);
-            setLabel(acc.label);
             setContractNumber(acc.contract_number);
-            setPlaceOfConsumption(acc.place_of_consumption || '');
-            setUsername(acc.username || '');
-            setPassword(acc.password || '');
-            setFullName(acc.full_name || '');
           }
         } catch {
           /* ignore */
@@ -92,7 +82,6 @@ export default function AccountFormScreen({ navigation, route }: Props) {
   }, [isEdit, accountId, fixedHomeId]);
 
   const selectedProvider = providers.find((p) => p.id === provider);
-  const needsFullName = selectedProvider?.fields?.includes('full_name') ?? false;
 
   const chooseProvider = (id: string) => {
     setProvider(id);
@@ -116,12 +105,9 @@ export default function AccountFormScreen({ navigation, route }: Props) {
     const payload = {
       home_id: Number(homeId),
       provider,
-      label: label.trim() || selectedProvider?.name || provider,
+      label: selectedProvider?.name || provider,
+      icon: selectedProvider?.icon || '📄',
       contract_number: contractNumber,
-      place_of_consumption: placeOfConsumption,
-      username,
-      password,
-      full_name: needsFullName ? fullName : undefined,
       status: 'enabled',
     };
     try {
@@ -165,7 +151,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
         <Text style={styles.section}>Furnizor *</Text>
         <TouchableOpacity style={styles.picker} onPress={() => setProviderModal(true)}>
           <Text style={provider ? styles.pickerValue : styles.pickerPlaceholder}>
-            {selectedProvider?.name || 'Selectează furnizorul'}
+            {selectedProvider ? `${selectedProvider.icon || ''}  ${selectedProvider.name || 'Furnizor'}` : 'Selectează furnizorul'}
           </Text>
           <Text style={styles.pickerCaret}>▾</Text>
         </TouchableOpacity>
@@ -174,36 +160,10 @@ export default function AccountFormScreen({ navigation, route }: Props) {
         ) : null}
 
         <Input
-          label="Etichetă"
-          value={label}
-          onChangeText={setLabel}
-          placeholder="ex. Energie Electrică"
-        />
-        {needsFullName ? (
-          <Input
-            label="Nume complet (Nume, Prenume)"
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder={selectedProvider?.full_name_placeholder || 'ex. Popescu Ion'}
-          />
-        ) : null}
-        <Input
           label="Număr contract / identificator *"
           value={contractNumber}
           onChangeText={setContractNumber}
           placeholder={selectedProvider?.placeholder}
-        />
-        <Input
-          label="Loc de consum"
-          value={placeOfConsumption}
-          onChangeText={setPlaceOfConsumption}
-        />
-        <Input label="Username (utilizator furnizor)" value={username} onChangeText={setUsername} />
-        <Input
-          label="Parolă (utilizator furnizor)"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
         />
 
         <Button title="Salvează" onPress={save} loading={saving} />
