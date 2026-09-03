@@ -6,7 +6,6 @@ on:
       - deploy
     tags:
       - "v*.*.*"
-  workflow_dispatch:
 
 jobs:
   build_android:
