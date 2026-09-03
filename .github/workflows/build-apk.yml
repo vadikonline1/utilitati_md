@@ -11,6 +11,7 @@ on:
       - 'package.json'
       - 'assets/**'
       - 'google-services.json'
+      - 'GoogleService-Info.plist'
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
