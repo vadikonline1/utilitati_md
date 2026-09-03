@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "900688744142",
+    "project_id": "utilitati-md",
+    "storage_bucket": "utilitati-md.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:900688744142:android:fecd7f0c041db4391bca9f",
+        "android_client_info": {
+          "package_name": "md.utilitati.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAR3OlIfpiP6foJud0GI_IjhI-hKJmHJ2k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
