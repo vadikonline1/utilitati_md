@@ -10,6 +10,7 @@ on:
       - 'app.json'
       - 'package.json'
       - 'assets/**'
+      - 'google-services.json'
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
