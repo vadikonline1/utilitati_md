@@ -1,14 +1,17 @@
-name: Build apps (EAS)
+name: Build and release (EAS)
 
 on:
   push:
     branches:
       - deploy
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
 
 jobs:
   build_android:
     name: Android preview APK
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     type: build
     working_directory: mobile
     params:
@@ -17,8 +20,47 @@ jobs:
 
   build_ios:
     name: iOS preview
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     type: build
     working_directory: mobile
     params:
       platform: ios
       profile: preview
+
+  build_android_prod:
+    name: Android production (AAB)
+    if: startsWith(github.ref, 'refs/tags/v')
+    type: build
+    working_directory: mobile
+    params:
+      platform: android
+      profile: production
+
+  build_ios_prod:
+    name: iOS production
+    if: startsWith(github.ref, 'refs/tags/v')
+    type: build
+    working_directory: mobile
+    params:
+      platform: ios
+      profile: production
+
+  submit_android:
+    name: Submit to Google Play
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build_android_prod]
+    type: submit
+    working_directory: mobile
+    params:
+      platform: android
+      profile: production
+
+  submit_ios:
+    name: Submit to TestFlight
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build_ios_prod]
+    type: submit
+    working_directory: mobile
+    params:
+      platform: ios
+      profile: production
