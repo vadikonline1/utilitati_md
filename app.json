@@ -8,7 +8,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "plugins": [
       [
         "expo-notifications",
@@ -34,10 +33,6 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f766e"
-      },
-      "notification": {
-        "icon": "./assets/icon.png",
-        "color": "#0f766e"
       }
     },
     "extra": {
