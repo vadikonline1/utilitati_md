@@ -56,6 +56,7 @@ from ..services import telegram as telegram_svc
 from ..services.settings import (
     MSG_TYPES,
     MASKED,
+    admob_config,
     all_settings,
     clear_msg_templates,
     delete_setting,
@@ -872,6 +873,7 @@ def _admin_base_ctx() -> dict:
     return {
         "denied": False,
         "settings": all_settings(),
+        "admob": admob_config(),
         "retention_enabled": retention_enabled(),
         "inactive_months": inactive_months(),
         "warn_days_list": warn_days(),
@@ -1229,6 +1231,42 @@ async def admin_seo_submit(
         "company_address": str(form.get("company_address", "")).strip(),
     })
     _save_placeholder_rows(form)
+    return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+@router.post("/admin/ads")
+async def admin_ads_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    """Save AdMob/Google Ads settings (toggles, unit ids, placements)."""
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    placements = ",".join(
+        p.strip()
+        for p in str(form.get("admob_placements", "")).replace("\n", ",").split(",")
+        if p.strip()
+    )
+    set_settings({
+        "admob_enabled": "1" if form.get("admob_enabled") else "0",
+        "admob_app_id_android": str(form.get("admob_app_id_android", "")).strip(),
+        "admob_app_id_ios": str(form.get("admob_app_id_ios", "")).strip(),
+        "admob_banner_enabled": "1" if form.get("admob_banner_enabled") else "0",
+        "admob_banner_unit_android": str(form.get("admob_banner_unit_android", "")).strip(),
+        "admob_banner_unit_ios": str(form.get("admob_banner_unit_ios", "")).strip(),
+        "admob_interstitial_enabled": "1" if form.get("admob_interstitial_enabled") else "0",
+        "admob_interstitial_unit_android": str(form.get("admob_interstitial_unit_android", "")).strip(),
+        "admob_interstitial_unit_ios": str(form.get("admob_interstitial_unit_ios", "")).strip(),
+        "admob_interstitial_interval": str(form.get("admob_interstitial_interval", "5")).strip(),
+        "admob_rewarded_enabled": "1" if form.get("admob_rewarded_enabled") else "0",
+        "admob_rewarded_unit_android": str(form.get("admob_rewarded_unit_android", "")).strip(),
+        "admob_rewarded_unit_ios": str(form.get("admob_rewarded_unit_ios", "")).strip(),
+        "admob_placements": placements,
+    })
     return _admin_render(request, user_id, message=_t("admin_saved"))
 
 

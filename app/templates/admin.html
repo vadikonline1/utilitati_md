@@ -17,6 +17,7 @@
       <button type="button" class="tab-btn" data-tab="tab-faq">{{ t('admin_tab_faq') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-pages">{{ t('admin_tab_pages') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-seo">{{ t('admin_tab_seo') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-ads">{{ t('admin_tab_ads') }}</button>
     </div>
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
@@ -428,7 +429,107 @@
       </form>
     </section>
 
-    {# Add-FAQ modal #}
+    {# ---------------- Ads (AdMob / Google Ads) ---------------- #}
+    <section id="tab-ads" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_ads_hint') }}</p>
+      <form method="post" action="/admin/ads">
+        <div class="config-grid">
+          <div class="card">
+            <h2>{{ t('admin_ads_master') }}</h2>
+            <div class="form-stack">
+              <label class="check">
+                <input type="checkbox" name="admob_enabled"
+                       {% if admob.enabled %}checked{% endif %}> {{ t('admin_ads_master_toggle') }}
+              </label>
+              <label>{{ t('admin_ads_app_id_android') }}
+                <input type="text" name="admob_app_id_android" value="{{ settings.get('admob_app_id_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_app_id_ios') }}
+                <input type="text" name="admob_app_id_ios" value="{{ settings.get('admob_app_id_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_ads_banner') }}</h2>
+            <div class="form-stack">
+              <label class="check">
+                <input type="checkbox" name="admob_banner_enabled"
+                       {% if admob.banner.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
+              </label>
+              <label>{{ t('admin_ads_banner_unit_android') }}
+                <input type="text" name="admob_banner_unit_android" value="{{ settings.get('admob_banner_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_banner_unit_ios') }}
+                <input type="text" name="admob_banner_unit_ios" value="{{ settings.get('admob_banner_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_ads_interstitial') }}</h2>
+            <div class="form-stack">
+              <label class="check">
+                <input type="checkbox" name="admob_interstitial_enabled"
+                       {% if admob.interstitial.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
+              </label>
+              <label>{{ t('admin_ads_interstitial_unit_android') }}
+                <input type="text" name="admob_interstitial_unit_android" value="{{ settings.get('admob_interstitial_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_interstitial_unit_ios') }}
+                <input type="text" name="admob_interstitial_unit_ios" value="{{ settings.get('admob_interstitial_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_interstitial_interval') }}
+                <input type="number" name="admob_interstitial_interval" min="1" max="720"
+                       value="{{ settings.get('admob_interstitial_interval', '5') }}">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_ads_rewarded') }}</h2>
+            <div class="form-stack">
+              <label class="check">
+                <input type="checkbox" name="admob_rewarded_enabled"
+                       {% if admob.rewarded.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
+              </label>
+              <label>{{ t('admin_ads_rewarded_unit_android') }}
+                <input type="text" name="admob_rewarded_unit_android" value="{{ settings.get('admob_rewarded_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_rewarded_unit_ios') }}
+                <input type="text" name="admob_rewarded_unit_ios" value="{{ settings.get('admob_rewarded_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+            </div>
+          </div>
+
+          <div class="card" style="grid-column: 1 / -1;">
+            <h2>{{ t('admin_ads_placements') }}</h2>
+            <p class="field-hint">{{ t('admin_ads_placements_hint') }}</p>
+            <label class="check">
+              <input type="checkbox" name="php_placement_dashboard"
+                     {% if 'dashboard' in admob.placements %}checked{% endif %}> dashboard
+            </label>
+            <label class="check">
+              <input type="checkbox" name="php_placement_homes"
+                     {% if 'homes' in admob.placements %}checked{% endif %}> homes
+            </label>
+            <label class="check">
+              <input type="checkbox" name="php_placement_facturi"
+                     {% if 'facturi' in admob.placements %}checked{% endif %}> facturi
+            </label>
+            <label class="check">
+              <input type="checkbox" name="php_placement_home_detail"
+                     {% if 'home_detail' in admob.placements %}checked{% endif %}> home_detail
+            </label>
+            <input type="hidden" name="admob_placements" id="admobPlacements"
+                   value="{{ admob.placements|join(',') }}">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn">{{ t('admin_save') }}</button>
+        </div>
+      </form>
+    </section>
     <div class="modal-overlay" id="modal-faq-add" hidden>
       <div class="modal modal-wide">
         <div class="modal-head">
@@ -619,13 +720,15 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=pages");
       } else if (target === "tab-seo") {
         history.replaceState(null, "", "/admin?tab=seo");
+      } else if (target === "tab-ads") {
+        history.replaceState(null, "", "/admin?tab=ads");
       } else {
         history.replaceState(null, "", "/admin");
       }
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq", "pages", "seo"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
     var tabKey = params.get("saved") ? "messages" : params.get("tab");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
@@ -661,6 +764,19 @@ document.addEventListener("DOMContentLoaded", function () {
       if (tr) tr.remove();
     }
   });
+
+  // AdMob placements: compose the hidden comma-list from the checked boxes.
+  var adsForm = document.querySelector('#tab-ads form');
+  if (adsForm) {
+    adsForm.addEventListener('submit', function () {
+      var names = ['dashboard', 'homes', 'facturi', 'home_detail'];
+      var picks = names.filter(function (n) {
+        var cb = document.querySelector('input[name="php_placement_' + n + '"]');
+        return cb && cb.checked;
+      });
+      document.getElementById('admobPlacements').value = picks.join(',');
+    });
+  }
 });
 </script>
 {% endblock %}

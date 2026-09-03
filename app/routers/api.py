@@ -31,6 +31,7 @@ from ..deps import get_auth_token
 from ..services import email as email_svc
 from ..services import push as push_svc
 from ..services import telegram as telegram_svc
+from ..services.settings import admob_config
 from ..services.utilities import (
     active_unpaid_balance,
     create_home,
@@ -173,6 +174,12 @@ async def device_test_push(user_id: int = Depends(get_auth_token)):
     if sent == 0:
         raise HTTPException(status_code=400, detail="Niciun token de notificare înregistrat")
     return {"sent": sent}
+
+
+@router.get("/config")
+async def app_config(user_id: int = Depends(get_auth_token)):
+    """Server-driven runtime config for the mobile app (e.g. AdMob)."""
+    return {"admob": admob_config()}
 
 
 @router.get("/auth/me")

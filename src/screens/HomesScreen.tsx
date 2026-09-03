@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { Home, listHomes } from '../api/client';
 import AppHeader from '../components/AppHeader';
+import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -91,6 +92,7 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
           )
         }
       />
+      <AdBanner placement="homes" />
       {menuOpen ? (
         <View style={styles.menu}>
           <TouchableOpacity

@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { Home, Invoice, listHomes, listInvoices } from '../api/client';
 import AppHeader from '../components/AppHeader';
+import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -147,6 +148,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
           </Text>
         }
       />
+      <AdBanner placement="dashboard" />
       {menuOpen ? (
         <View style={styles.menu}>
           <TouchableOpacity

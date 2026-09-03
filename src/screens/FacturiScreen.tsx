@@ -19,6 +19,7 @@ import {
   setInvoiceStatus,
 } from '../api/client';
 import AppHeader from '../components/AppHeader';
+import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -164,6 +165,7 @@ export default function FacturiScreen() {
           </Text>
         }
       />
+      <AdBanner placement="facturi" />
     </View>
   );
 }

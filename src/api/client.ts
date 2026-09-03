@@ -262,6 +262,33 @@ export function sendTestNotification(): Promise<{ sent: number }> {
   return request('/devices/test', { method: 'POST' });
 }
 
+// --------------------------------------------------------------------------- //
+// Runtime config (server-driven AdMob settings from /admin)
+// --------------------------------------------------------------------------- //
+export interface AdmobAdFormatConfig {
+  enabled: boolean;
+  unit_android: string;
+  unit_ios: string;
+}
+
+export interface AdmobConfig {
+  enabled: boolean;
+  app_id_android: string;
+  app_id_ios: string;
+  banner: AdmobAdFormatConfig;
+  interstitial: AdmobAdFormatConfig & { interval_minutes: number };
+  rewarded: AdmobAdFormatConfig;
+  placements: string[];
+}
+
+export interface AppConfig {
+  admob: AdmobConfig;
+}
+
+export function getConfig(): Promise<AppConfig> {
+  return request('/config');
+}
+
 export function deleteAccount(id: number): Promise<{ deleted: boolean }> {
   return request(`/accounts/${id}`, { method: 'DELETE' });
 }
