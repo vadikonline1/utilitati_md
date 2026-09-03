@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Utilitati.MD",
+    "owner": "vadikonline1",
     "slug": "utilitati-mobile",
     "scheme": "utilitati",
     "version": "1.0.0",
@@ -41,6 +42,9 @@
     },
     "extra": {
       "apiUrl": "https://utilitati.nistorlazar.md/api",
+      "eas": {
+        "projectId": "a6825545-6d60-4504-aafd-0f8d7c1e9f56"
+      },
       "expo": {
         "projectId": "a6825545-6d60-4504-aafd-0f8d7c1e9f56"
       }
