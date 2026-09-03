@@ -34,12 +34,14 @@
       "supportsTablet": true,
       "bundleIdentifier": "md.utilitati.app",
       "icon": "./assets/icon.png",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "md.utilitati.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f766e"
