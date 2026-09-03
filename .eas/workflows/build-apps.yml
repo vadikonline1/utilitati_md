@@ -1,0 +1,24 @@
+name: Build apps (EAS)
+
+on:
+  push:
+    branches:
+      - deploy
+  workflow_dispatch:
+
+jobs:
+  build_android:
+    name: Android preview APK
+    type: build
+    working_directory: mobile
+    params:
+      platform: android
+      profile: preview
+
+  build_ios:
+    name: iOS preview
+    type: build
+    working_directory: mobile
+    params:
+      platform: ios
+      profile: preview

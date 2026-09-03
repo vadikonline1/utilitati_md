@@ -81,14 +81,18 @@ export default function ProfileScreen() {
     if (value) {
       // Register the device and send a test push so the user can verify it works.
       try {
-        await registerPushToken();
+        const ok = await registerPushToken();
+        if (!ok) {
+          throw new Error('push not granted / no projectId');
+        }
         await sendTestNotification();
         Alert.alert('Gata', 'Ai activat notificările. Notificarea de test a fost trimisă.');
         await AsyncStorage.setItem(NOTIF_KEY, '1');
       } catch {
+        setNotifOn(false);
         Alert.alert(
           'Atenție',
-          'Nu am putut activa notificările. Verifică permisiunile aplicației și contul Expo (projectId).',
+          'Nu am putut activa notificările. Dă permisiune de notificări aplicației, apoi actualizează aplicația (rebuild) ca să preia projectId-ul Expo. Dacă continuă, verifică ca build-ul să conțină projectId-ul corect și ești logat în contul Expo.',
         );
         await AsyncStorage.setItem(NOTIF_KEY, '0');
       }

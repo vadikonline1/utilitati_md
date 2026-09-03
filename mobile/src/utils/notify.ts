@@ -43,21 +43,19 @@ async function ensureChannel(): Promise<void> {
   }
 }
 
-export async function registerPushToken(): Promise<void> {
-  if (Platform.OS === 'web') return;
+export async function registerPushToken(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
   const granted = await ensurePermission();
-  if (!granted) return;
-  try {
-    const projectId = Constants.expoConfig?.extra?.expo?.projectId as string | undefined;
-    const { data } = await Notifications.getExpoPushTokenAsync({
-      projectId: projectId || undefined,
-    });
-    if (data) {
-      await registerDeviceToken(data, Platform.OS === 'ios' ? 'ios' : 'android').catch(() => undefined);
-    }
-  } catch {
-    // push registration must not break login/startup
-  }
+  if (!granted) return false;
+  // Prefer the linked EAS project id; fall back to the explicit config value.
+  const projectId =
+    Constants.easConfig?.projectId ||
+    ((Constants.expoConfig?.extra as Record<string, any> | undefined)?.expo?.projectId as string | undefined);
+  if (!projectId) return false;
+  const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+  if (!data) return false;
+  await registerDeviceToken(data, Platform.OS === 'ios' ? 'ios' : 'android');
+  return true;
 }
 
 export async function notifyNewInvoice(title: string, body: string): Promise<void> {
