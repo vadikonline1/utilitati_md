@@ -26,13 +26,19 @@ ids default to empty (the app then falls back to Google test ads when a format i
 enabled). For real monetization:
 
 1. In the AdMob console create your app (`md.utilitati.app` / `md.utilitati.app`).
-2. Copy both App IDs into `app.json`:
+2. Copy both App IDs into `app.json` (under the `./plugins/withAdMob` entry):
    ```json
-   ["react-native-google-mobile-ads", {
+   ["./plugins/withAdMob", {
      "androidAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX",
      "iosAppId":     "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX"
    }]
    ```
+   `plugins/withAdMob.js` is a small local config plugin that injects the App ID
+   into the Android manifest (`com.google.android.gms.ads.APPLICATION_ID`) and
+   the iOS Info.plist (`GADApplicationIdentifier`). It is used instead of the
+   upstream `react-native-google-mobile-ads` config plugin, which ships
+   uncompiled ESM that crashes `npx expo prebuild` with "Unexpected token
+   'typeof'".
 3. Create ad units in AdMob and paste the unit ids into `/admin` → Ads
    (banner / interstitial / rewarded, per platform), set the master switch on,
    check the placements you want, and save. A build with the real App ID is now
