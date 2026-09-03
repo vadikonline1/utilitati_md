@@ -16,28 +16,12 @@ jobs:
       platform: android
       profile: preview
 
-  build_ios:
-    name: iOS preview
-    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-    type: build
-    params:
-      platform: ios
-      profile: preview
-
   build_android_prod:
     name: Android production (AAB)
     if: startsWith(github.ref, 'refs/tags/v')
     type: build
     params:
       platform: android
-      profile: production
-
-  build_ios_prod:
-    name: iOS production
-    if: startsWith(github.ref, 'refs/tags/v')
-    type: build
-    params:
-      platform: ios
       profile: production
 
   submit_android:
