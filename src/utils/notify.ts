@@ -50,6 +50,7 @@ export async function registerPushToken(): Promise<boolean> {
   // Prefer the linked EAS project id; fall back to the explicit config value.
   const projectId =
     Constants.easConfig?.projectId ||
+    ((Constants.expoConfig?.extra as Record<string, any> | undefined)?.eas?.projectId as string | undefined) ||
     ((Constants.expoConfig?.extra as Record<string, any> | undefined)?.expo?.projectId as string | undefined);
   if (!projectId) return false;
   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
