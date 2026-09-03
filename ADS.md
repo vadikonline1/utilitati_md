@@ -9,7 +9,7 @@ you enable there — no app reinstall needed for unit-id/config changes.
 
 | Item              | Where                | When it applies                     |
 | ----------------- | -------------------- | ----------------------------------- |
-| AdMob **App ID**  | `app.json` plugin     | Baked into the native build (build-time) |
+| AdMob **App ID**  | `app.json` root key   | Baked into the native build (build-time) |
 | Ad **unit IDs**   | `/admin` → Ads        | Runtime, served via `/api/config`    |
 | Master switch     | `/admin` → Ads        | Runtime                             |
 | Placements        | `/admin` → Ads        | Runtime                             |
@@ -26,19 +26,20 @@ ids default to empty (the app then falls back to Google test ads when a format i
 enabled). For real monetization:
 
 1. In the AdMob console create your app (`md.utilitati.app` / `md.utilitati.app`).
-2. Copy both App IDs into `app.json` (under the `./plugins/withAdMob` entry):
+2. Copy both App IDs into the root-level `react-native-google-mobile-ads` key of
+   `app.json` (NOT inside the `expo` object — the library's Gradle script reads it
+   exactly there):
    ```json
-   ["./plugins/withAdMob", {
-     "androidAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX",
-     "iosAppId":     "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX"
-   }]
+   "react-native-google-mobile-ads": {
+     "android_app_id": "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX",
+     "ios_app_id":     "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX"
+   }
    ```
-   `plugins/withAdMob.js` is a small local config plugin that injects the App ID
-   into the Android manifest (`com.google.android.gms.ads.APPLICATION_ID`) and
-   the iOS Info.plist (`GADApplicationIdentifier`). It is used instead of the
-   upstream `react-native-google-mobile-ads` config plugin, which ships
-   uncompiled ESM that crashes `npx expo prebuild` with "Unexpected token
-   'typeof'".
+   This key both satisfies the native build (it fails Gradle if `android_app_id`
+   is missing) and injects the App ID into the Android manifest +
+   `GADApplicationIdentifier` for iOS. The upstream npm config plugin is NOT used
+   (it ships uncompiled ESM that crashes `npx expo prebuild` with "Unexpected
+   token 'typeof'").
 3. Create ad units in AdMob and paste the unit ids into `/admin` → Ads
    (banner / interstitial / rewarded, per platform), set the master switch on,
    check the placements you want, and save. A build with the real App ID is now

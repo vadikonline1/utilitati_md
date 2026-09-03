@@ -16,13 +16,6 @@
           "color": "#0f766e",
           "sounds": []
         }
-      ],
-      [
-        "./plugins/withAdMob",
-        {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
-        }
       ]
     ],
     "splash": {
@@ -56,5 +49,9 @@
         "projectId": "a6825545-6d60-4504-aafd-0f8d7c1e9f56"
       }
     }
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-3940256099942544~3347511713",
+    "ios_app_id": "ca-app-pub-3940256099942544~1458002511"
   }
 }
