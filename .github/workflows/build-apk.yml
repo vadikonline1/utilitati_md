@@ -5,7 +5,11 @@ on:
   push:
     branches: [deploy]
     paths:
-      - 'mobile/**'
+      - 'src/**'
+      - 'App.tsx'
+      - 'app.json'
+      - 'package.json'
+      - 'assets/**'
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
@@ -15,10 +19,6 @@ jobs:
 
     permissions:
       contents: write
-
-    defaults:
-      run:
-        working-directory: mobile
 
     steps:
       - name: Checkout
@@ -65,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: utilitati-mobile-apk
-          path: mobile/android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
       - name: Publish APK to GitHub Release
@@ -79,7 +79,7 @@ jobs:
 
             **Versiune aplicație:** 1.0.0
             **API URL:** https://utilitati.nistorlazar.md/api
-          files: mobile/android/app/build/outputs/apk/release/*.apk
+          files: android/app/build/outputs/apk/release/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -100,11 +100,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working-directory: mobile
 
       - name: Generate native ios project (expo prebuild)
         run: npx expo prebuild --platform ios --no-install
-        working-directory: mobile
 
       - name: Install CocoaPods
         run: |
@@ -112,7 +110,6 @@ jobs:
           cd ios
           if [ -f Podfile ]; then pod install; fi
           cd ..
-        working-directory: mobile
 
       - name: Build iOS app (simulator, unsigned)
         run: |
@@ -139,13 +136,12 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build
           cd ..
-        working-directory: mobile
 
       - name: Upload iOS app (workflow artifact)
         uses: actions/upload-artifact@v4
         with:
           name: utilitati-mobile-ios-simulator
-          path: mobile/ios/build/Build/Products/Release-iphonesimulator/*.app
+          path: ios/build/Build/Products/Release-iphonesimulator/*.app
           if-no-files-found: warn
 
       - name: Publish iOS info to GitHub Release

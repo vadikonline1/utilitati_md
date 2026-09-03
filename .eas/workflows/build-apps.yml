@@ -12,7 +12,6 @@ jobs:
     name: Android preview APK
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     type: build
-    working_directory: mobile
     params:
       platform: android
       profile: preview
@@ -21,7 +20,6 @@ jobs:
     name: iOS preview
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     type: build
-    working_directory: mobile
     params:
       platform: ios
       profile: preview
@@ -30,7 +28,6 @@ jobs:
     name: Android production (AAB)
     if: startsWith(github.ref, 'refs/tags/v')
     type: build
-    working_directory: mobile
     params:
       platform: android
       profile: production
@@ -39,7 +36,6 @@ jobs:
     name: iOS production
     if: startsWith(github.ref, 'refs/tags/v')
     type: build
-    working_directory: mobile
     params:
       platform: ios
       profile: production
@@ -49,8 +45,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build_android_prod]
     type: submit
-    working_directory: mobile
     params:
+      build_id: ${{ needs.build_android_prod.outputs.build_id }}
       platform: android
       profile: production
 
@@ -59,7 +55,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build_ios_prod]
     type: submit
-    working_directory: mobile
     params:
+      build_id: ${{ needs.build_ios_prod.outputs.build_id }}
       platform: ios
       profile: production

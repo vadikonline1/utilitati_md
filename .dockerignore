@@ -9,3 +9,13 @@ get-pip.py
 Dockerfile
 .dockerignore
 .docker/
+
+# Mobile generated/artifact dirs (heavy) — keep them out of the backend image.
+node_modules/
+.expo/
+dist/
+web-build/
+/android
+/ios
+*.log
+.env.local
