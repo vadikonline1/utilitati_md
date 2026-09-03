@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ApiError, changePassword, clearDeviceToken, deactivateAccount, sendTestNotification, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
-import { registerPushToken } from '../utils/notify';
+import { registerPushTokenResult } from '../utils/notify';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
@@ -80,19 +80,25 @@ export default function ProfileScreen() {
     setNotifOn(value);
     if (value) {
       // Register the device and send a test push so the user can verify it works.
-      try {
-        const ok = await registerPushToken();
-        if (!ok) {
-          throw new Error('push not granted / no projectId');
+      let activationDetail = '';
+      const res = await registerPushTokenResult();
+      if (!res.ok) activationDetail = res.detail || '';
+      if (res.ok) {
+        try {
+          await sendTestNotification();
+        } catch {
+          activationDetail = 'Autentificarea a mers, dar trimiterea notificării de test a eșuat.';
         }
-        await sendTestNotification();
+      }
+      if (res.ok && !activationDetail) {
         Alert.alert('Gata', 'Ai activat notificările. Notificarea de test a fost trimisă.');
         await AsyncStorage.setItem(NOTIF_KEY, '1');
-      } catch {
+      } else {
         setNotifOn(false);
+        const detail = activationDetail ? `\n\n${activationDetail}` : '';
         Alert.alert(
           'Atenție',
-          'Nu am putut activa notificările. Dă permisiune de notificări aplicației, apoi actualizează aplicația (rebuild) ca să preia projectId-ul Expo. Dacă continuă, verifică ca build-ul să conțină projectId-ul corect și ești logat în contul Expo.',
+          `Nu am putut activa notificările.${detail}\n\nVerifică permisiunea de notificări pentru aplicație și instalează o versiune nouă (rebuild) care conține projectId-ul Expo corect.`,
         );
         await AsyncStorage.setItem(NOTIF_KEY, '0');
       }
