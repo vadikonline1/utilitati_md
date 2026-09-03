@@ -6,6 +6,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -14,14 +15,16 @@ import {
 import Input from '../components/Input';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { ApiError, changePassword, deactivateAccount, updateSelf } from '../api/client';
+import { ApiError, changePassword, clearDeviceToken, deactivateAccount, sendTestNotification, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
+import { registerPushToken } from '../utils/notify';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 const LANG_KEY = 'utilitati.language';
+const NOTIF_KEY = 'utilitati.notifications';
 const LANGUAGES = [
   { code: 'ro', label: 'Română' },
   { code: 'ru', label: 'Русский' },
@@ -62,13 +65,38 @@ export default function ProfileScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [editName, setEditName] = useState(user?.full_name || '');
+  const [notifOn, setNotifOn] = useState(false);
 
   useEffect(() => {
     (async () => {
       const saved = await AsyncStorage.getItem(LANG_KEY);
       if (saved) setLang(saved);
+      const n = await AsyncStorage.getItem(NOTIF_KEY);
+      setNotifOn(n === '1');
     })();
   }, []);
+
+  const toggleNotifications = async (value: boolean) => {
+    setNotifOn(value);
+    if (value) {
+      // Register the device and send a test push so the user can verify it works.
+      try {
+        await registerPushToken();
+        await sendTestNotification();
+        Alert.alert('Gata', 'Ai activat notificările. Notificarea de test a fost trimisă.');
+        await AsyncStorage.setItem(NOTIF_KEY, '1');
+      } catch {
+        Alert.alert(
+          'Atenție',
+          'Nu am putut activa notificările. Verifică permisiunile aplicației și contul Expo (projectId).',
+        );
+        await AsyncStorage.setItem(NOTIF_KEY, '0');
+      }
+    } else {
+      await clearDeviceToken().catch(() => undefined);
+      await AsyncStorage.setItem(NOTIF_KEY, '0');
+    }
+  };
 
   const saveLang = async (code: string) => {
     setLang(code);
@@ -182,17 +210,22 @@ export default function ProfileScreen() {
           subtitle={LANGUAGES.find((l) => l.code === lang)?.label}
           onPress={() => setLangModal(true)}
         />
-        <SettingsRow
-          icon="notifications-outline"
-          title="Notificări"
-          subtitle="Primești notificări pentru facturile scadente"
-          onPress={() =>
-            Alert.alert(
-              'Notificări',
-              'Primești notificări pentru facturile scadente și actualizările conturilor tale.',
-            )
-          }
-        />
+        <View style={styles.row}>
+          <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+          <View style={styles.rowBody}>
+            <Text style={styles.rowTitle}>Notificări</Text>
+            <Text style={styles.muted}>
+              {notifOn
+                ? 'Activat — primești notificări pentru facturi noi'
+                : 'Dezactivat — fără notificări push'}
+            </Text>
+          </View>
+          <Switch
+            value={notifOn}
+            onValueChange={toggleNotifications}
+            trackColor={{ false: colors.border, true: colors.primary }}
+          />
+        </View>
         <SettingsRow
           icon="person-remove-outline"
           title="Dezactivarea contului"

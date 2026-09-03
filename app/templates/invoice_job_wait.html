@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ t('invoice_checking') }} · UTILITĂȚI.MD{% endblock %}
+{% block head_extra %}
+  {% if attempt <= max_attempts %}
+    <meta http-equiv="refresh" content="3; url={{ next_url }}">
+  {% endif %}
+{% endblock %}
+{% block body %}
+<main class="dashboard" style="text-align:center; padding-top:64px;">
+  <div class="spinner" style="width:44px;height:44px;border:4px solid rgba(0,0,0,.12);border-top-color:#0f766e;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;"></div>
+  <h1>{{ message }}</h1>
+  <p class="muted">{{ t('invoice_checking_hint') }}</p>
+  {% if attempt > max_attempts %}
+    <p class="error">{{ t('invoice_checking_timeout') }}</p>
+    <p><a href="{{ next_url }}" class="btn">🔄 {{ t('invoice_refresh') }}</a></p>
+  {% else %}
+    <noscript>
+      <meta http-equiv="refresh" content="3; url={{ next_url }}">
+    </noscript>
+  {% endif %}
+</main>
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}

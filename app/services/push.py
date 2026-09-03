@@ -43,6 +43,12 @@ def user_device_tokens(user_id: int) -> list[str]:
     return [r["token"] for r in rows]
 
 
+def clear_device_tokens(user_id: int) -> None:
+    """Remove all push tokens for a user (notifications switched OFF)."""
+    with _conn() as conn:
+        conn.execute("DELETE FROM device_tokens WHERE user_id = ?", (user_id,))
+
+
 async def send_push(user_id: int, title: str, body: str) -> int:
     """Send an Expo push to all of a user's devices. Returns tokens attempted."""
     tokens = user_device_tokens(user_id)

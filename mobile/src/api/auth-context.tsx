@@ -63,8 +63,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user && !initializing) {
-      // Register this device for server→Expo push notifications for new invoices.
-      registerPushToken().catch(() => undefined);
+      // Register this device for server→Expo push notifications for new
+      // invoices — but only if the user enabled notifications in settings.
+      (async () => {
+        try {
+          const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+          const pref = await AsyncStorage.getItem('utilitati.notifications');
+          if (pref === '1') await registerPushToken();
+        } catch {
+          // best-effort
+        }
+      })();
     }
   }, [user, initializing]);
 

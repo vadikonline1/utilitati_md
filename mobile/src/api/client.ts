@@ -254,6 +254,14 @@ export function registerDeviceToken(
   });
 }
 
+export function clearDeviceToken(): Promise<{ cleared: boolean }> {
+  return request('/devices/token', { method: 'DELETE' });
+}
+
+export function sendTestNotification(): Promise<{ sent: number }> {
+  return request('/devices/test', { method: 'POST' });
+}
+
 export function deleteAccount(id: number): Promise<{ deleted: boolean }> {
   return request(`/accounts/${id}`, { method: 'DELETE' });
 }

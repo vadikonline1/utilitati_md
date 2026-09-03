@@ -220,6 +220,26 @@ def _cleanup_old_jobs(keep_days: int = 7) -> None:
         )
 
 
+def job_info(job_id: int | None, user_id: int | None) -> dict | None:
+    """Return a job's terminal status, or None if not found / not owned."""
+    if job_id is None:
+        return None
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT user_id, status FROM invoice_jobs WHERE id = ?", (job_id,)
+        ).fetchone()
+    if row is None:
+        return None
+    if user_id is not None and row["user_id"] != user_id:
+        return None
+    status = row["status"]
+    return {
+        "finished": status in ("done", "failed"),
+        "failed": status == "failed",
+        "status": status,
+    }
+
+
 async def _process_job(job: dict) -> None:
     """Fetch + persist invoices for the job's account(s), then push if new."""
     user_id, account_id = job["user_id"], job["account_id"]

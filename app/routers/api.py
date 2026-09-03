@@ -155,6 +155,26 @@ async def device_token_register(
     return {"registered": True}
 
 
+@router.delete("/devices/token")
+async def device_token_clear(user_id: int = Depends(get_auth_token)):
+    """Remove all of the user's push tokens (notifications switched OFF)."""
+    push_svc.clear_device_tokens(user_id)
+    return {"cleared": True}
+
+
+@router.post("/devices/test")
+async def device_test_push(user_id: int = Depends(get_auth_token)):
+    """Send a test push notification to the current user's devices."""
+    sent = await push_svc.send_push(
+        user_id,
+        "Utilități.MD ✓",
+        "Notificare de test — notificările sunt active.",
+    )
+    if sent == 0:
+        raise HTTPException(status_code=400, detail="Niciun token de notificare înregistrat")
+    return {"sent": sent}
+
+
 @router.get("/auth/me")
 async def auth_me(user_id: int = Depends(get_auth_token)):
     user = _public_user(user_id)
