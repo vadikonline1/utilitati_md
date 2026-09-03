@@ -20,9 +20,6 @@
       "android": {
         "serviceAccountKeyPath": "./service-account-key.json",
         "track": "internal"
-      },
-      "ios": {
-        "appleId": ""
       }
     }
   }
