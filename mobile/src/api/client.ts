@@ -82,15 +82,16 @@ export function login(username: string, password: string): Promise<{ token: stri
   return request('/auth/login', { method: 'POST', body: { username, password }, token: null });
 }
 
-export function register(
+export function registerInvite(
   username: string,
-  password: string,
+  first_name: string,
+  last_name: string,
   email: string,
-  full_name: string,
-): Promise<{ token: string; user: PublicUser }> {
-  return request('/auth/register', {
+  lang = 'ro',
+): Promise<{ sent: boolean; email: string }> {
+  return request('/auth/register-invite', {
     method: 'POST',
-    body: { username, password, email, full_name },
+    body: { username, first_name, last_name, email, lang },
     token: null,
   });
 }
@@ -243,6 +244,24 @@ export function setAccountStatus(id: number, status: string): Promise<Account> {
   });
 }
 
+export function registerDeviceToken(
+  token: string,
+  platform: 'android' | 'ios' = 'android',
+): Promise<{ registered: boolean }> {
+  return request('/devices/token', {
+    method: 'POST',
+    body: { token, platform },
+  });
+}
+
+export function clearDeviceToken(): Promise<{ cleared: boolean }> {
+  return request('/devices/token', { method: 'DELETE' });
+}
+
+export function sendTestNotification(): Promise<{ sent: number }> {
+  return request('/devices/test', { method: 'POST' });
+}
+
 export function deleteAccount(id: number): Promise<{ deleted: boolean }> {
   return request(`/accounts/${id}`, { method: 'DELETE' });
 }
@@ -257,7 +276,11 @@ export function refreshAccount(
   is_connected: boolean;
   error_message?: string;
   unpaid_balance_mdl: number;
+  invoice_count: number;
+  created_count: number;
+  balance_increased: boolean;
   invoices: Invoice[];
+  last_invoice?: Invoice | null;
 }> {
   return request(`/accounts/${id}/refresh`, { method: 'POST' });
 }

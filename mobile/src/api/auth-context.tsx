@@ -7,13 +7,14 @@ import React, {
   useState,
 } from 'react';
 
-import { PublicUser, clearToken, getToken, login as apiLogin, me as apiMe, register as apiRegister, saveToken } from './client';
+import { PublicUser, clearToken, getToken, login as apiLogin, me as apiMe, registerInvite, saveToken } from './client';
+import { registerPushToken } from '../utils/notify';
 
 interface AuthState {
   user: PublicUser | null;
   initializing: boolean;
   signIn: (username: string, password: string) => Promise<void>;
-  signUp: (username: string, password: string, email: string, fullName: string) => Promise<void>;
+  signUp: (username: string, first_name: string, last_name: string, email: string) => Promise<void>;
   signOut: () => Promise<void>;
   setUser: (user: PublicUser | null) => void;
 }
@@ -47,10 +48,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(
-    async (username: string, password: string, email: string, fullName: string) => {
-      const { token, user: u } = await apiRegister(username, password, email, fullName);
-      await saveToken(token);
-      setUser(u);
+    async (username: string, first_name: string, last_name: string, email: string) => {
+      // Web-identical email-invitation flow: creates an inactive account and
+      // emails a confirmation link. No session is created here.
+      await registerInvite(username, first_name, last_name, email);
     },
     [],
   );
@@ -59,6 +60,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearToken();
     setUser(null);
   }, []);
+
+  useEffect(() => {
+    if (user && !initializing) {
+      // Register this device for server→Expo push notifications for new
+      // invoices — but only if the user enabled notifications in settings.
+      (async () => {
+        try {
+          const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+          const pref = await AsyncStorage.getItem('utilitati.notifications');
+          if (pref === '1') await registerPushToken();
+        } catch {
+          // best-effort
+        }
+      })();
+    }
+  }, [user, initializing]);
 
   const value = useMemo(
     () => ({ user, initializing, signIn, signUp, signOut, setUser }),

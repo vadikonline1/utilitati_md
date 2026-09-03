@@ -8,21 +8,42 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0f766e",
+          "sounds": []
+        }
+      ]
+    ],
     "splash": {
-      "backgroundColor": "#0f766e"
+      "image": "./assets/splash-icon.png",
+      "backgroundColor": "#0f766e",
+      "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "md.utilitati.app"
+      "bundleIdentifier": "md.utilitati.app",
+      "icon": "./assets/icon.png"
     },
     "android": {
       "package": "md.utilitati.app",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f766e"
+      },
+      "notification": {
+        "icon": "./assets/icon.png",
+        "color": "#0f766e"
       }
     },
     "extra": {
-      "apiUrl": "https://utilitati.nistorlazar.md/api"
+      "apiUrl": "https://utilitati.nistorlazar.md/api",
+      "expo": {
+        "projectId": "a6825545-6d60-4504-aafd-0f8d7c1e9f56"
+      }
     }
   }
 }

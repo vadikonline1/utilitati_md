@@ -72,7 +72,7 @@ from ..services.settings import (
     unconfirmed_hours,
     warn_days,
 )
-from ..services.sync import dashboard_stats, generate_invoices_for_user
+from ..services.sync import dashboard_stats, enqueue_invoice_job, job_info
 from ..services.utilities import (
     create_home,
     delete_account,
@@ -169,6 +169,26 @@ def _ctx(request, **extra):
     }
     ctx.update(extra)
     return ctx
+
+
+def _job_wait_response(request: Request, url: str, attempt: int, message: str):
+    """Render the 'verificăm... așteptați' page while a background job runs.
+
+    The page auto-reloads ``url`` every few seconds via a meta refresh; when the
+    worker has finished the job the handler renders the normal result instead.
+    ``attempt`` caps the reloads so an error never leaves the user stuck.
+    """
+    return templates.TemplateResponse(
+        request,
+        "invoice_job_wait.html",
+        _ctx(
+            request,
+            next_url=url,
+            attempt=attempt,
+            message=message,
+            max_attempts=60,
+        ),
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -1543,7 +1563,11 @@ async def utility_delete_submit(
 # --------------------------------------------------------------------------- #
 @router.get("/accounts/{account_id}/invoices", response_class=HTMLResponse)
 async def invoice_page(
-    account_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+    account_id: int,
+    request: Request,
+    job: int | None = None,
+    a: int = 1,
+    user_id: int | None = Depends(optional_auth_token),
 ):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
@@ -1552,12 +1576,19 @@ async def invoice_page(
         return RedirectResponse("/dashboard", status_code=303)
     invoices = list_invoices(user_id, account_id)
     if not invoices:
-        data = await fetch_account_data(account)
-        persist_invoices(account_id, data)
-        invoices = list_invoices(user_id, account_id)
-    history = (
-        list_invoice_history(user_id, invoices[0]["id"]) if invoices else []
-    )
+        # No saved data yet: queue a background refresh so the worker fills the
+        # page without blocking this request on the provider.
+        enqueue_invoice_job(user_id, account_id=account_id)
+    # Poll the queued job: keep showing "verificăm..." until it finishes.
+    if job is not None and not (job_info(job, user_id) or {}).get("finished"):
+        _tw = make_translator(get_lang(request.cookies.get("lang")))
+        return _job_wait_response(
+            request,
+            f"/accounts/{account_id}/invoices?job={job}&a={a + 1}",
+            a,
+            f"{_tw('invoice_checking')} › {account['label']}",
+        )
+    history = list_invoice_history(user_id, invoices[0]["id"]) if invoices else []
     return templates.TemplateResponse(
         request, "invoices.html",
         _ctx(
@@ -1580,26 +1611,12 @@ async def invoice_refresh(
     account = get_account_row(user_id, account_id)
     if account is None:
         return RedirectResponse("/dashboard", status_code=303)
-    data = await fetch_account_data(account)
-    error = None
-    persist_invoices(account_id, data)
-    if not data.is_connected:
-        error = data.error_message
-    invoices = list_invoices(user_id, account_id)
-    history = (
-        list_invoice_history(user_id, invoices[0]["id"]) if invoices else []
-    )
-    return templates.TemplateResponse(
-        request, "invoices.html",
-        _ctx(
-            request,
-            account=account,
-            invoices=invoices,
-            history=history,
-            provider_meta=PROVIDER_META.get(account["provider"], {}),
-            refresh_error=error,
-        ),
-    )
+    # Queue the refresh in the background and land on the "verificăm..." page,
+    # which auto-reloads and shows the fresh data once the worker finishes.
+    job_id = enqueue_invoice_job(user_id, account_id=account_id)
+    if job_id:
+        return RedirectResponse(f"/accounts/{account_id}/invoices?job={job_id}", status_code=303)
+    return RedirectResponse(f"/accounts/{account_id}/invoices", status_code=303)
 
 
 @router.get("/invoices", response_class=HTMLResponse)
@@ -1607,10 +1624,20 @@ async def invoices_all_page(
     request: Request,
     home_id: int | None = None,
     page: int = 1,
+    job: int | None = None,
+    a: int = 1,
     user_id: int | None = Depends(optional_auth_token),
 ):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
+    if job is not None and not (job_info(job, user_id) or {}).get("finished"):
+        _tw = make_translator(get_lang(request.cookies.get("lang")))
+        return _job_wait_response(
+            request,
+            f"/invoices?job={job}&a={a + 1}",
+            a,
+            _tw("invoice_checking_all"),
+        )
     _t = make_translator(get_lang(request.cookies.get("lang")))
     per_page = 20
     page = max(1, page)
@@ -1682,14 +1709,16 @@ async def invoices_generate(
         account_id = int(account_id_raw) if str(account_id_raw).isdigit() else None
     except (TypeError, ValueError):
         account_id = None
-    result = await generate_invoices_for_user(user_id, account_id=account_id)
+    job_id = enqueue_invoice_job(user_id, account_id=account_id)
     back = str(form.get("back", "/invoices"))
     if not back.startswith("/") or back.startswith("//"):
         back = "/invoices"
-    return RedirectResponse(
-        f"{back}?generated=1&updated={result['updated_accounts']}&errors={result['errors']}",
-        status_code=303,
-    )
+    # Non-blocking: the refresh runs in the background worker. For the generic
+    # /invoices page land on the auto-reloading "verificăm..." page that shows
+    # the fresh result once the job finishes.
+    if account_id is None and job_id and back == "/invoices":
+        return RedirectResponse(f"/invoices?job={job_id}", status_code=303)
+    return RedirectResponse(f"{back}?generated=1&queued=1", status_code=303)
 
 
 @router.post("/invoices/{invoice_id}/status")

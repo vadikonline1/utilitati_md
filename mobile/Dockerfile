@@ -39,6 +39,10 @@ COPY . .
 # Generate the native Android project (android/ folder) inside the image.
 RUN npx expo prebuild --platform android
 
+# Point Gradle at the SDK and give it enough heap for `assembleRelease`.
+RUN echo "sdk.dir=${ANDROID_HOME}" > android/local.properties \
+    && printf 'org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=768m\norg.gradle.daemon=false\n' >> android/gradle.properties
+
 # The generated Gradle wrapper lives in /app/android; the project root is /app.
 # Default action: build a release APK (signed with the default Expo/debug keystore).
 # Usable directly, or override with your own gradle command:

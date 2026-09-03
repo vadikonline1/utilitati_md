@@ -10,7 +10,9 @@ unpaid summary); empty custom templates fall back to the built-in defaults in
 from __future__ import annotations
 
 from ..auth import get_user, get_user_lang
+from ..db import _conn
 from . import email as email_svc
+from . import push as push_svc
 from . import telegram as telegram_svc
 from .settings import parse_csv_list
 from .utilities import get_home, get_notification_prefs, list_invoices
@@ -116,3 +118,41 @@ async def notify_new_invoices(
         invoices="\n".join(invoice_lines(rows)),
         site=site_url,
     )
+
+
+async def send_push_new_invoices(user_id: int, new_ids: list[int]) -> None:
+    """Send a mobile push notification about newly found invoices.
+
+    Uses the user's registered Expo push tokens (no app-open required). The exact
+    invoice rows are read from the store so we can report a total amount.
+    """
+    if not new_ids:
+        return
+    new_ids_set = set(new_ids)
+    rows = [
+        inv
+        for acc in list_user_invoices(user_id)
+        for inv in [inv for inv in acc if inv["id"] in new_ids_set]
+    ]
+    total = sum(float(r.get("amount_mdl", 0) or 0) for r in rows)
+    count = len(rows)
+    if count == 0:
+        return
+    title = "Factură nouă 🔔"
+    body = f"Ai {count} factură(e) nouă(e), total {_fmt(total)} MDL."
+    await push_svc.send_push(user_id, title, body)
+
+
+def list_user_invoices(user_id: int) -> list[list[dict]]:
+    """All invoices across the user's accounts (grouped by account)."""
+    with _conn() as conn:
+        rows = conn.execute(
+            """SELECT inv.* FROM invoices inv
+               JOIN accounts a ON a.id = inv.account_id
+               WHERE a.user_id = ? ORDER BY inv.id""",
+            (user_id,),
+        ).fetchall()
+    by_account: dict[int, list[dict]] = {}
+    for r in rows:
+        by_account.setdefault(dict(r)["account_id"], []).append(dict(r))
+    return list(by_account.values())

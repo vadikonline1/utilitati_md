@@ -35,7 +35,7 @@ OPLATA_SERVICE_IDS: dict[str, int] = {
     "apa_canal_chisinau": 605,
     "starnet": 300,
     "fee_nord": 1184,
-    "stroy_master_domofon": 0,
+    "stroy_master_domofon": 816,
     "cet_nord": 611,
     "paza_a_mai": 1312,
     "probon": 1343,
@@ -43,7 +43,7 @@ OPLATA_SERVICE_IDS: dict[str, int] = {
     "antar_salubrizare": 1189,
     "anintercom": 1191,
     "sagaidac_service": 1253,
-    "vipinterfon": 1047,
+    "vipinterfon": 1330,
     "econdominiu": 760,
     "salubeco": 1202,
     "legion_security_group": 1295,
@@ -112,7 +112,9 @@ OPLATA_FULLNAME_LABELS: dict[str, str] = {
     "vipinterfon": "Nume, Prenume",
     "legion_security_group": "Nume, Prenume",
 }
-OPLATA_FULLNAME_SPECIAL: frozenset[str] = frozenset({"legion_security_group"})
+OPLATA_FULLNAME_SPECIAL: frozenset[str] = frozenset(
+    {"legion_security_group", "stroy_master_domofon"}
+)
 
 # Providers that accept the generic single-account oplata flow.
 OPLATA_PROVIDERS: frozenset[str] = frozenset(OPLATA_NAMES)

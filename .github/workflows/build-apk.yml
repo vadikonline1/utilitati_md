@@ -82,3 +82,84 @@ jobs:
           files: mobile/android/app/build/outputs/apk/release/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-ios:
+    runs-on: macos-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: mobile
+
+      - name: Generate native ios project (expo prebuild)
+        run: npx expo prebuild --platform ios --no-install
+        working-directory: mobile
+
+      - name: Install CocoaPods
+        run: |
+          gem install cocoapods --no-document || true
+          cd ios
+          if [ -f Podfile ]; then pod install; fi
+          cd ..
+        working-directory: mobile
+
+      - name: Build iOS app (simulator, unsigned)
+        run: |
+          cd ios
+          # Use a real .xcworkspace directory (ignore stray files like contents.xcworkspacedata)
+          WS=$(find . -maxdepth 1 -type d -name '*.xcworkspace' | head -1)
+          if [ -z "$WS" ]; then
+            # fall back to any .xcworkspace file path (directory or not)
+            WS=$(ls -1d *.xcworkspace 2>/dev/null | head -1)
+          fi
+          echo "workspace=${WS:-<none>}"
+          # First configured scheme that is not the Pods aggregate
+          SCHEME=$(xcodebuild -list -workspace "$WS" 2>/dev/null \
+            | sed -n '/Schemes:/,$p' | tail -n +2 \
+            | grep -v '^\s*$' | grep -iv 'pod' | head -1 | xargs)
+          echo "scheme=${SCHEME:-<none>}"
+          if [ -z "$SCHEME" ]; then echo "::error::Could not detect an Xcode scheme under ios/"; exit 1; fi
+          xcodebuild -workspace "$WS" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+          cd ..
+        working-directory: mobile
+
+      - name: Upload iOS app (workflow artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: utilitati-mobile-ios-simulator
+          path: mobile/ios/build/Build/Products/Release-iphonesimulator/*.app
+          if-no-files-found: warn
+
+      - name: Publish iOS info to GitHub Release
+        uses: softprops/action-gh-release@v3
+        if: success()
+        with:
+          tag_name: ios-${{ github.sha }}
+          name: iOS ${{ github.ref_name }} (${{ github.sha }})
+          body: |
+            Build iOS pentru Simulator, **nesemnat** (fără certificat de pe acest runner).
+
+            Un `.app` pentru Simulator este disponibil ca artifact. Pentru instalare
+            pe dispozitiv fizic (iPhone) e nevoie de un Certificate/PROVISIONING
+            (Apple Developer) — vezi job-ul de Release.
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
