@@ -60,6 +60,15 @@ def register_device_token(
                              last_seen = datetime('now')""",
             (user_id, platform, token, provider),
         )
+        # A device registers one active token per platform. When the provider
+        # changes (server switched fcm<->expo) the old row of the PREVIOUS
+        # provider must go, otherwise the stale fcm/expo token would keep
+        # failing to deliver (e.g. "FCM_SERVICE_ACCOUNT not configured").
+        conn.execute(
+            "DELETE FROM device_tokens "
+            "WHERE user_id = ? AND platform = ? AND provider != ?",
+            (user_id, platform, provider),
+        )
 
 
 def _user_tokens(user_id: int) -> list[tuple[str, str]]:
