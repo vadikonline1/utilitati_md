@@ -228,6 +228,47 @@ textarea {
 .home-card-head h2 { margin: 0; }
 .home-stats { display: flex; gap: 16px; margin: 12px 0; color: var(--muted); font-size: 0.9rem; flex-wrap: wrap; }
 
+/* Notifications page */
+.notif-page-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.notif-page-head h1 { margin: 0; }
+.notif-count {
+  background: var(--accent); color: var(--on-accent); font-size: 0.8rem;
+  font-weight: 700; padding: 2px 10px; border-radius: 999px;
+}
+.notif-list { display: flex; flex-direction: column; gap: 12px; }
+.notif-item {
+  display: flex; gap: 14px; background: var(--panel); border: 1px solid var(--border);
+  border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 14px 16px;
+  box-shadow: var(--shadow); transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.notif-item:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.14); }
+.notif-t-admin { border-left-color: var(--red); }
+.notif-t-invoice { border-left-color: var(--green); }
+.notif-t-unpaid { border-left-color: var(--amber); }
+.notif-t-other { border-left-color: var(--accent); }
+.notif-badge {
+  flex-shrink: 0; align-self: flex-start; font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent);
+  background: var(--badge-mut-bg); border-radius: 999px; padding: 3px 10px;
+  white-space: nowrap; margin-top: 2px;
+}
+.notif-t-admin .notif-badge { color: var(--red); background: var(--badge-bad-bg); }
+.notif-t-invoice .notif-badge { color: var(--green); background: var(--badge-ok-bg); }
+.notif-t-unpaid .notif-badge { color: var(--amber); background: var(--badge-warn-bg); }
+.notif-t-other .notif-badge { color: var(--accent); background: var(--badge-mut-bg); }
+.notif-content { min-width: 0; flex: 1; }
+.notif-head { margin-bottom: 4px; }
+.notif-content p { margin: 0 0 8px; }
+.notif-date { font-size: 0.82rem; }
+.notif-empty {
+  background: var(--panel); border: 1px dashed var(--border); border-radius: var(--radius);
+  padding: 48px 20px; text-align: center; color: var(--muted);
+}
+.notif-empty-icon { font-size: 2.6rem; margin-bottom: 8px; }
+@media (max-width: 560px) {
+  .notif-item { flex-direction: column; gap: 6px; }
+}
+
 /* Landing (portal style) */
 .eyebrow {
   display: inline-block;

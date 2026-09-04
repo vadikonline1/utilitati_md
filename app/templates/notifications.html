@@ -2,20 +2,34 @@
 {% block title %}{{ t('notif_title') }} · UTILITĂȚI.MD{% endblock %}
 {% block body %}
 <main class="dashboard">
-  <h1>{{ t('notif_title') }}</h1>
+  <div class="notif-page-head">
+    <h1>{{ t('notif_title') }}</h1>
+    {% if notifications %}
+      <span class="notif-count">{{ notifications|length }}</span>
+    {% endif %}
+  </div>
 
   {% if notifications %}
-    {% for n in notifications %}
-      <div class="notif-item">
-        <div class="notif-head">
-          <strong>{{ n.title or t('notif_default_title') }}</strong>
-          <span class="muted notif-date">{{ n.created_at }}</span>
+    <div class="notif-list">
+      {% for n in notifications %}
+        {% set ntype = n.type if n.type in ['invoice', 'admin', 'general', 'unpaid'] else 'other' %}
+        <div class="notif-item notif-t-{{ ntype }}">
+          <div class="notif-badge">{{ t('notif_type_' ~ ntype) }}</div>
+          <div class="notif-content">
+            <div class="notif-head">
+              <strong>{{ n.title or t('notif_default_title') }}</strong>
+            </div>
+            {% if n.body %}<p>{{ n.body }}</p>{% endif %}
+            <span class="muted notif-date">{{ n.created_at }}</span>
+          </div>
         </div>
-        {% if n.body %}<p>{{ n.body }}</p>{% endif %}
-      </div>
-    {% endfor %}
+      {% endfor %}
+    </div>
   {% else %}
-    <p class="muted">{{ t('notif_empty') }}</p>
+    <div class="notif-empty">
+      <div class="notif-empty-icon">🔔</div>
+      <p>{{ t('notif_empty') }}</p>
+    </div>
   {% endif %}
 </main>
 {% endblock %}
