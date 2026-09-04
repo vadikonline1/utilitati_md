@@ -94,6 +94,16 @@ def clear_device_tokens(user_id: int) -> None:
         conn.execute("DELETE FROM device_tokens WHERE user_id = ?", (user_id,))
 
 
+def clear_all_device_tokens() -> None:
+    """Drop every registered device token (push-provider switch).
+
+    After switching fcm<->expo, stale tokens from the old provider would keep
+    failing to deliver; each device re-registers automatically on next launch.
+    """
+    with _conn() as conn:
+        conn.execute("DELETE FROM device_tokens")
+
+
 # --------------------------------------------------------------------------- #
 # Notification history (the in-app / web "bell" feed)
 # --------------------------------------------------------------------------- #

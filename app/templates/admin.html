@@ -121,10 +121,14 @@
             <h2>{{ t('admin_fcm') }}</h2>
             <div class="form-stack">
               <label>{{ t('admin_push_provider') }}
-                <select name="push_provider">
+                <select name="push_provider" {{ 'disabled' if settings.get('_env_push_provider') }}>
                   <option value="fcm" {{ 'selected' if settings.get('push_provider', 'fcm') == 'fcm' else '' }}>Google Firebase (FCM)</option>
                   <option value="expo" {{ 'selected' if settings.get('push_provider', '') == 'expo' else '' }}>Expo Push</option>
                 </select>
+                {% if settings.get('_env_push_provider') %}
+                  <span class="env-badge">{{ t('admin_from_env') }}</span>
+                  <span class="field-hint">{{ t('admin_push_provider_env_hint') }}</span>
+                {% endif %}
               </label>
               <label>{{ t('admin_fcm_service_account') }}
                 <textarea name="fcm_service_account" rows="6" placeholder='{ "type": "service_account", ... }'>{{ settings.get('fcm_service_account', '') }}</textarea>

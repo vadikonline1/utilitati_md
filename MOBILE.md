@@ -99,6 +99,11 @@ Din `GET /admin` → cardul „Furnizor notificări" alegi:
 Schimbarea valorii afectează doar **dispozitivele care se reînregistrează** după
 schimbare (token-urile existente rămân pe provider-ul cu care au fost create).
 
+Provider-ul poate fi setat și din **variabila de mediu `PUSH_PROVIDER=expo|fcm`**
+(are prioritate față de /admin; în admin select-ul apare dezactivat când env-ul
+e setat). Când provider-ul se schimbă din /admin, toate token-urile se șterg și
+fiecare dispozitiv se reînregistrează automat la următoarea deschidere.
+
 ### Oprire notificări per-utilizator („oprire notificări")
 
 Notificările sunt **pornite implicit** și **auto-înregistrate**: la fiecare

@@ -113,13 +113,18 @@ def get_setting(key: str, default: str = "") -> str:
         env_value = os.getenv(env_name)
         if env_value is not None:
             return env_value
+    return get_stored_setting(key, default)
+
+
+def get_stored_setting(key: str, default: str = "") -> str:
+    """Return the raw database value only (ignores the environment override)."""
     with _conn() as conn:
         row = conn.execute(
             "SELECT value FROM settings WHERE key = ?", (key,)
         ).fetchone()
     value = str(row["value"]) if row else default
     if key in _SECRET_KEYS:
-        return _read_decrypted(value)
+        value = _read_decrypted(value)
     return value
 
 

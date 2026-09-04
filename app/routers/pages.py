@@ -64,6 +64,7 @@ from ..services.settings import (
     clear_msg_templates,
     delete_setting,
     get_setting,
+    get_stored_setting,
     get_sync_interval_hours,
     inactive_months,
     invoice_months,
@@ -969,10 +970,19 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         sub = str(values.get(secret_key, "")).strip()
         if not sub or sub == MASKED:
             values.pop(secret_key, None)
+    old_provider = (get_stored_setting("push_provider", "fcm") or "fcm").strip().lower()
     set_settings(values)
+    provider_changed = (
+        "push_provider" in values
+        and (values["push_provider"].strip().lower() or "fcm") != old_provider
+    )
     # FCM credentials may have changed -> drop cached token/service account.
-    if "fcm_service_account" in values:
+    if "fcm_service_account" in values or provider_changed:
         push_svc.clear_fcm_cache()
+    if provider_changed and os.getenv("PUSH_PROVIDER") is None:
+        # Provider switched (fcm<->expo): drop every registered device token so
+        # each device re-registers with the new provider on its next launch.
+        push_svc.clear_all_device_tokens()
     return _admin_render(request, user_id, message=_t("admin_saved"))
 
 
