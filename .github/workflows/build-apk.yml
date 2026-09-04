@@ -40,6 +40,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Get app version
+        id: version
+        run: echo "app_version=$(node -p "require('./app.json').expo.version")" >> "$GITHUB_OUTPUT"
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -79,7 +83,7 @@ jobs:
           body: |
             Build automat APK Android (debug-signed, instalabil direct).
 
-            **Versiune aplicație:** 1.0.0
+            **Versiune aplicație:** ${{ steps.version.outputs.app_version }}
             **API URL:** https://utilitati.nistorlazar.md/api
           files: android/app/build/outputs/apk/release/*.apk
         env:
