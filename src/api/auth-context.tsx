@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 
 import { PublicUser, clearToken, getToken, login as apiLogin, me as apiMe, registerInvite, saveToken } from './client';
-import { registerPushToken } from '../utils/notify';
+import { registerPushTokenResult } from '../utils/notify';
 
 interface AuthState {
   user: PublicUser | null;
@@ -63,15 +63,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user && !initializing) {
-      // Register this device for server→Expo push notifications for new
-      // invoices — but only if the user enabled notifications in settings.
+      // Register this device for server→push notifications automatically on
+      // every launch / login. Notifications are ON by default (server flag
+      // `notifications_enabled` defaults to true); we only skip when the user
+      // explicitly turned them OFF (local switch 'utilitati.notifications' = '0'
+      // or the server reports the account has them disabled).
       (async () => {
         try {
           const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
           const pref = await AsyncStorage.getItem('utilitati.notifications');
-          if (pref === '1') await registerPushToken();
+          const explicitlyOff = pref === '0' || user.notifications_enabled === false;
+          if (explicitlyOff) return;
+          const res = await registerPushTokenResult();
+          if (res.ok) {
+            await AsyncStorage.setItem('utilitati.notifications', '1');
+          }
         } catch {
-          // best-effort
+          // best-effort: never block the app on push registration
         }
       })();
     }

@@ -101,6 +101,12 @@ schimbare (token-urile existente rămân pe provider-ul cu care au fost create).
 
 ### Oprire notificări per-utilizator („oprire notificări")
 
+Notificările sunt **pornite implicit** și **auto-înregistrate**: la fiecare
+pornire / login, aplicația își înregistrează automat token-ul la server
+(`GET /api/config` → alegerea modului `fcm`/`expo` → `POST /api/devices/token`,
+salvat în DB). Nu mai e nevoie de activare manuală. Doar o dezactivare explicită
+împiedică reînregistrarea.
+
 Fiecare utilizator are un flag `notifications_enabled` (implicit pornit):
 
 - Din **aplicația mobilă**: Profil → butonul de notificări (`PUT /api/auth/notifications`).
