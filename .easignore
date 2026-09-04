@@ -13,8 +13,10 @@ utilitati.env
 *.p8
 *.mobileprovision
 service-account-key.json
-GoogleService-Info.plist
-google-services.json
+
+# NOTE: GoogleService-Info.plist / google-services.json are intentionally NOT
+# ignored here — they are referenced by app.json (ios.googleServicesFile /
+# android.googleServicesFile) and are committed to git, so EAS must upload them.
 
 # Build output / caches.
 node_modules/

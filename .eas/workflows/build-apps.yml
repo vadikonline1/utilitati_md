@@ -17,12 +17,12 @@ jobs:
       profile: preview
 
   build_ios_simulator:
-    name: iOS preview (simulator)
+    name: iOS preview (simulator, no credentials)
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     type: build
     params:
       platform: ios
-      profile: preview
+      profile: ios-simulator
       env:
         EXPO_NO_INTERACTIVE: 1
 

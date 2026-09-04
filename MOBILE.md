@@ -112,20 +112,28 @@ Fiecare utilizator are un flag `notifications_enabled` (implicit pornit):
 
 ### Prima configurare iOS (o singură dată, interactivă)
 
-Construcția iOS necesită credentiale Apple (certificat de distribuție +
-provisioning). Profiles-urile au fost configurate în `eas.json`, dar credentialele
-**nu pot fi create automat** de CI — se rulează **o singură dată, interactiv** pe o
-mașină cu `eas-cli` instalat:
+Construcția iOS pentru **dispozitiv fizic / App Store** (profilele `preview` și
+`production`) necesită credentiale Apple (certificat de distribuție +
+provisioning). Credentialele **nu pot fi create automat** de CI — se rulează
+**o singură dată, interactiv** pe o mașină cu `eas-cli` instalat:
 
 ```bash
 npm install -g eas-cli
 npx eas login
 npx eas credentials --platform ios
-npx eas build --profile preview --platform ios   # verifică build-ul
+npx eas build --profile preview --platform ios   # verifică build-ul de dispozitiv
 ```
 
 Credentialele sunt stocate în contul de pe **EAS** (nu se commit-uiesc), așa că
 după acest pas, build-urile iOS din GitHub Actions / EAS Workflows merg automat.
+
+> **Simulator iOS (fără Apple Developer)**: `eas.json` conține profilul
+> `ios-simulator` cu `ios.simulator: true`, care produce un `.app` pentru
+> **Simulator fără niciun cont Apple**. EAS Workflows folosește acest profil
+> pentru preview-ul iOS automat:
+> ```bash
+> npx eas build --profile ios-simulator --platform ios
+> ```
 
 ## API URL + projectId
 
