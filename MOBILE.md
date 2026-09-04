@@ -124,6 +124,14 @@ npx eas credentials --platform ios
 npx eas build --profile preview --platform ios   # verifică build-ul de dispozitiv
 ```
 
+> **Push pe iOS necesită un APNs Key.** În plus față de certificatul de
+> distribuție, `eas credentials --platform ios` te întreabă și despre o **cheie
+> APNs** (`.p8` creată din Apple Developer → Certificates, Identifiers & Profiles
+> → Keys → „Keys" → Enable „Apple Push Notifications service"). Fără această
+> cheie, build-ul Expo înregistrează token-ul Expo push, dar **Apple nu livrează
+> notificarea**. Cheia se generează o singură dată și EAS o păstrează pentru
+> toate build-urile viitoare.
+
 Credentialele sunt stocate în contul de pe **EAS** (nu se commit-uiesc), așa că
 după acest pas, build-urile iOS din GitHub Actions / EAS Workflows merg automat.
 
@@ -134,6 +142,8 @@ după acest pas, build-urile iOS din GitHub Actions / EAS Workflows merg automat
 > ```bash
 > npx eas build --profile ios-simulator --platform ios
 > ```
+> Notă: Simulatorul iOS **nu** primește push-uri reale — pentru a verifica
+> livrarea pe iOS e nevoie de build pe dispozitiv fizic (profilul `preview`).
 
 ## API URL + projectId
 
