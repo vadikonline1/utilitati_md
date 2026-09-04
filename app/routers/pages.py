@@ -739,7 +739,7 @@ async def profile_page(request: Request, user_id: int | None = Depends(optional_
 async def notifications_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
-    ctx = _ctx(request, user_id, notifications=push_svc.list_user_notifications(user_id))
+    ctx = _ctx(request, notifications=push_svc.list_user_notifications(user_id))
     return templates.TemplateResponse(request, "notifications.html", ctx)
 
 
