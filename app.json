@@ -8,7 +8,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-
     "plugins": [
       [
         "expo-notifications",
@@ -19,35 +18,40 @@
         }
       ]
     ],
-
     "splash": {
       "image": "./assets/splash-icon.png",
       "backgroundColor": "#0f766e",
       "resizeMode": "contain"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "md.utilitati.app",
       "icon": "./assets/icon.png",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-
     "android": {
       "package": "md.utilitati.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f766e"
       }
     },
-
     "extra": {
       "apiUrl": "https://utilitati.nistorlazar.md/api",
       "eas": {
         "projectId": "a6825545-6d60-4504-aafd-0f8d7c1e9f56"
+      },
+      "expo": {
+        "projectId": "a6825545-6d60-4504-aafd-0f8d7c1e9f56"
       }
     }
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-3940256099942544~3347511713",
+    "ios_app_id": "ca-app-pub-3940256099942544~1458002511"
   }
 }
