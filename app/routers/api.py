@@ -147,12 +147,13 @@ async def auth_register(payload: dict):
 async def device_token_register(
     payload: dict, user_id: int = Depends(get_auth_token)
 ):
-    """Register a mobile Expo push token for the authenticated user."""
+    """Register a mobile push token ('fcm' firebase or 'expo') for a user."""
     token = str(payload.get("token", "")).strip()
     if not token or token == "ExponentPushToken[InvalidToken]":
         raise HTTPException(status_code=400, detail="Token invalid")
     platform = str(payload.get("platform", "android") or "android").lower()
-    push_svc.register_device_token(user_id, token, platform)
+    provider = str(payload.get("provider", "expo") or "expo").lower()
+    push_svc.register_device_token(user_id, token, platform, provider)
     return {"registered": True}
 
 

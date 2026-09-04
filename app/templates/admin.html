@@ -193,12 +193,13 @@
     <section id="tab-users" class="admin-tab-panel" hidden>
       <p class="subtitle">{{ t('admin_users_hint') }}</p>
       {% if users %}
-        <div class="data-list cols-8">
+        <div class="data-list cols-9">
           <div class="dl-head">
             <div class="dl-cell">{{ t('admin_users_id') }}</div>
             <div class="dl-cell">{{ t('admin_users_username') }}</div>
             <div class="dl-cell">{{ t('admin_users_fullname') }}</div>
             <div class="dl-cell">{{ t('admin_users_email') }}</div>
+            <div class="dl-cell">{{ t('admin_users_app') }}</div>
             <div class="dl-cell">{{ t('admin_users_status') }}</div>
             <div class="dl-cell">{{ t('admin_users_created') }}</div>
             <div class="dl-cell">{{ t('admin_users_last_login') }}</div>
@@ -210,6 +211,13 @@
               <div class="dl-cell" data-label="{{ t('admin_users_username') }}"><b>{{ u.username }}</b></div>
               <div class="dl-cell" data-label="{{ t('admin_users_fullname') }}">{{ u.full_name or '—' }}</div>
               <div class="dl-cell" data-label="{{ t('admin_users_email') }}">{{ u.email or '—' }}</div>
+              <div class="dl-cell" data-label="{{ t('admin_users_app') }}">
+                {% if u.device_count > 0 %}
+                  <span class="badge enabled">{{ t('admin_users_app_yes') }}</span>
+                {% else %}
+                  <span class="badge disabled">{{ t('admin_users_app_no') }}</span>
+                {% endif %}
+              </div>
               <div class="dl-cell" data-label="{{ t('admin_users_status') }}">
                 {% if u.pending %}
                   <span class="badge warn">{{ t('admin_users_pending') }}</span>

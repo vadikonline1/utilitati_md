@@ -246,11 +246,12 @@ export function setAccountStatus(id: number, status: string): Promise<Account> {
 
 export function registerDeviceToken(
   token: string,
+  provider: 'fcm' | 'expo' = 'fcm',
   platform: 'android' | 'ios' = 'android',
 ): Promise<{ registered: boolean }> {
   return request('/devices/token', {
     method: 'POST',
-    body: { token, platform },
+    body: { token, provider, platform },
   });
 }
 

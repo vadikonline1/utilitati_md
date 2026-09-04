@@ -217,10 +217,12 @@ def list_users() -> list[dict]:
     """Return all users (for the admin Users tab), newest first."""
     with _conn() as conn:
         rows = conn.execute(
-            "SELECT id, username, full_name, email, is_active, created_at, "
-            "datetime(last_login) AS last_login, "
-            "CASE WHEN confirm_token IS NOT NULL THEN 1 ELSE 0 END AS pending "
-            "FROM users ORDER BY id DESC"
+            "SELECT u.id, u.username, u.full_name, u.email, u.is_active, "
+            "u.created_at, datetime(u.last_login) AS last_login, "
+            "CASE WHEN u.confirm_token IS NOT NULL THEN 1 ELSE 0 END AS pending, "
+            "IFNULL((SELECT COUNT(*) FROM device_tokens d "
+            "         WHERE d.user_id = u.id), 0) AS device_count "
+            "FROM users u ORDER BY u.id DESC"
         ).fetchall()
     return [dict(r) for r in rows]
 

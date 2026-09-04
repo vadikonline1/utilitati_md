@@ -67,6 +67,12 @@ function resolveProjectId(): string | undefined {
 
 /**
  * Activate push for this device and register the token with the backend.
+ *
+ * Provider selection:
+ *  - Android -> raw Firebase (FCM) registration token from
+ *               `getDevicePushTokenAsync`, delivered server-side via FCM HTTP v1
+ *               (direct Google Firebase, no Expo relay).
+ *  - iOS     -> Expo push token (delivered via the Expo relay -> APNs/FCM).
  * Returns a diagnostic result so the UI can show the precise reason on failure.
  */
 export async function registerPushTokenResult(): Promise<PushActivationResult> {
@@ -81,6 +87,38 @@ export async function registerPushTokenResult(): Promise<PushActivationResult> {
       detail: 'Permisiunea de notificare nu a fost acordată pentru această aplicare.',
     };
   }
+  if (Platform.OS === 'android') {
+    // Raw Firebase Cloud Messaging registration token (direct Google push).
+    let data: string | undefined;
+    try {
+      const res = await Notifications.getDevicePushTokenAsync();
+      data = typeof res.data === 'string' ? res.data : undefined;
+    } catch (e) {
+      return {
+        ok: false,
+        reason: 'token-unavailable',
+        detail: e instanceof Error ? e.message : String(e),
+      };
+    }
+    if (!data) {
+      return {
+        ok: false,
+        reason: 'token-unavailable',
+        detail: 'Firebase nu a returnat un token FCM pentru acest dispozitiv.',
+      };
+    }
+    try {
+      await registerDeviceToken(data, 'fcm', 'android');
+    } catch (e) {
+      return {
+        ok: false,
+        reason: 'registration-failed',
+        detail: e instanceof Error ? e.message : String(e),
+      };
+    }
+    return { ok: true };
+  }
+  // iOS -> Expo push token (Expo relay).
   const projectId = resolveProjectId();
   if (!projectId) {
     return {
@@ -108,7 +146,7 @@ export async function registerPushTokenResult(): Promise<PushActivationResult> {
     };
   }
   try {
-    await registerDeviceToken(data, Platform.OS === 'ios' ? 'ios' : 'android');
+    await registerDeviceToken(data, 'expo', 'ios');
   } catch (e) {
     return {
       ok: false,

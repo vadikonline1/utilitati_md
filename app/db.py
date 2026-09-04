@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS device_tokens (
     user_id INTEGER NOT NULL,
     platform TEXT NOT NULL DEFAULT 'android',
     token TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'expo',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     last_seen TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (user_id, token),
@@ -260,6 +261,13 @@ def _migrate_sqlite(conn) -> None:
         conn.execute(
             "UPDATE accounts SET provider = 'energocom' WHERE provider = 'moldovagaz'"
         )
+
+    if "device_tokens" in tables:
+        dcols = {r["name"] for r in conn.execute("PRAGMA table_info(device_tokens)").fetchall()}
+        if "provider" not in dcols:
+            conn.execute(
+                "ALTER TABLE device_tokens ADD COLUMN provider TEXT NOT NULL DEFAULT 'expo'"
+            )
 
     if "faq_items" not in tables:
         conn.executescript(
