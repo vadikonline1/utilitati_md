@@ -31,6 +31,11 @@
   <header class="topbar">
     <a class="brand" href="/">🇲🇩 UTILITĂȚI.MD</a>
 
+    {% if logged_in %}
+    <a class="bell-link" href="/notifications" aria-label="{{ t('nav_notifications') }}"
+       title="{{ t('nav_notifications') }}">🔔</a>
+    {% endif %}
+
     <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu"
             aria-expanded="false" aria-controls="mainNav">
       <span class="nav-toggle-bar"></span>

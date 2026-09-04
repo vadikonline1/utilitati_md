@@ -171,10 +171,17 @@ async def device_test_push(user_id: int = Depends(get_auth_token)):
         user_id,
         "Utilități.MD ✓",
         "Notificare de test — notificările sunt active.",
+        type_="test",
     )
     if sent == 0:
         raise HTTPException(status_code=400, detail="Niciun token de notificare înregistrat")
     return {"sent": sent}
+
+
+@router.get("/notifications")
+async def get_notifications(user_id: int = Depends(get_auth_token)):
+    """Most-recent notifications for the authenticated user (bell feed)."""
+    return {"notifications": push_svc.list_user_notifications(user_id)}
 
 
 @router.get("/config")

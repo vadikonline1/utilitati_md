@@ -140,7 +140,7 @@ async def send_push_new_invoices(user_id: int, new_ids: list[int]) -> None:
         return
     title = "Factură nouă 🔔"
     body = f"Ai {count} factură(e) nouă(e), total {_fmt(total)} MDL."
-    await push_svc.send_push(user_id, title, body)
+    await push_svc.send_push(user_id, title, body, type_="invoice")
 
 
 def list_user_invoices(user_id: int) -> list[list[dict]]:

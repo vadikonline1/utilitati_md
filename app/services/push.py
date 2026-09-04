@@ -26,6 +26,7 @@ import time
 import aiohttp
 
 from ..db import _conn
+from .settings import get_setting
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +90,36 @@ def clear_device_tokens(user_id: int) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Notification history (the in-app / web "bell" feed)
+# --------------------------------------------------------------------------- #
+def record_notification(
+    user_id: int, title: str, body: str, type_: str = "admin"
+) -> None:
+    """Append a notification to the user's history feed."""
+    try:
+        with _conn() as conn:
+            conn.execute(
+                "INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)",
+                (user_id, title, body, type_),
+            )
+    except Exception:  # noqa: BLE001 - history must never break sending
+        _LOGGER.exception("Could not record notification for user %s", user_id)
+
+
+def list_user_notifications(user_id: int, limit: int = 100) -> list[dict]:
+    """Most-recent notifications for a user, newest first."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT id, title, body, type, "
+            "datetime(created_at, 'localtime') AS created_at "
+            "FROM notifications WHERE user_id = ? "
+            "ORDER BY id DESC LIMIT ?",
+            (user_id, int(limit)),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+# --------------------------------------------------------------------------- #
 # Firebase Cloud Messaging (HTTP v1)
 # --------------------------------------------------------------------------- #
 def _load_service_account() -> dict | None:
@@ -96,7 +127,10 @@ def _load_service_account() -> dict | None:
     cached = _FCM_CACHE.get("sa")
     if cached is not None:
         return cached
-    raw = os.getenv("FCM_SERVICE_ACCOUNT", "").strip()
+    # UI-configured value first (admin settings), then the process environment.
+    raw = get_setting("fcm_service_account", "").strip() or os.getenv(
+        "FCM_SERVICE_ACCOUNT", ""
+    ).strip()
     if not raw:
         return None
     if os.path.isfile(raw):
@@ -109,6 +143,11 @@ def _load_service_account() -> dict | None:
         return None
     _FCM_CACHE["sa"] = sa
     return sa
+
+
+def clear_fcm_cache() -> None:
+    """Drop cached FCM credentials/token (call after the admin changes them)."""
+    _FCM_CACHE.clear()
 
 
 def _b64url(data: bytes) -> str:
@@ -252,31 +291,39 @@ async def _send_one(
     return await _expo_send(token, title, body, data)
 
 
-async def send_push(user_id: int, title: str, body: str) -> int:
+async def send_push(
+    user_id: int, title: str, body: str, type_: str = "general"
+) -> int:
     """Send a push to all of a user's devices. Returns tokens attempted."""
     tokens = _user_tokens(user_id)
     if not tokens:
         return 0
-    data = {"type": "invoice"}
+    data = {"type": type_}
     sent = 0
     for provider, token in tokens:
         if await _send_one(provider, token, title, body, data):
             sent += 1
+    if sent:
+        record_notification(user_id, title, body, type_)
     return sent
 
 
 async def send_push_multi(
-    user_ids: list[int], title: str, body: str
+    user_ids: list[int], title: str, body: str, type_: str = "admin"
 ) -> dict[str, int]:
     """Send a push to multiple users. Returns {sent, failed}."""
     all_tokens = all_device_tokens()
     total = 0
     failed = 0
     for uid in user_ids:
+        uid_sent = 0
         for provider, token in all_tokens.get(uid, []):
-            ok = await _send_one(provider, token, title, body, {"type": "admin"})
+            ok = await _send_one(provider, token, title, body, {"type": type_})
             if ok:
                 total += 1
+                uid_sent += 1
             else:
                 failed += 1
+        if uid_sent:
+            record_notification(uid, title, body, type_)
     return {"sent": total, "failed": failed}

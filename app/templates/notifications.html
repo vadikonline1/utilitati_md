@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ t('notif_title') }} · UTILITĂȚI.MD{% endblock %}
+{% block body %}
+<main class="dashboard">
+  <h1>{{ t('notif_title') }}</h1>
+
+  {% if notifications %}
+    {% for n in notifications %}
+      <div class="notif-item">
+        <div class="notif-head">
+          <strong>{{ n.title or t('notif_default_title') }}</strong>
+          <span class="muted notif-date">{{ n.created_at }}</span>
+        </div>
+        {% if n.body %}<p>{{ n.body }}</p>{% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="muted">{{ t('notif_empty') }}</p>
+  {% endif %}
+</main>
+{% endblock %}

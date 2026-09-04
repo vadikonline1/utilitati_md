@@ -172,6 +172,19 @@ CREATE INDEX IF NOT EXISTS idx_invoices_account ON invoices (account_id);
 CREATE INDEX IF NOT EXISTS idx_history_invoice ON invoice_history (invoice_id, checked_at);
 CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON device_tokens (user_id);
 CREATE INDEX IF NOT EXISTS idx_invoice_jobs_pending ON invoice_jobs (status, id);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL DEFAULT '',
+    type TEXT NOT NULL DEFAULT 'admin',
+    channel TEXT NOT NULL DEFAULT 'push',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, id);
 """
 
 

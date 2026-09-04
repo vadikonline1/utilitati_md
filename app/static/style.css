@@ -72,6 +72,8 @@ a:hover { text-decoration: underline; }
 }
 .brand { font-weight: 800; font-size: 1.15rem; color: var(--text); }
 .brand:hover { text-decoration: none; }
+.bell-link { font-size: 1.1rem; color: var(--muted); text-decoration: none; }
+.bell-link:hover { color: var(--text); text-decoration: none; }
 .main-nav { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; }
 .main-nav a { color: var(--muted); padding: 4px 8px; border-radius: 6px; }
 .main-nav a:hover { color: var(--text); background: var(--panel-2); text-decoration: none; }

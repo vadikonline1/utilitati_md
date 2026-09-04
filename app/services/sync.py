@@ -9,12 +9,13 @@ utilities.upsert_invoice_from_provider).
 from __future__ import annotations
 
 import asyncio
+import calendar
 import logging
 from datetime import datetime, timedelta
 
 from ..config import SITE_URL
 from ..db import _conn
-from . import maintenance, notify, utilities
+from . import maintenance, notify, push as push_svc, utilities
 from .settings import get_setting, get_sync_interval_hours, set_setting
 
 _LOGGER = logging.getLogger(__name__)
@@ -108,16 +109,14 @@ def _unpaid_rows() -> list[dict]:
 async def notify_monthly_unpaid() -> int:
     """Send each user (with unpaid invoices) a month-end summary, once per period.
 
-    Runs only on the 1st day of a month and covers the previous month. The
-    message is the admin-editable 'unpaid' template and contains the home and
-    every open invoice.
+    Runs on the LAST day of the month. The email/Telegram message is the
+    admin-editable 'unpaid' template and contains every open invoice; a push
+    notification is also sent with a short summary.
     """
     now = datetime.now()
-    if now.day != 1:
+    if now.day != calendar.monthrange(now.year, now.month)[1]:
         return 0
-    period_start = now.replace(day=1)
-    prev = period_start - timedelta(days=1)
-    period_key = f"{prev.year}-{prev.month:02d}"
+    period_key = f"{now.year}-{now.month:02d}"
     if get_setting("monthly_unpaid_sent") == period_key:
         return 0
 
@@ -139,6 +138,16 @@ async def notify_monthly_unpaid() -> int:
             )
         except Exception:  # noqa: BLE001 - don't drop the other users
             _LOGGER.exception("Monthly unpaid notification failed for user %s", user_id)
+        try:
+            # Short push reminder with the default text.
+            await push_svc.send_push(
+                user_id,
+                "Facturi neachitate 🔔",
+                f"Verificați facturile, aveți facturi neachitate ({len(invoice_rows)}).",
+                type_="unpaid",
+            )
+        except Exception:  # noqa: BLE001 - don't drop the other users
+            _LOGGER.exception("Monthly unpaid push failed for user %s", user_id)
 
     set_setting("monthly_unpaid_sent", period_key)
     _LOGGER.info("Monthly unpaid summary sent to %s user(s) (%s)", len(by_user), period_key)

@@ -116,6 +116,21 @@
               </label>
             </div>
           </div>
+
+          <div class="card">
+            <h2>{{ t('admin_fcm') }}</h2>
+            <div class="form-stack">
+              <label>{{ t('admin_fcm_hint') }}</label>
+              <label>{{ t('admin_fcm_service_account') }}
+                <textarea name="fcm_service_account" rows="6" placeholder='{ "type": "service_account", ... }'>{{ settings.get('fcm_service_account', '') }}</textarea>
+                {% if settings.get('_env_fcm_service_account') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+                {% if settings.get('fcm_service_account') %}<span class="field-hint">{{ t('admin_secret_hint') }}</span>{% endif %}
+                <span class="field-hint">
+                  {% if fcm_configured %}{{ t('admin_fcm_ok') }}{% else %}{{ t('admin_fcm_missing') }}{% endif %}
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="form-actions">
@@ -556,7 +571,9 @@
             </select>
           </label>
           <label>{{ t('admin_push_msg_title') }}
-            <input type="text" id="pushTitle" maxlength="100" placeholder="{{ t('admin_push_title_ph') }}">
+            <input type="text" id="pushTitle" maxlength="100"
+                   value="{{ default_push_title }}"
+                   placeholder="{{ t('admin_push_title_ph') }}">
           </label>
           <label>{{ t('admin_push_msg_body') }}
             <textarea id="pushBody" rows="3" maxlength="500" placeholder="{{ t('admin_push_body_ph') }}"></textarea>

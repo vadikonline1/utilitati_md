@@ -30,6 +30,7 @@ ENV_SETTING_MAP = {
     "smtp_from": "SMTP_FROM",
     "telegram_token": "TELEGRAM_TOKEN",
     "telegram_botname": "TELEGRAM_BOTNAME",
+    "fcm_service_account": "FCM_SERVICE_ACCOUNT",
 }
 
 SETTING_KEYS = {
@@ -74,6 +75,7 @@ SETTING_KEYS = {
     "admob_rewarded_unit_android",
     "admob_rewarded_unit_ios",
     "admob_placements",             # comma-list of screens that may show ads
+    "fcm_service_account",          # Google FCM service-account JSON (secret)
 }
 
 # Per-type, per-language email templates edited from /admin (message management).
@@ -84,7 +86,7 @@ for _mt in MSG_TYPES:
         SETTING_KEYS.add(f"msg_{_mt}_body_{_lg}")
 
 # Values that must be stored encrypted so a database leak cannot reveal them.
-_SECRET_KEYS = {"smtp_user", "smtp_pass", "telegram_token"}
+_SECRET_KEYS = {"smtp_user", "smtp_pass", "telegram_token", "fcm_service_account"}
 
 
 def _read_decrypted(raw: str) -> str:

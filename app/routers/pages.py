@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import os
 import re
 import secrets
 from datetime import datetime, timedelta
@@ -734,6 +735,14 @@ async def profile_page(request: Request, user_id: int | None = Depends(optional_
     )
 
 
+@router.get("/notifications", response_class=HTMLResponse)
+async def notifications_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    if user_id is None:
+        return RedirectResponse("/login", status_code=303)
+    ctx = _ctx(request, user_id, notifications=push_svc.list_user_notifications(user_id))
+    return templates.TemplateResponse(request, "notifications.html", ctx)
+
+
 @router.post("/profile")
 async def profile_submit(request: Request, user_id: int | None = Depends(optional_auth_token)):
     if user_id is None:
@@ -875,6 +884,11 @@ def _admin_base_ctx() -> dict:
         "denied": False,
         "settings": all_settings(),
         "admob": admob_config(),
+        "fcm_configured": bool(
+            get_setting("fcm_service_account", "").strip()
+            or os.getenv("FCM_SERVICE_ACCOUNT", "").strip()
+        ),
+        "default_push_title": "Notificare administrativă - UTILITĂȚI.MD",
         "retention_enabled": retention_enabled(),
         "inactive_months": inactive_months(),
         "warn_days_list": warn_days(),
@@ -939,6 +953,7 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         "warn_days": str(form.get("warn_days", "90,60,30")).strip(),
         "invoice_months": str(form.get("invoice_months", "24")).strip(),
         "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")).strip(),
+        "fcm_service_account": str(form.get("fcm_service_account", "")).strip(),
     }
     if sync_mode == "interval":
         try:
@@ -948,11 +963,14 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
     # Secret fields show a masked sentinel instead of the real value; a masked or
     # empty submission means "leave it unchanged" so we never write the sentinel
     # back or wipe a configured credential by accident.
-    for secret_key in ("smtp_user", "smtp_pass", "telegram_token"):
+    for secret_key in ("smtp_user", "smtp_pass", "telegram_token", "fcm_service_account"):
         sub = str(values.get(secret_key, "")).strip()
         if not sub or sub == MASKED:
             values.pop(secret_key, None)
     set_settings(values)
+    # FCM credentials may have changed -> drop cached token/service account.
+    if "fcm_service_account" in values:
+        push_svc.clear_fcm_cache()
     return _admin_render(request, user_id, message=_t("admin_saved"))
 
 

@@ -263,6 +263,18 @@ export function sendTestNotification(): Promise<{ sent: number }> {
   return request('/devices/test', { method: 'POST' });
 }
 
+export interface AppNotification {
+  id: number;
+  title: string;
+  body: string;
+  type: string;
+  created_at: string;
+}
+
+export function getNotifications(): Promise<{ notifications: AppNotification[] }> {
+  return request('/notifications');
+}
+
 // --------------------------------------------------------------------------- //
 // Runtime config (server-driven AdMob settings from /admin)
 // --------------------------------------------------------------------------- //
