@@ -259,6 +259,7 @@ def _migrate_sqlite(conn) -> None:
             "last_inactivity_email": "ALTER TABLE users ADD COLUMN last_inactivity_email TEXT",
             "deactivated": "ALTER TABLE users ADD COLUMN deactivated INTEGER NOT NULL DEFAULT 0",
             "delete_after": "ALTER TABLE users ADD COLUMN delete_after TEXT",
+            "notifications_enabled": "ALTER TABLE users ADD COLUMN notifications_enabled INTEGER NOT NULL DEFAULT 1",
         }.items():
             if col not in ucols:
                 conn.execute(ddl)

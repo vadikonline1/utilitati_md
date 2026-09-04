@@ -1,0 +1,22 @@
+# Don't upload the checked-in Expo/CLI native directories to EAS Build.
+# EAS runs `expo prebuild` on its side; keeping ios/ and android/ local avoids
+# stale generated projects causing conflicts.
+ios/
+android/
+
+# Local secrets never sent to EAS.
+utilitati.db
+utilitati.env
+.env
+.env.*
+*.p12
+*.p8
+*.mobileprovision
+service-account-key.json
+GoogleService-Info.plist
+google-services.json
+
+# Build output / caches.
+node_modules/
+.expo/
+dist/

@@ -36,6 +36,7 @@ from ..auth import (
     parse_session_token,
     register,
     resolve_reset_token,
+    set_notifications_enabled,
     set_password_for_user,
     set_reset_token,
     set_user_active,
@@ -954,6 +955,7 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         "invoice_months": str(form.get("invoice_months", "24")).strip(),
         "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")).strip(),
         "fcm_service_account": str(form.get("fcm_service_account", "")).strip(),
+        "push_provider": str(form.get("push_provider", "fcm")).strip(),
     }
     if sync_mode == "interval":
         try:
@@ -1133,6 +1135,25 @@ async def admin_user_status_submit(
         form = await request.form()
         enabled = str(form.get("enabled", "")) == "1"
         set_user_active(target_id, enabled)
+    return RedirectResponse("/admin?tab=users", status_code=303)
+
+
+@router.post("/admin/users/{target_id}/notifications")
+async def admin_user_notifications_toggle(
+    target_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    if target_id != user_id:
+        form = await request.form()
+        enabled = str(form.get("enabled", "")) == "1"
+        set_notifications_enabled(target_id, enabled)
+        if not enabled:
+            push_svc.clear_device_tokens(target_id)
     return RedirectResponse("/admin?tab=users", status_code=303)
 
 

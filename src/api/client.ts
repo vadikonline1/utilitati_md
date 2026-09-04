@@ -76,6 +76,7 @@ export interface PublicUser {
   username: string;
   full_name: string;
   email: string;
+  notifications_enabled?: boolean;
 }
 
 export function login(username: string, password: string): Promise<{ token: string; user: PublicUser }> {
@@ -104,6 +105,10 @@ export function updateSelf(
   fullName: string,
 ): Promise<PublicUser> {
   return request('/auth/me', { method: 'PUT', body: { full_name: fullName } });
+}
+
+export function updateNotificationsEnabled(enabled: boolean): Promise<{ notifications_enabled: boolean }> {
+  return request('/auth/notifications', { method: 'PUT', body: { enabled } });
 }
 
 export function forgotPassword(email: string): Promise<{ ok: boolean }> {
@@ -296,6 +301,7 @@ export interface AdmobConfig {
 
 export interface AppConfig {
   admob: AdmobConfig;
+  push: { provider: 'fcm' | 'expo' };
 }
 
 export function getConfig(): Promise<AppConfig> {

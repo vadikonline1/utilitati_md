@@ -9,10 +9,16 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "m-medium"
+      }
     }
   },
   "submit": {
@@ -20,7 +26,8 @@
       "android": {
         "serviceAccountKeyPath": "./service-account-key.json",
         "track": "internal"
-      }
+      },
+      "ios": {}
     }
   }
 }

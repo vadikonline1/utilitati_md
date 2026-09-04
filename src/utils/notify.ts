@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 
-import { registerDeviceToken } from '../api/client';
+import { registerDeviceToken, getConfig } from '../api/client';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -68,11 +68,11 @@ function resolveProjectId(): string | undefined {
 /**
  * Activate push for this device and register the token with the backend.
  *
- * Provider selection:
- *  - Android -> raw Firebase (FCM) registration token from
- *               `getDevicePushTokenAsync`, delivered server-side via FCM HTTP v1
- *               (direct Google Firebase, no Expo relay).
- *  - iOS     -> Expo push token (delivered via the Expo relay -> APNs/FCM).
+ * The server-side global setting ``push_provider`` determines the mode:
+ *  - ``expo`` → both platforms register Expo push tokens (Expo relay).
+ *  - ``fcm``  (default) → Android registers a raw FCM token (direct Google
+ *               push via FCM HTTP v1); iOS registers an Expo push token
+ *               (Expo relay).
  * Returns a diagnostic result so the UI can show the precise reason on failure.
  */
 export async function registerPushTokenResult(): Promise<PushActivationResult> {
@@ -87,8 +87,63 @@ export async function registerPushTokenResult(): Promise<PushActivationResult> {
       detail: 'Permisiunea de notificare nu a fost acordată pentru această aplicare.',
     };
   }
+
+  // Read the global push-provider mode from the server.
+  let mode: 'fcm' | 'expo' = 'fcm';
+  try {
+    const cfg = await getConfig();
+    if (cfg?.push?.provider === 'expo' || cfg?.push?.provider === 'fcm') {
+      mode = cfg.push.provider;
+    }
+  } catch {
+    // Config fetch failed: use the platform default (Android=FCM, iOS=Expo).
+  }
+
+  // --- Expo mode: both platforms use the Expo relay ---
+  if (mode === 'expo') {
+    const projectId = resolveProjectId();
+    if (!projectId) {
+      return {
+        ok: false,
+        reason: 'missing-project-id',
+        detail: 'Build-ul instalat nu conține projectId-ul Expo (extra.eas.projectId). Rebuild trebuie.',
+      };
+    }
+    let data: string | undefined;
+    try {
+      const res = await Notifications.getExpoPushTokenAsync({ projectId });
+      data = res.data;
+    } catch (e) {
+      return {
+        ok: false,
+        reason: 'token-unavailable',
+        detail: e instanceof Error ? e.message : String(e),
+      };
+    }
+    if (!data) {
+      return {
+        ok: false,
+        reason: 'token-unavailable',
+        detail: 'Expo nu a returnat un push token pentru projectId-ul dat.',
+      };
+    }
+    try {
+      await registerDeviceToken(data, 'expo', Platform.OS as 'android' | 'ios');
+    } catch (e) {
+      return {
+        ok: false,
+        reason: 'registration-failed',
+        detail: e instanceof Error ? e.message : String(e),
+      };
+    }
+    return { ok: true };
+  }
+
+  // --- FCM mode (default) ---
+  // Android → raw FCM registration token (direct Google push).
+  // iOS     → Expo push token (Expo relay, since APNs device tokens cannot be
+  //           delivered directly via FCM without Firebase iOS setup).
   if (Platform.OS === 'android') {
-    // Raw Firebase Cloud Messaging registration token (direct Google push).
     let data: string | undefined;
     try {
       const res = await Notifications.getDevicePushTokenAsync();
@@ -118,7 +173,7 @@ export async function registerPushTokenResult(): Promise<PushActivationResult> {
     }
     return { ok: true };
   }
-  // iOS -> Expo push token (Expo relay).
+  // iOS in FCM mode falls back to Expo relay.
   const projectId = resolveProjectId();
   if (!projectId) {
     return {

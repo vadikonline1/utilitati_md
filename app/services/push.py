@@ -28,6 +28,11 @@ import aiohttp
 from ..db import _conn
 from .settings import get_setting
 
+# Deferred import to avoid circular dependency at module load time.
+def _notifications_enabled(user_id: int) -> bool:
+    from ..auth import is_notifications_enabled
+    return is_notifications_enabled(user_id)
+
 _LOGGER = logging.getLogger(__name__)
 
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
@@ -295,6 +300,8 @@ async def send_push(
     user_id: int, title: str, body: str, type_: str = "general"
 ) -> int:
     """Send a push to all of a user's devices. Returns tokens attempted."""
+    if not _notifications_enabled(user_id):
+        return 0
     tokens = _user_tokens(user_id)
     if not tokens:
         return 0
@@ -312,10 +319,13 @@ async def send_push_multi(
     user_ids: list[int], title: str, body: str, type_: str = "admin"
 ) -> dict[str, int]:
     """Send a push to multiple users. Returns {sent, failed}."""
+    from ..auth import is_notifications_enabled
+
+    active_ids = [uid for uid in user_ids if is_notifications_enabled(uid)]
     all_tokens = all_device_tokens()
     total = 0
     failed = 0
-    for uid in user_ids:
+    for uid in active_ids:
         uid_sent = 0
         for provider, token in all_tokens.get(uid, []):
             ok = await _send_one(provider, token, title, body, {"type": type_})

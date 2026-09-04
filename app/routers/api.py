@@ -19,8 +19,10 @@ from ..auth import (
     deactivate_user,
     get_user,
     get_user_lang,
+    is_notifications_enabled,
     register,
     resolve_reset_token,
+    set_notifications_enabled,
     set_password_for_user,
     set_reset_token,
     set_user_full_name,
@@ -78,6 +80,7 @@ def _public_user(user_id: int) -> dict | None:
         "username": u["username"],
         "full_name": u.get("full_name") or "",
         "email": u.get("email") or "",
+        "notifications_enabled": bool(u.get("notifications_enabled", 1)),
     }
 
 
@@ -187,7 +190,8 @@ async def get_notifications(user_id: int = Depends(get_auth_token)):
 @router.get("/config")
 async def app_config(user_id: int = Depends(get_auth_token)):
     """Server-driven runtime config for the mobile app (e.g. AdMob)."""
-    return {"admob": admob_config()}
+    from ..services.settings import get_push_provider
+    return {"admob": admob_config(), "push": {"provider": get_push_provider()}}
 
 
 @router.get("/auth/me")
@@ -208,6 +212,16 @@ async def auth_me_update(payload: dict, user_id: int = Depends(get_auth_token)):
     if user is None:
         raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
     return user
+
+
+@router.put("/auth/notifications")
+async def update_notifications(payload: dict, user_id: int = Depends(get_auth_token)):
+    """Toggle the per-user 'oprire notificări' switch from the mobile profile."""
+    enabled = bool(payload.get("enabled", True))
+    set_notifications_enabled(user_id, enabled)
+    if not enabled:
+        push_svc.clear_device_tokens(user_id)
+    return {"notifications_enabled": is_notifications_enabled(user_id)}
 
 
 @router.post("/auth/forgot-password")

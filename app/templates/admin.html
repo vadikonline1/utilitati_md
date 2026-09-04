@@ -120,7 +120,12 @@
           <div class="card">
             <h2>{{ t('admin_fcm') }}</h2>
             <div class="form-stack">
-              <label>{{ t('admin_fcm_hint') }}</label>
+              <label>{{ t('admin_push_provider') }}
+                <select name="push_provider">
+                  <option value="fcm" {{ 'selected' if settings.get('push_provider', 'fcm') == 'fcm' else '' }}>Google Firebase (FCM)</option>
+                  <option value="expo" {{ 'selected' if settings.get('push_provider', '') == 'expo' else '' }}>Expo Push</option>
+                </select>
+              </label>
               <label>{{ t('admin_fcm_service_account') }}
                 <textarea name="fcm_service_account" rows="6" placeholder='{ "type": "service_account", ... }'>{{ settings.get('fcm_service_account', '') }}</textarea>
                 {% if settings.get('_env_fcm_service_account') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
@@ -208,13 +213,14 @@
     <section id="tab-users" class="admin-tab-panel" hidden>
       <p class="subtitle">{{ t('admin_users_hint') }}</p>
       {% if users %}
-        <div class="data-list cols-9">
+        <div class="data-list cols-10">
           <div class="dl-head">
             <div class="dl-cell">{{ t('admin_users_id') }}</div>
             <div class="dl-cell">{{ t('admin_users_username') }}</div>
             <div class="dl-cell">{{ t('admin_users_fullname') }}</div>
             <div class="dl-cell">{{ t('admin_users_email') }}</div>
             <div class="dl-cell">{{ t('admin_users_app') }}</div>
+            <div class="dl-cell">{{ t('admin_users_notif') }}</div>
             <div class="dl-cell">{{ t('admin_users_status') }}</div>
             <div class="dl-cell">{{ t('admin_users_created') }}</div>
             <div class="dl-cell">{{ t('admin_users_last_login') }}</div>
@@ -231,6 +237,21 @@
                   <span class="badge enabled">{{ t('admin_users_app_yes') }}</span>
                 {% else %}
                   <span class="badge disabled">{{ t('admin_users_app_no') }}</span>
+                {% endif %}
+              </div>
+              <div class="dl-cell" data-label="{{ t('admin_users_notif') }}">
+                {% if u.id != current_uid %}
+                  <form method="post" action="/admin/users/{{ u.id }}/notifications" class="inline-form">
+                    {% if u.notifications_enabled %}
+                      <input type="hidden" name="enabled" value="0">
+                      <button type="submit" class="badge enabled" title="{{ t('admin_users_notif_disable') }}">{{ t('admin_users_notif_yes') }}</button>
+                    {% else %}
+                      <input type="hidden" name="enabled" value="1">
+                      <button type="submit" class="badge disabled" title="{{ t('admin_users_notif_enable') }}">{{ t('admin_users_notif_no') }}</button>
+                    {% endif %}
+                  </form>
+                {% else %}
+                  <span class="badge enabled">{{ t('admin_users_notif_yes') }}</span>
                 {% endif %}
               </div>
               <div class="dl-cell" data-label="{{ t('admin_users_status') }}">

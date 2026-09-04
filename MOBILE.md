@@ -8,6 +8,14 @@ platforme), care consumă **API-ul REST JSON** al backend-ului FastAPI existent
 > locuiesc împreună la **rădăcina repo-ului**. Aplicația mobilă folosește
 > `app.json`, `package.json`, `App.tsx` și `src/` de la rădăcină.
 
+## Versiuni
+
+- **Expo SDK 54**, **React Native 0.81**, **React 19.1**.
+- Navigare: React Navigation **v7** (native-stack + bottom-tabs).
+- Reclame: `react-native-google-mobile-ads` **v16** (Banner/Interstitial/Rewarded).
+- Notificări: `expo-notifications` (relay **Expo** sau direct **Google FCM** — vezi
+  „Push notifications" mai jos).
+
 ## Structură
 
 ```
@@ -67,6 +75,57 @@ native complete (Gradle / Xcode). De reținut:
   npx eas build --platform android
   npx eas build --platform ios
   ```
+
+## Push notifications (FCM vs Expo)
+
+Notificările push sunt **server-driven**: backend-ul publică o setare globală
+`push_provider` (`fcm` sau `expo`) prin `GET /api/config`, iar aplicația alege
+cum obține token-ul:
+
+- **`expo`** — ambele platforme folosesc `getExpoPushTokenAsync` (relay Expo).
+- **`fcm`** (implicit) — Android folosește token-ul FCM brut
+  (`getDevicePushTokenAsync`, livrat direct prin FCM HTTP v1 cu service account
+  Google); iOS folosește token Expo (relay), fiindcă un token APNs brut nu poate
+  fi livrat prin FCM fără setup Firebase pe iOS.
+
+### Setarea globală (admin)
+
+Din `GET /admin` → cardul „Furnizor notificări" alegi:
+
+- **Google Firebase (FCM)** — trimite direct către Google (necesită JSON-ul
+  service account în `FCM_SERVICE_ACCOUNT` sau câmpul de admin).
+- **Expo Push** — tot traficul prin relay-ul Expo (nu necesită service account).
+
+Schimbarea valorii afectează doar **dispozitivele care se reînregistrează** după
+schimbare (token-urile existente rămân pe provider-ul cu care au fost create).
+
+### Oprire notificări per-utilizator („oprire notificări")
+
+Fiecare utilizator are un flag `notifications_enabled` (implicit pornit):
+
+- Din **aplicația mobilă**: Profil → butonul de notificări (`PUT /api/auth/notifications`).
+  Când este oprit, backend-ul **șterge token-urile** dispozitivului și nu mai trimite.
+- Din **admin** (`?tab=users` → coloana „Notificări"): adminul poate opri/porni
+  notificările oricărui utilizator.
+- Când flagul este oprit, `send_push` / `send_push_multi` **sar** peste utilizator
+  (nu se trimit push-uri, istoricul de notificări nu se mai scrie).
+
+### Prima configurare iOS (o singură dată, interactivă)
+
+Construcția iOS necesită credentiale Apple (certificat de distribuție +
+provisioning). Profiles-urile au fost configurate în `eas.json`, dar credentialele
+**nu pot fi create automat** de CI — se rulează **o singură dată, interactiv** pe o
+mașină cu `eas-cli` instalat:
+
+```bash
+npm install -g eas-cli
+npx eas login
+npx eas credentials --platform ios
+npx eas build --profile preview --platform ios   # verifică build-ul
+```
+
+Credentialele sunt stocate în contul de pe **EAS** (nu se commit-uiesc), așa că
+după acest pas, build-urile iOS din GitHub Actions / EAS Workflows merg automat.
 
 ## API URL + projectId
 

@@ -15,7 +15,7 @@ import {
 import Input from '../components/Input';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { ApiError, changePassword, clearDeviceToken, deactivateAccount, sendTestNotification, updateSelf } from '../api/client';
+import { ApiError, changePassword, clearDeviceToken, deactivateAccount, sendTestNotification, updateNotificationsEnabled, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
 import { registerPushTokenResult } from '../utils/notify';
 import AppHeader from '../components/AppHeader';
@@ -93,6 +93,7 @@ export default function ProfileScreen() {
       if (res.ok && !activationDetail) {
         Alert.alert('Gata', 'Ai activat notificările. Notificarea de test a fost trimisă.');
         await AsyncStorage.setItem(NOTIF_KEY, '1');
+        await updateNotificationsEnabled(true).catch(() => undefined);
       } else {
         setNotifOn(false);
         const detail = activationDetail ? `\n\n${activationDetail}` : '';
@@ -103,6 +104,7 @@ export default function ProfileScreen() {
         await AsyncStorage.setItem(NOTIF_KEY, '0');
       }
     } else {
+      await updateNotificationsEnabled(false).catch(() => undefined);
       await clearDeviceToken().catch(() => undefined);
       await AsyncStorage.setItem(NOTIF_KEY, '0');
     }

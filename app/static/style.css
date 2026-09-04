@@ -368,6 +368,8 @@ textarea {
 .badge.pay-partially_paid { background: var(--badge-warn-bg); color: var(--amber); }
 .badge.pay-unknown { background: var(--badge-mut-bg); color: var(--muted); }
 .badge.pay-error { background: var(--badge-bad-bg); color: var(--red); }
+button.badge { border: none; cursor: pointer; font-family: inherit; line-height: 1.4; padding: 3px 10px; }
+button.badge:hover { filter: brightness(0.95); }
 
 /* Dashboard stats */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 20px 0; }
@@ -417,6 +419,7 @@ textarea {
 .cols-6 .dl-head, .cols-6 .dl-row { grid-template-columns: 1.6fr 2.2fr 0.9fr 1.2fr 1fr 2.2fr; }
 .cols-8 .dl-head, .cols-8 .dl-row { grid-template-columns: 1.4fr 1fr 1fr 1.1fr 1.1fr 1fr 1.4fr 2.2fr; }
 .cols-9 .dl-head, .cols-9 .dl-row { grid-template-columns: 1.9fr 1.3fr 1fr 1fr 1fr 1.1fr 1.1fr 1fr 2.4fr; }
+.cols-10 .dl-head, .cols-10 .dl-row { grid-template-columns: 1.7fr 1.2fr 1fr 1fr 1fr 1fr 1.1fr 1.1fr 1fr 2.2fr; }
 .cols-3 .dl-head, .cols-3 .dl-row { grid-template-columns: 1fr 1fr 1.4fr; }
 .cols-4 .dl-head, .cols-4 .dl-row { grid-template-columns: 1.8fr 1.6fr 1fr 2.2fr; }
 .dl-cell.row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

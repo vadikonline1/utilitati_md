@@ -207,7 +207,7 @@ def get_user(user_id: int) -> dict | None:
     with _conn() as conn:
         row = conn.execute(
             "SELECT id, username, full_name, email, is_active, notification_emails, "
-            "telegram_chat_ids FROM users WHERE id = ?",
+            "telegram_chat_ids, notifications_enabled FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
     return dict(row) if row else None
@@ -219,6 +219,7 @@ def list_users() -> list[dict]:
         rows = conn.execute(
             "SELECT u.id, u.username, u.full_name, u.email, u.is_active, "
             "u.created_at, datetime(u.last_login) AS last_login, "
+            "u.notifications_enabled, "
             "CASE WHEN u.confirm_token IS NOT NULL THEN 1 ELSE 0 END AS pending, "
             "IFNULL((SELECT COUNT(*) FROM device_tokens d "
             "         WHERE d.user_id = u.id), 0) AS device_count "
@@ -233,6 +234,24 @@ def set_user_active(user_id: int, is_active: bool) -> None:
         conn.execute(
             "UPDATE users SET is_active = ? WHERE id = ?",
             (1 if is_active else 0, user_id),
+        )
+
+
+def is_notifications_enabled(user_id: int) -> bool:
+    """True when the user has NOT switched push notifications OFF."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT notifications_enabled FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    return bool(row) and bool(row["notifications_enabled"])
+
+
+def set_notifications_enabled(user_id: int, enabled: bool) -> None:
+    """Set the user's per-user "oprire notificări" switch."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET notifications_enabled = ? WHERE id = ?",
+            (1 if enabled else 0, user_id),
         )
 
 

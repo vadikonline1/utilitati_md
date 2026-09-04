@@ -31,6 +31,7 @@ ENV_SETTING_MAP = {
     "telegram_token": "TELEGRAM_TOKEN",
     "telegram_botname": "TELEGRAM_BOTNAME",
     "fcm_service_account": "FCM_SERVICE_ACCOUNT",
+    "push_provider": "PUSH_PROVIDER",
 }
 
 SETTING_KEYS = {
@@ -76,6 +77,7 @@ SETTING_KEYS = {
     "admob_rewarded_unit_ios",
     "admob_placements",             # comma-list of screens that may show ads
     "fcm_service_account",          # Google FCM service-account JSON (secret)
+    "push_provider",                # 'expo' or 'fcm' (mobile token mode)
 }
 
 # Per-type, per-language email templates edited from /admin (message management).
@@ -119,6 +121,12 @@ def get_setting(key: str, default: str = "") -> str:
     if key in _SECRET_KEYS:
         return _read_decrypted(value)
     return value
+
+
+def get_push_provider() -> str:
+    """Return the current push provider mode ('expo' or 'fcm', default 'fcm')."""
+    mode = get_setting("push_provider", "fcm").strip().lower()
+    return mode if mode in ("expo", "fcm") else "fcm"
 
 
 def set_setting(key: str, value: str) -> None:

@@ -8,7 +8,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "plugins": [
+      "react-native-gesture-handler",
       [
         "expo-notifications",
         {
