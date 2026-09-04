@@ -52,6 +52,7 @@ from ..services import email as email_svc
 from ..services import faq as faq_svc
 from ..services import notify as notify_svc
 from ..services import pages as pages_svc
+from ..services import push as push_svc
 from ..services import telegram as telegram_svc
 from ..services.settings import (
     MSG_TYPES,
@@ -1268,6 +1269,32 @@ async def admin_ads_submit(
         "admob_placements": placements,
     })
     return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+@router.post("/admin/push")
+async def admin_push_send(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    """Send a push notification from the admin panel."""
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return JSONResponse({"error": _t("admin_not_admin")}, status_code=403)
+    data = await request.json()
+    title = str(data.get("title", "")).strip()
+    body = str(data.get("body", "")).strip()
+    recipient = str(data.get("recipient", "all")).strip()
+    if not title or not body:
+        return JSONResponse({"error": "Title and body are required."}, status_code=400)
+    if recipient == "all":
+        users = list_users()
+        user_ids = [u["id"] for u in users if u.get("is_active")]
+    else:
+        try:
+            user_ids = [int(recipient)]
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "Invalid recipient."}, status_code=400)
+    result = await push_svc.send_push_multi(user_ids, title, body)
+    return JSONResponse(result)
 
 
 def _save_placeholder_rows(form) -> None:

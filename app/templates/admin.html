@@ -18,6 +18,7 @@
       <button type="button" class="tab-btn" data-tab="tab-pages">{{ t('admin_tab_pages') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-seo">{{ t('admin_tab_seo') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-ads">{{ t('admin_tab_ads') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-push">{{ t('admin_tab_push') }}</button>
     </div>
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
@@ -530,7 +531,33 @@
         </div>
       </form>
     </section>
-    <div class="modal-overlay" id="modal-faq-add" hidden>
+
+    <section id="tab-push" class="admin-tab-panel" hidden>
+      <div class="card">
+        <h2>{{ t('admin_push_title') }}</h2>
+        <p class="field-hint">{{ t('admin_push_hint') }}</p>
+        <div class="form-stack">
+          <label>{{ t('admin_push_to') }}
+            <select id="pushRecipient">
+              <option value="all">{{ t('admin_push_all') }}</option>
+              {% for u in users %}
+                {% if u.is_active %}
+                  <option value="{{ u.id }}">{{ u.full_name or u.username }} ({{ u.email }})</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </label>
+          <label>{{ t('admin_push_msg_title') }}
+            <input type="text" id="pushTitle" maxlength="100" placeholder="{{ t('admin_push_title_ph') }}">
+          </label>
+          <label>{{ t('admin_push_msg_body') }}
+            <textarea id="pushBody" rows="3" maxlength="500" placeholder="{{ t('admin_push_body_ph') }}"></textarea>
+          </label>
+          <button type="button" class="btn" id="pushSendBtn" onclick="sendPush()">{{ t('admin_push_send') }}</button>
+          <div id="pushResult" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </section>
       <div class="modal modal-wide">
         <div class="modal-head">
           <h2>{{ t('admin_faq_add_title') }}</h2>
@@ -722,13 +749,15 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=seo");
       } else if (target === "tab-ads") {
         history.replaceState(null, "", "/admin?tab=ads");
+      } else if (target === "tab-push") {
+        history.replaceState(null, "", "/admin?tab=push");
       } else {
         history.replaceState(null, "", "/admin");
       }
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
     var tabKey = params.get("saved") ? "messages" : params.get("tab");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
@@ -776,7 +805,46 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       document.getElementById('admobPlacements').value = picks.join(',');
     });
-  }
+  });
+
+  // Push notifications: AJAX send.
+  window.sendPush = function () {
+    var btn = document.getElementById('pushSendBtn');
+    var result = document.getElementById('pushResult');
+    var title = document.getElementById('pushTitle').value.trim();
+    var body = document.getElementById('pushBody').value.trim();
+    var recipient = document.getElementById('pushRecipient').value;
+    if (!title || !body) {
+      result.innerHTML = '<span style="color:red">Completează titlul și textul.</span>';
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '...';
+    result.innerHTML = '';
+    fetch('/admin/push', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({title: title, body: body, recipient: recipient})
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      btn.disabled = false;
+      btn.textContent = '{{ t("admin_push_send") }}';
+      if (data.error) {
+        result.innerHTML = '<span style="color:red">' + data.error + '</span>';
+      } else {
+        result.innerHTML = '<span style="color:green">Trimis: ' + data.sent + ' notificări' +
+          (data.failed ? ', eșuate: ' + data.failed : '') + '.</span>';
+        document.getElementById('pushTitle').value = '';
+        document.getElementById('pushBody').value = '';
+      }
+    })
+    .catch(function () {
+      btn.disabled = false;
+      btn.textContent = '{{ t("admin_push_send") }}';
+      result.innerHTML = '<span style="color:red">Eroare de rețea.</span>';
+    });
+  };
 });
 </script>
 {% endblock %}

@@ -43,6 +43,18 @@ def user_device_tokens(user_id: int) -> list[str]:
     return [r["token"] for r in rows]
 
 
+def all_device_tokens() -> dict[int, list[str]]:
+    """Return {user_id: [token, ...]} for every registered device."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT user_id, token FROM device_tokens ORDER BY user_id"
+        ).fetchall()
+    tokens: dict[int, list[str]] = {}
+    for r in rows:
+        tokens.setdefault(r["user_id"], []).append(r["token"])
+    return tokens
+
+
 def clear_device_tokens(user_id: int) -> None:
     """Remove all push tokens for a user (notifications switched OFF)."""
     with _conn() as conn:
@@ -74,3 +86,44 @@ async def send_push(user_id: int, title: str, body: str) -> int:
     except Exception:  # noqa: BLE001 - push must never break the sync loop
         _LOGGER.exception("Expo push send failed for user %s", user_id)
         return 0
+
+
+async def send_push_multi(
+    user_ids: list[int], title: str, body: str
+) -> dict[str, int]:
+    """Send an Expo push to multiple users. Returns {sent, failed}."""
+    all_tokens = all_device_tokens()
+    total = 0
+    failed = 0
+    for uid in user_ids:
+        tokens = all_tokens.get(uid, [])
+        if not tokens:
+            continue
+        messages = [
+            {
+                "to": token,
+                "sound": "default",
+                "title": title,
+                "body": body,
+                "data": {"type": "admin"},
+            }
+            for token in tokens
+        ]
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    EXPO_PUSH_URL, json=messages,
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    if resp.status not in (200, 201):
+                        _LOGGER.warning(
+                            "Expo push HTTP %s for user %s: %s",
+                            resp.status, uid, (await resp.text())[:200],
+                        )
+                        failed += len(messages)
+                    else:
+                        total += len(messages)
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Expo push send failed for user %s", uid)
+            failed += len(messages)
+    return {"sent": total, "failed": failed}
