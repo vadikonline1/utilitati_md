@@ -187,6 +187,26 @@ async def get_notifications(user_id: int = Depends(get_auth_token)):
     return {"notifications": push_svc.list_user_notifications(user_id)}
 
 
+@router.get("/notifications/unread-count")
+async def get_unread_notifications_count(user_id: int = Depends(get_auth_token)):
+    """Number of still-unread notifications (bell badge on mobile)."""
+    return {"count": push_svc.unread_notification_count(user_id)}
+
+
+@router.post("/notifications/read-all")
+async def read_all_notifications(user_id: int = Depends(get_auth_token)):
+    """Mark every notification of the current user as read."""
+    return {"read": push_svc.mark_all_notifications_read(user_id)}
+
+
+@router.post("/notifications/{notif_id}/read")
+async def read_notification(notif_id: int, user_id: int = Depends(get_auth_token)):
+    """Mark a single notification as read (must belong to the user)."""
+    if not push_svc.mark_notification_read(user_id, notif_id):
+        raise HTTPException(status_code=404, detail="Notificarea nu a fost găsită")
+    return {"read": True}
+
+
 @router.get("/config")
 async def app_config(user_id: int = Depends(get_auth_token)):
     """Server-driven runtime config for the mobile app (e.g. AdMob)."""

@@ -7,13 +7,18 @@
     {% if notifications %}
       <span class="notif-count">{{ notifications|length }}</span>
     {% endif %}
+    {% if unread_notifications %}
+      <form method="post" action="/notifications/read-all" class="notif-readall-form">
+        <button type="submit" class="btn ghost small">{{ t('notif_read_all') }}</button>
+      </form>
+    {% endif %}
   </div>
 
   {% if notifications %}
     <div class="notif-list">
       {% for n in notifications %}
         {% set ntype = n.type if n.type in ['invoice', 'admin', 'general', 'unpaid'] else 'other' %}
-        <div class="notif-item notif-t-{{ ntype }}">
+        <div class="notif-item notif-t-{{ ntype }}{{ '' if n.read else ' unread' }}">
           <div class="notif-badge">{{ t('notif_type_' ~ ntype) }}</div>
           <div class="notif-content">
             <div class="notif-head">
@@ -22,6 +27,11 @@
             {% if n.body %}<p>{{ n.body }}</p>{% endif %}
             <span class="muted notif-date">{{ n.created_at }}</span>
           </div>
+          {% if not n.read %}
+            <form method="post" action="/notifications/{{ n.id }}/read" class="notif-actions">
+              <button type="submit" class="btn ghost small">{{ t('notif_mark_read') }}</button>
+            </form>
+          {% endif %}
         </div>
       {% endfor %}
     </div>

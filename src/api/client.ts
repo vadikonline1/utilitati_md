@@ -273,11 +273,24 @@ export interface AppNotification {
   title: string;
   body: string;
   type: string;
+  read: number;
   created_at: string;
 }
 
 export function getNotifications(): Promise<{ notifications: AppNotification[] }> {
   return request('/notifications');
+}
+
+export function getUnreadNotificationsCount(): Promise<{ count: number }> {
+  return request('/notifications/unread-count');
+}
+
+export function markNotificationRead(id: number): Promise<{ read: boolean }> {
+  return request(`/notifications/${id}/read`, { method: 'POST' });
+}
+
+export function markAllNotificationsRead(): Promise<{ read: number }> {
+  return request('/notifications/read-all', { method: 'POST' });
 }
 
 // --------------------------------------------------------------------------- //

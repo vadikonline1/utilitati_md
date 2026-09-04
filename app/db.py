@@ -283,6 +283,17 @@ def _migrate_sqlite(conn) -> None:
                 "ALTER TABLE device_tokens ADD COLUMN provider TEXT NOT NULL DEFAULT 'expo'"
             )
 
+    if "notifications" in tables:
+        ncols = {r["name"] for r in conn.execute("PRAGMA table_info(notifications)").fetchall()}
+        if "read" not in ncols:
+            conn.execute(
+                "ALTER TABLE notifications ADD COLUMN read INTEGER NOT NULL DEFAULT 0"
+            )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notifications_user_read "
+            "ON notifications (user_id, read, id)"
+        )
+
     if "faq_items" not in tables:
         conn.executescript(
             """

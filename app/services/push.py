@@ -134,13 +134,55 @@ def list_user_notifications(user_id: int, limit: int = 100) -> list[dict]:
     """Most-recent notifications for a user, newest first."""
     with _conn() as conn:
         rows = conn.execute(
-            "SELECT id, title, body, type, "
+            "SELECT id, title, body, type, read, "
             "datetime(created_at, 'localtime') AS created_at "
             "FROM notifications WHERE user_id = ? "
             "ORDER BY id DESC LIMIT ?",
             (user_id, int(limit)),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def unread_notification_count(user_id: int) -> int:
+    """Number of notifications not yet marked as read (bell badge)."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS c FROM notifications "
+            "WHERE user_id = ? AND read = 0",
+            (user_id,),
+        ).fetchone()
+    return int(row["c"]) if row else 0
+
+
+def mark_notification_read(user_id: int, notif_id: int) -> bool:
+    """Mark one of the user's notifications as read. False if it does not exist."""
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE notifications SET read = 1 "
+            "WHERE id = ? AND user_id = ?",
+            (notif_id, user_id),
+        )
+    return cur.rowcount > 0
+
+
+def mark_all_notifications_read(user_id: int) -> int:
+    """Mark every notification of a user as read. Returns affected rows."""
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE notifications SET read = 1 WHERE user_id = ? AND read = 0",
+            (user_id,),
+        )
+    return cur.rowcount
+
+
+def delete_old_notifications(days: int = 60) -> int:
+    """Remove notification history older than `days` days. Returns affected rows."""
+    with _conn() as conn:
+        cur = conn.execute(
+            "DELETE FROM notifications WHERE created_at < datetime('now', ?)",
+            (f"-{int(days)} days",),
+        )
+    return cur.rowcount
 
 
 # --------------------------------------------------------------------------- #

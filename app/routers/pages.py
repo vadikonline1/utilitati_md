@@ -170,6 +170,11 @@ def _ctx(request, **extra):
         "user_full_name": user_full_name,
         "is_admin": uid is not None and is_usable_user(uid)
         and is_admin_username(get_username(uid)),
+        "unread_notifications": (
+            push_svc.unread_notification_count(uid)
+            if uid is not None and is_usable_user(uid)
+            else 0
+        ),
         "seo": _seo(),
     }
     ctx.update(extra)
@@ -743,6 +748,24 @@ async def notifications_page(request: Request, user_id: int | None = Depends(opt
         return RedirectResponse("/login", status_code=303)
     ctx = _ctx(request, notifications=push_svc.list_user_notifications(user_id))
     return templates.TemplateResponse(request, "notifications.html", ctx)
+
+
+@router.post("/notifications/read-all")
+async def notifications_read_all(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if user_id is not None and is_usable_user(user_id):
+        push_svc.mark_all_notifications_read(user_id)
+    return RedirectResponse("/notifications", status_code=303)
+
+
+@router.post("/notifications/{notif_id}/read")
+async def notifications_mark_read(
+    request: Request, notif_id: int, user_id: int | None = Depends(optional_auth_token)
+):
+    if user_id is not None and is_usable_user(user_id):
+        push_svc.mark_notification_read(user_id, notif_id)
+    return RedirectResponse("/notifications", status_code=303)
 
 
 @router.post("/profile")

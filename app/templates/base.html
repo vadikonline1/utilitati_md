@@ -33,7 +33,9 @@
 
     {% if logged_in %}
     <a class="bell-link" href="/notifications" aria-label="{{ t('nav_notifications') }}"
-       title="{{ t('nav_notifications') }}">🔔</a>
+       title="{{ t('nav_notifications') }}">🔔
+      {% if unread_notifications %}<span class="bell-badge">{{ unread_notifications }}</span>{% endif %}
+    </a>
     {% endif %}
 
     <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu"
