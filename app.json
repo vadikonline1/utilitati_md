@@ -10,7 +10,6 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "plugins": [
-      "react-native-gesture-handler",
       [
         "expo-notifications",
         {
