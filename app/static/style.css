@@ -591,10 +591,19 @@ button { font-family: inherit; }
 }
 
 /* Admin tabs */
-.admin-tabs { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+.admin-tabs {
+  display: flex; gap: 8px; margin: 16px 0;
+  overflow-x: auto; flex-wrap: nowrap; padding-bottom: 6px;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-tabs::-webkit-scrollbar { height: 6px; }
+.admin-tabs::-webkit-scrollbar-track { background: transparent; }
+.admin-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .tab-btn {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
   padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+  white-space: nowrap; flex: 0 0 auto;
 }
 .tab-btn:hover { border-color: var(--accent-2); }
 .tab-btn.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
@@ -696,6 +705,35 @@ button { font-family: inherit; }
 
 /* App content editor (admin "App" tab, per-screen modals) */
 .modal-tall { max-height: 84vh; overflow-y: auto; }
+.app-panel-head .field-hint { margin-top: 6px; }
+.app-head-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.app-search {
+  min-width: 260px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel-2); color: var(--text); font-size: 0.9rem; margin-left: auto;
+}
+.app-group-title {
+  margin: 24px 0 10px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--muted);
+}
+.app-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.app-card-head h2 { margin-bottom: 0; }
+.app-card-hint { min-height: 2.5em; }
+.app-card-actions { margin-top: auto; }
+.app-chip {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+  border-radius: 999px; padding: 3px 10px; color: var(--muted);
+  background: var(--badge-mut-bg); white-space: nowrap;
+}
+.app-chip-mod { color: var(--amber); background: var(--badge-warn-bg); }
+.app-empty-search { text-align: center; color: var(--muted); margin: 24px 0; }
+.app-modal-hint { margin: 0 0 12px; }
+.app-modal-note { margin-bottom: 14px; }
+.app-modal-note .field-hint { margin: 0; }
+.app-field-input { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.app-field-input input[type="text"], .app-field-input textarea { width: 100%; }
+.app-field-default { font-size: 0.75rem; color: var(--muted); line-height: 1.35; }
 .app-field { gap: 6px; }
 .app-field textarea { min-height: 0; }
 .app-field-lang {

@@ -512,18 +512,48 @@ SCREEN_META = {
     "dashboard": {
         "title": "Dashboard · afișări",
         "hint": "Statisticile principale și lista locuințelor de pe prima pagină.",
+        "group": "Acasă (Dashboard)",
     },
-    "homes": {"title": "Locuințe", "hint": "Lista locuințelor (ecran Locuințe)."},
-    "invoices": {"title": "Facturi", "hint": "Lista facturilor (ecran Facturi)."},
+    "homes": {
+        "title": "Locuințe",
+        "hint": "Lista locuințelor (ecran Locuințe).",
+        "group": "Liste",
+    },
+    "invoices": {
+        "title": "Facturi",
+        "hint": "Lista facturilor (ecran Facturi).",
+        "group": "Liste",
+    },
     "notifications": {
         "title": "Notificări",
         "hint": "Ecranul clopotel + textul notificării „factură nouă” (clopot/push).",
+        "group": "Notificări",
     },
-    "home_detail": {"title": "Locuință · detaliu", "hint": "Detalii locuință și conturi."},
-    "account_detail": {"title": "Cont · detaliu", "hint": "Detalii cont + facturi."},
-    "home_form": {"title": "Formular locuință", "hint": "Formular creare/editare locuință."},
-    "account_form": {"title": "Formular cont", "hint": "Formular creare/editare cont utilitate."},
-    "profile": {"title": "Profil", "hint": "Ecranul Profil / setări."},
+    "home_detail": {
+        "title": "Locuință · detaliu",
+        "hint": "Detalii locuință și conturi.",
+        "group": "Detalii",
+    },
+    "account_detail": {
+        "title": "Cont · detaliu",
+        "hint": "Detalii cont + facturi.",
+        "group": "Detalii",
+    },
+    "home_form": {
+        "title": "Formular locuință",
+        "hint": "Formular creare/editare locuință.",
+        "group": "Formulare",
+    },
+    "account_form": {
+        "title": "Formular cont",
+        "hint": "Formular creare/editare cont utilitate.",
+        "group": "Formulare",
+    },
+    "profile": {
+        "title": "Profil",
+        "hint": "Ecranul Profil / setări.",
+        "group": "Profil",
+    },
 }
 
 # (_SCREENS that are not editable in admin "Aplicație" but still resolved for
@@ -760,19 +790,45 @@ def _default_at(lang: str, screen: str, path: str) -> str:
 # Admin editor data
 # --------------------------------------------------------------------------- #
 def admin_editor() -> list[dict]:
-    """[{screen, title, hint, fields:[{path, control, label, values:{lang}}]}]."""
+    """[{screen, title, hint, group, modified, field_count,
+        fields:[{path, control, label, values:{lang}, defaults:{lang},
+                 overridden:{lang}}]}]."""
     result = []
     for screen in SCREENS:
         fields = []
+        modified = False
         for path, control, label in FIELDS[screen]:
             values = {}
+            defaults = {}
+            overridden = {}
             for lang in APP_LANGS:
                 default = _default_at(DEFAULT_LANG, screen, path)
                 localized = _default_at(lang, screen, path)
-                values[lang] = get_setting(_setting_key(screen, path, lang), "") \
-                    or localized or default
-            fields.append({"path": path, "control": control, "label": label, "values": values})
-        result.append({"screen": screen, **SCREEN_META[screen], "fields": fields})
+                stored = get_setting(_setting_key(screen, path, lang), "").strip()
+                defaults[lang] = localized or default
+                overridden[lang] = bool(stored)
+                values[lang] = stored or defaults[lang]
+                if overridden[lang]:
+                    modified = True
+            fields.append(
+                {
+                    "path": path,
+                    "control": control,
+                    "label": label,
+                    "values": values,
+                    "defaults": defaults,
+                    "overridden": overridden,
+                }
+            )
+        result.append(
+            {
+                "screen": screen,
+                **SCREEN_META[screen],
+                "modified": modified,
+                "field_count": len(fields),
+                "fields": fields,
+            }
+        )
     return result
 
 

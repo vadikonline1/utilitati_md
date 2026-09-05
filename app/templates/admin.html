@@ -721,27 +721,50 @@
 
     {# ---------------- App content (mobile screens) ---------------- #}
     <section id="tab-app" class="admin-tab-panel" hidden>
-      <div class="card">
-        <h2>{{ t('admin_tab_app') }}</h2>
-        <p class="field-hint">{{ t('admin_app_hint') }}</p>
-        <p class="field-hint">{{ t('admin_app_langs_note') }}</p>
+      <div class="card app-panel-head">
+        <div class="app-head-row">
+          <div>
+            <h2>{{ t('admin_tab_app') }}</h2>
+            <p class="field-hint">{{ t('admin_app_how') }}</p>
+            <p class="field-hint">{{ t('admin_app_langs_note') }}</p>
+          </div>
+          <input type="search" id="app-search" class="app-search"
+                 placeholder="{{ t('admin_app_search') }}">
+        </div>
       </div>
-      <div class="config-grid">
-        {% for scr in app_editor %}
-          <div class="card msg-card">
+      {% set ns = namespace(current='') %}
+      {% for scr in app_editor %}
+        {% if scr.group != ns.current %}
+          {% if ns.current %}</div>{% endif %}
+          {% set ns.current = scr.group %}
+          <h3 class="app-group-title">{{ scr.group }}</h3>
+          <div class="config-grid app-grid">
+        {% endif %}
+        <div class="card msg-card app-card"
+             data-filter="{{ (scr.title ~ ' ' ~ scr.hint ~ ' ' ~ scr.screen)|lower }}">
+          <div class="app-card-head">
             <h2>{{ scr.title }}</h2>
-            <p class="field-hint">{{ scr.hint }}</p>
-            <div class="row-actions msg-actions">
-              <button type="button" class="btn"
-                      onclick="openModal('modal-app-{{ scr.screen }}')">{{ t('admin_app_edit') }}</button>
+            {% if scr.modified %}
+              <span class="app-chip app-chip-mod">{{ t('admin_app_modified') }}</span>
+            {% else %}
+              <span class="app-chip">{{ t('admin_app_default') }}</span>
+            {% endif %}
+          </div>
+          <p class="field-hint app-card-hint">{{ scr.hint }}</p>
+          <div class="row-actions msg-actions app-card-actions">
+            <button type="button" class="btn"
+                    onclick="openModal('modal-app-{{ scr.screen }}')">{{ t('admin_app_edit') }}</button>
+            {% if scr.modified %}
               <form method="post" action="/admin/app/{{ scr.screen }}/reset"
                     onsubmit="return confirm('{{ t('admin_app_reset_confirm') }}');">
-                <button type="submit" class="btn ghost">{{ t('admin_app_reset') }}</button>
+                <button type="submit" class="btn ghost small">{{ t('admin_app_reset') }}</button>
               </form>
-            </div>
+            {% endif %}
           </div>
-        {% endfor %}
+        </div>
+      {% endfor %}
       </div>
+      <p class="app-empty-search" id="app-empty-search" hidden>{{ t('admin_app_no_results') }}</p>
     </section>
     {% for scr in app_editor %}
       <div class="modal-overlay" id="modal-app-{{ scr.screen }}" hidden>
@@ -751,6 +774,10 @@
             <button type="button" class="modal-close"
                     onclick="closeModal('modal-app-{{ scr.screen }}')">×</button>
           </div>
+          <p class="field-hint app-modal-hint">{{ scr.hint }}</p>
+          <div class="home-info-block app-modal-note">
+            <span class="field-hint">{{ t('admin_app_field_empty_note') }}</span>
+          </div>
           <form method="post" action="/admin/app/{{ scr.screen }}" class="form-stack">
             {% for f in scr.fields %}
               <fieldset class="msg-lang app-field">
@@ -758,31 +785,41 @@
                 {% for code in ['ro', 'ru', 'en'] %}
                   <div class="app-field-lang">
                     <span class="msg-default-lang">{{ t('msg_lang_' ~ code) }}</span>
-                    {% if f.control == 'color' %}
-                      <input type="color"
-                             name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
-                             value="{{ f.values[code] }}">
-                    {% elif f.control == 'checkbox' %}
-                      <label class="checkbox-inline">
-                        <input type="hidden"
+                    <div class="app-field-input">
+                      {% if f.control == 'color' %}
+                        <input type="color"
                                name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
-                               value="0">
-                        <input type="checkbox"
+                               value="{{ f.values[code] }}">
+                      {% elif f.control == 'checkbox' %}
+                        <label class="checkbox-inline">
+                          <input type="hidden"
+                                 name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                                 value="0">
+                          <input type="checkbox"
+                                 name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                                 value="1"
+                                 {% if f.values[code] == '1' %}checked{% endif %}>
+                          <span>{{ t('admin_app_active') }}</span>
+                        </label>
+                      {% elif f.control == 'textarea' %}
+                        <textarea rows="3"
+                                  name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}">{{ f.values[code] }}</textarea>
+                      {% else %}
+                        <input type="text"
                                name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
-                               value="1"
-                               {% if f.values[code] == '1' %}checked{% endif %}>
-                        <span>{{ t('admin_app_active') }}</span>
-                      </label>
-                    {% elif f.control == 'textarea' %}
-                      <textarea rows="2"
-                                name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}">{{ f.values[code] }}</textarea>
-                    {% else %}
-                      <input type="text"
-                             name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
-                             value="{{ f.values[code] }}">
-                    {% endif %}
+                               value="{{ f.values[code] }}">
+                      {% endif %}
+                      {% if f.control != 'checkbox' %}
+                        <span class="app-field-default">
+                          {% if f.overridden[code] %}{{ t('admin_app_default_value') }} {{ f.defaults[code] }}{% endif %}
+                        </span>
+                      {% endif %}
+                    </div>
                   </div>
                 {% endfor %}
+                {% if f.control == 'checkbox' %}
+                  <span class="app-field-default">{{ t('admin_app_checkbox_note') }}</span>
+                {% endif %}
               </fieldset>
             {% endfor %}
             <div class="form-actions">
@@ -1003,6 +1040,28 @@ document.addEventListener("DOMContentLoaded", function () {
     var tabKey = params.get("tab") || (params.get("saved") ? "messages" : "");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
     if (msgBtn) msgBtn.click();
+  }
+
+  var appSearch = document.getElementById('app-search');
+  if (appSearch) {
+    appSearch.addEventListener('input', function () {
+      var q = appSearch.value.trim().toLowerCase();
+      var visible = 0;
+      document.querySelectorAll('.app-card').forEach(function (card) {
+        var match = !q || card.dataset.filter.indexOf(q) !== -1;
+        card.style.display = match ? '' : 'none';
+        if (match) visible += 1;
+      });
+      document.querySelectorAll('#tab-app .app-group-title').forEach(function (h) {
+        var grid = h.nextElementSibling;
+        var any = grid && Array.from(grid.querySelectorAll('.app-card'))
+          .some(function (c) { return c.style.display !== 'none'; });
+        h.style.display = any ? '' : 'none';
+        if (grid) grid.style.display = any ? '' : 'none';
+      });
+      var empty = document.getElementById('app-empty-search');
+      if (empty) empty.hidden = visible !== 0;
+    });
   }
 
   var RESET_LBL = '{{ t('admin_placeholder_reset') }}';
