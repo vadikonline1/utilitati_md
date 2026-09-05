@@ -502,9 +502,17 @@
           <div class="card">
             <h2>{{ t('admin_ads_master') }}</h2>
             <div class="form-stack">
-              <label class="check">
-                <input type="checkbox" name="admob_enabled"
-                       {% if admob.enabled %}checked{% endif %}> {{ t('admin_ads_master_toggle') }}
+              <label class="adb-switch">
+                <span>{{ t('admin_ads_master_toggle') }}</span>
+                <span class="adb-track">
+                  <input type="checkbox" name="admob_enabled"
+                         {% if admob.enabled %}checked{% endif %}>
+                </span>
+              </label>
+              <label>{{ t('admin_ads_banner_unit') }}
+                <input type="text" name="admob_banner_unit" value="{{ settings.get('admob_banner_unit', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false" {{ 'readonly' if settings.get('_env_admob_banner_unit') }}>
+                {% if settings.get('_env_admob_banner_unit') %}<span class="env-badge">{{ t('admin_from_env') }}</span>
+                <span class="field-hint">{{ t('admin_ads_banner_unit_env_hint') }}</span>{% endif %}
               </label>
               <label>{{ t('admin_ads_app_id_android') }}
                 <input type="text" name="admob_app_id_android" value="{{ settings.get('admob_app_id_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
@@ -516,16 +524,15 @@
           </div>
 
           <div class="card">
-            <h2>{{ t('admin_ads_banner') }}</h2>
+            <h2>{{ t('admin_ads_types') }}</h2>
+            <p class="field-hint">{{ t('admin_ads_types_hint') }}</p>
             <div class="form-stack">
-              <label class="check">
-                <input type="checkbox" name="admob_banner_enabled"
-                       {% if admob.banner.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
-              </label>
-              <label>{{ t('admin_ads_banner_unit') }}
-                <input type="text" name="admob_banner_unit" value="{{ settings.get('admob_banner_unit', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false" {{ 'readonly' if settings.get('_env_admob_banner_unit') }}>
-                {% if settings.get('_env_admob_banner_unit') %}<span class="env-badge">{{ t('admin_from_env') }}</span>
-                <span class="field-hint">{{ t('admin_ads_banner_unit_env_hint') }}</span>{% endif %}
+              <label class="adb-switch">
+                <span>{{ t('admin_ads_banner') }}</span>
+                <span class="adb-track">
+                  <input type="checkbox" name="admob_banner_enabled"
+                         {% if admob.banner.enabled %}checked{% endif %}>
+                </span>
               </label>
               <div class="ads-screens">
                 <p class="field-hint">{{ t('admin_ads_placements_hint') }}</p>
@@ -552,32 +559,24 @@
                 <input type="hidden" name="admob_placements" id="admobPlacements"
                        value="{{ admob.placements|join(',') }}">
               </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <h2>{{ t('admin_ads_interstitial') }}</h2>
-            <div class="form-stack">
-              <label class="check">
-                <input type="checkbox" name="admob_interstitial_enabled"
-                       {% if admob.interstitial.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
+              <label class="adb-switch">
+                <span>{{ t('admin_ads_rewarded') }}</span>
+                <span class="adb-track">
+                  <input type="checkbox" name="admob_rewarded_enabled"
+                         {% if admob.rewarded.enabled %}checked{% endif %}>
+                </span>
               </label>
-              <p class="field-hint">{{ t('admin_ads_shared_unit_hint') }}</p>
+              <label class="adb-switch">
+                <span>{{ t('admin_ads_interstitial') }}</span>
+                <span class="adb-track">
+                  <input type="checkbox" name="admob_interstitial_enabled"
+                         {% if admob.interstitial.enabled %}checked{% endif %}>
+                </span>
+              </label>
               <label>{{ t('admin_ads_interstitial_interval') }}
                 <input type="number" name="admob_interstitial_interval" min="1" max="720"
                        value="{{ settings.get('admob_interstitial_interval', '5') }}">
               </label>
-            </div>
-          </div>
-
-          <div class="card">
-            <h2>{{ t('admin_ads_rewarded') }}</h2>
-            <div class="form-stack">
-              <label class="check">
-                <input type="checkbox" name="admob_rewarded_enabled"
-                       {% if admob.rewarded.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
-              </label>
-              <p class="field-hint">{{ t('admin_ads_shared_unit_hint') }}</p>
             </div>
           </div>
         </div>
