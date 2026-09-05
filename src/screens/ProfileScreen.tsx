@@ -32,9 +32,6 @@ const LANGUAGES = [
   { code: 'ru', label: 'Русский' },
   { code: 'en', label: 'English' },
 ];
-const CHANNELS: { id: ReleaseChannel; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'beta', label: 'Beta', desc: '', icon: 'flask-outline' },
-];
 
 function SettingsRow({
   icon,
@@ -71,7 +68,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
   const [editName, setEditName] = useState(user?.full_name || '');
   const [notifOn, setNotifOn] = useState(false);
-  const [channel, setChannel] = useState<ReleaseChannel>('beta');
+  const [channel, setChannel] = useState<ReleaseChannel>('stable');
   const [checking, setChecking] = useState(false);
   const p = (key: string, vars?: Record<string, string | number>) =>
     t('profile', key, vars);
@@ -82,7 +79,7 @@ export default function ProfileScreen() {
       setNotifOn(n === '1');
       const serverChannel = user?.release_channel as ReleaseChannel | undefined;
       const stored = (await AsyncStorage.getItem(CHANNEL_KEY)) as ReleaseChannel | null;
-      const effective: ReleaseChannel = 'beta';
+      const effective: ReleaseChannel = stored || serverChannel || 'stable';
       setChannel(effective);
       if (stored !== effective) {
         await AsyncStorage.setItem(CHANNEL_KEY, effective);
@@ -200,7 +197,8 @@ export default function ProfileScreen() {
     }
   };
 
-  const selectChannel = async (id: ReleaseChannel) => {
+  const toggleChannel = async (value: boolean) => {
+    const id: ReleaseChannel = value ? 'beta' : 'stable';
     const previous = channel;
     setChannel(id);
     await AsyncStorage.setItem(CHANNEL_KEY, id);
@@ -214,8 +212,11 @@ export default function ProfileScreen() {
   };
 
   const checkUpdates = async () => {
+    if (channel !== 'beta') {
+      Alert.alert(p('section_channel'), p('channel_off'));
+      return;
+    }
     setChecking(true);
-    const label = CHANNELS.find((c) => c.id === channel)?.label || 'Beta';
     try {
       if (Platform.OS === 'ios') {
         Alert.alert(
@@ -226,7 +227,7 @@ export default function ProfileScreen() {
       }
       const info = await checkForUpdate();
       if (!info.apkUrl) {
-        Alert.alert(p('up_to_date'), `Canalul ${label} nu are încă un build publicat.`);
+        Alert.alert(p('up_to_date'), `Canalul Beta nu are încă un build publicat.`);
         return;
       }
       const localVersion = info.localVersion;
@@ -244,7 +245,7 @@ export default function ProfileScreen() {
       }
       Alert.alert(
         'Build nou disponibil',
-        `Pe canalul ${label} este un build mai nou${parts.length ? `: ${parts.join(', ')}` : ''}.\n\nDescarc APK-ul și îl deschid pentru instalare?`,
+        `Pe canalul Beta este un build mai nou${parts.length ? `: ${parts.join(', ')}` : ''}.\n\nDescarc APK-ul și îl deschid pentru instalare?`,
         [
           { text: t('common', 'cancel'), style: 'cancel' },
           {
@@ -326,23 +327,22 @@ export default function ProfileScreen() {
           onPress={deactivate}
         />
 
-        <Text style={styles.section}>{p('section_channel')}</Text>
-        {CHANNELS.map((c) => (
-          <TouchableOpacity
-            key={c.id}
-            style={[styles.row, channel === c.id && styles.rowActive]}
-            onPress={() => selectChannel(c.id)}
-          >
-            <Ionicons name={c.icon} size={22} color={colors.primary} />
-            <View style={styles.rowBody}>
-              <Text style={styles.rowTitle}>{c.label}</Text>
-              <Text style={styles.muted}>{c.id === 'beta' ? p('beta_desc') : c.desc}</Text>
-            </View>
-            {channel === c.id ? (
-              <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-            ) : null}
-          </TouchableOpacity>
-        ))}
+        <View style={styles.row}>
+          <Ionicons name="flask-outline" size={22} color={colors.primary} />
+          <View style={styles.rowBody}>
+            <Text style={styles.rowTitle}>{p('section_channel')}</Text>
+            <Text style={styles.muted}>
+              {channel === 'beta'
+                ? p('beta_desc')
+                : p('channel_off')}
+            </Text>
+          </View>
+          <Switch
+            value={channel === 'beta'}
+            onValueChange={toggleChannel}
+            trackColor={{ false: colors.border, true: colors.primary }}
+          />
+        </View>
         <Text style={[styles.muted, styles.versionText]}>
           {p('version', { value: getLocalVersion() })}
         </Text>
@@ -445,10 +445,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.lg,
     marginVertical: spacing.xs,
-  },
-  rowActive: {
-    borderColor: colors.primary,
-    backgroundColor: '#f0fdfa',
   },
   rowBody: { flex: 1, marginLeft: spacing.md },
   rowTitle: { fontSize: 16, fontWeight: '600', color: colors.text },

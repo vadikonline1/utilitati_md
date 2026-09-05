@@ -147,6 +147,7 @@ export const DEFAULT_SCREENS: Record<string, ScreenContent> = {
     section_channel: 'Canal de actualizare',
     beta_desc:
       'Build din ramura deploy — actualizare directă, detectată după SHA-ul noului build',
+    channel_off: 'Dezactivat — actualizări din magazinul oficial',
     version: 'Versiune instalată: v{value}',
     check_updates: 'Verifică actualizări',
     section_account: 'Cont',
