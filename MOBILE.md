@@ -158,8 +158,22 @@ după acest pas, build-urile iOS din GitHub Actions / EAS Workflows merg automat
 
 ## API URL + projectId
 
-URL-ul de API este setat în `app.json` → `extra.apiUrl`
-(`https://utilitati.nistorlazar.md/api`). Pentru testare locală, schimbă-l la
+URL-ul de API nu mai este „cimentat" în build. La fiecare pornire aplicația își
+**rezolvă dinamic DNS-ul** din sursa versionată
+[`hosts_app_dns`](https://raw.githubusercontent.com/vadikonline1/pi.hole/refs/heads/main/hosts_app_dns):
+caută linia `md.utilitati.app=<host>` și folosește `https://<host>/api` ca bază
+pentru toate cererile. Astfel, când DNS-ul curent expiră, e suficient să
+actualizezi **fișierul din repo** (nu trebuie un build nou).
+
+Ordinea de precedență:
+`fișierul DNS live` > `valoarea cache-uită local` > `app.json → extra.apiUrl` >
+`constantă default`.
+
+- `src/api/dns.ts` — preluarea + parsarea sursei (`resolveApiBase`), cu timeout
+  de 5s și fallback la cache; `src/api/client.ts` folosește rezultatul în
+  `request()`.
+
+Pentru testare locală, schimbă fallback-ul la
 `http://<IP-masina>:<port>/api` (backend-ul rulează cu CORS activat).
 
 ProjectId-ul Expo (folosit pentru push notifications) este în

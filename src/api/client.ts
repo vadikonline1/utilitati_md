@@ -1,17 +1,24 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
+import { resolveApiBase } from './dns';
+
 const DEFAULT_API_URL = 'https://utilitati.nistorlazar.md/api';
 const TOKEN_KEY = 'utilitati.token';
 
-function apiUrl(): string {
+/** Built-in fallback (app.json `extra.apiUrl` or the default constant). */
+function fallbackApiUrl(): string {
   const extra = Constants.expoConfig?.extra as { apiUrl?: string } | undefined;
   return extra?.apiUrl || DEFAULT_API_URL;
 }
 
 export function getApiUrl(): string {
-  return apiUrl();
+  return fallbackApiUrl();
 }
+
+// Kick off the DNS resolution as soon as the module loads, so the first real
+// request is usually not blocked by the lookup.
+void resolveApiBase(fallbackApiUrl()).catch(() => undefined);
 
 export async function saveToken(token: string): Promise<void> {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -46,7 +53,8 @@ async function request<T>(
 
   let res: Response;
   try {
-    res = await fetch(`${apiUrl()}${path}`, {
+    const base = await resolveApiBase(fallbackApiUrl());
+    res = await fetch(`${base}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
