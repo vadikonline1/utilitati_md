@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import os
 import re
 import secrets
 from datetime import datetime, timedelta
@@ -35,6 +36,7 @@ from ..auth import (
     parse_session_token,
     register,
     resolve_reset_token,
+    set_notifications_enabled,
     set_password_for_user,
     set_reset_token,
     set_user_active,
@@ -52,14 +54,17 @@ from ..services import email as email_svc
 from ..services import faq as faq_svc
 from ..services import notify as notify_svc
 from ..services import pages as pages_svc
+from ..services import push as push_svc
 from ..services import telegram as telegram_svc
 from ..services.settings import (
     MSG_TYPES,
     MASKED,
+    admob_config,
     all_settings,
     clear_msg_templates,
     delete_setting,
     get_setting,
+    get_stored_setting,
     get_sync_interval_hours,
     inactive_months,
     invoice_months,
@@ -72,7 +77,17 @@ from ..services.settings import (
     unconfirmed_hours,
     warn_days,
 )
-from ..services.sync import dashboard_stats, enqueue_invoice_job, job_info
+from ..services.sync import (
+    dashboard_stats,
+    enqueue_invoice_job,
+    job_info,
+    list_invoice_jobs,
+    restart_invoice_job,
+    cancel_invoice_job,
+    delete_invoice_job,
+    cleanup_old_jobs,
+    system_jobs_status,
+)
 from ..services.utilities import (
     create_home,
     delete_account,
@@ -165,6 +180,11 @@ def _ctx(request, **extra):
         "user_full_name": user_full_name,
         "is_admin": uid is not None and is_usable_user(uid)
         and is_admin_username(get_username(uid)),
+        "unread_notifications": (
+            push_svc.unread_notification_count(uid)
+            if uid is not None and is_usable_user(uid)
+            else 0
+        ),
         "seo": _seo(),
     }
     ctx.update(extra)
@@ -732,6 +752,32 @@ async def profile_page(request: Request, user_id: int | None = Depends(optional_
     )
 
 
+@router.get("/notifications", response_class=HTMLResponse)
+async def notifications_page(request: Request, user_id: int | None = Depends(optional_auth_token)):
+    if user_id is None:
+        return RedirectResponse("/login", status_code=303)
+    ctx = _ctx(request, notifications=push_svc.list_user_notifications(user_id))
+    return templates.TemplateResponse(request, "notifications.html", ctx)
+
+
+@router.post("/notifications/read-all")
+async def notifications_read_all(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if user_id is not None and is_usable_user(user_id):
+        push_svc.mark_all_notifications_read(user_id)
+    return RedirectResponse("/notifications", status_code=303)
+
+
+@router.post("/notifications/{notif_id}/read")
+async def notifications_mark_read(
+    request: Request, notif_id: int, user_id: int | None = Depends(optional_auth_token)
+):
+    if user_id is not None and is_usable_user(user_id):
+        push_svc.mark_notification_read(user_id, notif_id)
+    return RedirectResponse("/notifications", status_code=303)
+
+
 @router.post("/profile")
 async def profile_submit(request: Request, user_id: int | None = Depends(optional_auth_token)):
     if user_id is None:
@@ -872,6 +918,12 @@ def _admin_base_ctx() -> dict:
     return {
         "denied": False,
         "settings": all_settings(),
+        "admob": admob_config(),
+        "fcm_configured": bool(
+            get_setting("fcm_service_account", "").strip()
+            or os.getenv("FCM_SERVICE_ACCOUNT", "").strip()
+        ),
+        "default_push_title": "Notificare administrativă - UTILITĂȚI.MD",
         "retention_enabled": retention_enabled(),
         "inactive_months": inactive_months(),
         "warn_days_list": warn_days(),
@@ -886,6 +938,8 @@ def _admin_base_ctx() -> dict:
         "pages": pages_svc.list_pages(),
         "page_placeholders": pages_svc.PLACEHOLDERS,
         "placeholder_rows": _page_placeholder_rows(),
+        "invoice_jobs": list_invoice_jobs(),
+        "system_jobs": system_jobs_status(),
         "current_uid": None,
     }
 
@@ -936,6 +990,8 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         "warn_days": str(form.get("warn_days", "90,60,30")).strip(),
         "invoice_months": str(form.get("invoice_months", "24")).strip(),
         "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")).strip(),
+        "fcm_service_account": str(form.get("fcm_service_account", "")).strip(),
+        "push_provider": str(form.get("push_provider", "fcm")).strip(),
     }
     if sync_mode == "interval":
         try:
@@ -945,11 +1001,23 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
     # Secret fields show a masked sentinel instead of the real value; a masked or
     # empty submission means "leave it unchanged" so we never write the sentinel
     # back or wipe a configured credential by accident.
-    for secret_key in ("smtp_user", "smtp_pass", "telegram_token"):
+    for secret_key in ("smtp_user", "smtp_pass", "telegram_token", "fcm_service_account"):
         sub = str(values.get(secret_key, "")).strip()
         if not sub or sub == MASKED:
             values.pop(secret_key, None)
+    old_provider = (get_stored_setting("push_provider", "fcm") or "fcm").strip().lower()
     set_settings(values)
+    provider_changed = (
+        "push_provider" in values
+        and (values["push_provider"].strip().lower() or "fcm") != old_provider
+    )
+    # FCM credentials may have changed -> drop cached token/service account.
+    if "fcm_service_account" in values or provider_changed:
+        push_svc.clear_fcm_cache()
+    if provider_changed and os.getenv("PUSH_PROVIDER") is None:
+        # Provider switched (fcm<->expo): drop every registered device token so
+        # each device re-registers with the new provider on its next launch.
+        push_svc.clear_all_device_tokens()
     return _admin_render(request, user_id, message=_t("admin_saved"))
 
 
@@ -1115,6 +1183,25 @@ async def admin_user_status_submit(
     return RedirectResponse("/admin?tab=users", status_code=303)
 
 
+@router.post("/admin/users/{target_id}/notifications")
+async def admin_user_notifications_toggle(
+    target_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    if target_id != user_id:
+        form = await request.form()
+        enabled = str(form.get("enabled", "")) == "1"
+        set_notifications_enabled(target_id, enabled)
+        if not enabled:
+            push_svc.clear_device_tokens(target_id)
+    return RedirectResponse("/admin?tab=users", status_code=303)
+
+
 @router.post("/admin/users/{target_id}/resend")
 async def admin_user_resend_submit(
     target_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
@@ -1230,6 +1317,111 @@ async def admin_seo_submit(
     })
     _save_placeholder_rows(form)
     return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+@router.post("/admin/ads")
+async def admin_ads_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    """Save AdMob/Google Ads settings (toggles, unit ids, placements)."""
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return templates.TemplateResponse(
+            request, "admin.html",
+            _ctx(request, denied=True, message=_t("admin_not_admin")),
+        )
+    form = await request.form()
+    placements = ",".join(
+        p.strip()
+        for p in str(form.get("admob_placements", "")).replace("\n", ",").split(",")
+        if p.strip()
+    )
+    set_settings({
+        "admob_enabled": "1" if form.get("admob_enabled") else "0",
+        "admob_app_id_android": str(form.get("admob_app_id_android", "")).strip(),
+        "admob_app_id_ios": str(form.get("admob_app_id_ios", "")).strip(),
+        "admob_banner_enabled": "1" if form.get("admob_banner_enabled") else "0",
+        "admob_banner_unit_android": str(form.get("admob_banner_unit_android", "")).strip(),
+        "admob_banner_unit_ios": str(form.get("admob_banner_unit_ios", "")).strip(),
+        "admob_interstitial_enabled": "1" if form.get("admob_interstitial_enabled") else "0",
+        "admob_interstitial_unit_android": str(form.get("admob_interstitial_unit_android", "")).strip(),
+        "admob_interstitial_unit_ios": str(form.get("admob_interstitial_unit_ios", "")).strip(),
+        "admob_interstitial_interval": str(form.get("admob_interstitial_interval", "5")).strip(),
+        "admob_rewarded_enabled": "1" if form.get("admob_rewarded_enabled") else "0",
+        "admob_rewarded_unit_android": str(form.get("admob_rewarded_unit_android", "")).strip(),
+        "admob_rewarded_unit_ios": str(form.get("admob_rewarded_unit_ios", "")).strip(),
+        "admob_placements": placements,
+    })
+    return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+@router.post("/admin/jobs/{job_id}/restart")
+async def admin_jobs_restart_submit(
+    job_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=jobs", status_code=303)
+    restart_invoice_job(job_id)
+    return RedirectResponse("/admin?tab=jobs", status_code=303)
+
+
+@router.post("/admin/jobs/{job_id}/cancel")
+async def admin_jobs_cancel_submit(
+    job_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=jobs", status_code=303)
+    cancel_invoice_job(job_id)
+    return RedirectResponse("/admin?tab=jobs", status_code=303)
+
+
+@router.post("/admin/jobs/{job_id}/delete")
+async def admin_jobs_delete_submit(
+    job_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=jobs", status_code=303)
+    delete_invoice_job(job_id)
+    return RedirectResponse("/admin?tab=jobs", status_code=303)
+
+
+@router.post("/admin/jobs/cleanup")
+async def admin_jobs_cleanup_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=jobs", status_code=303)
+    cleaned = cleanup_old_jobs()
+    return _admin_render(
+        request, user_id,
+        message=_t("admin_jobs_cleanup_done").format(count=cleaned),
+    )
+
+
+@router.post("/admin/push")
+async def admin_push_send(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    """Send a push notification from the admin panel."""
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return JSONResponse({"error": _t("admin_not_admin")}, status_code=403)
+    data = await request.json()
+    title = str(data.get("title", "")).strip()
+    body = str(data.get("body", "")).strip()
+    recipient = str(data.get("recipient", "all")).strip()
+    if not title or not body:
+        return JSONResponse({"error": "Title and body are required."}, status_code=400)
+    if recipient == "all":
+        users = list_users()
+        user_ids = [u["id"] for u in users if u.get("is_active")]
+    else:
+        try:
+            user_ids = [int(recipient)]
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "Invalid recipient."}, status_code=400)
+    result = await push_svc.send_push_multi(user_ids, title, body)
+    return JSONResponse(result)
 
 
 def _save_placeholder_rows(form) -> None:

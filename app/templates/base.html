@@ -25,11 +25,18 @@
   {% if seo.get('google_verification') %}<meta name="google-site-verification" content="{{ seo.google_verification }}">{% endif %}
   {% if seo.get('search_verification_html') %}{{ seo.search_verification_html|safe }}{% endif %}
   {% if seo.get('header_html') %}{{ seo.header_html|safe }}{% endif %}
-  <link rel="stylesheet" href="/static/style.css?v=9">
+  <link rel="stylesheet" href="/static/style.css?v=10">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="/">🇲🇩 UTILITĂȚI.MD</a>
+
+    {% if logged_in %}
+    <a class="bell-link" href="/notifications" aria-label="{{ t('nav_notifications') }}"
+       title="{{ t('nav_notifications') }}">🔔
+      {% if unread_notifications %}<span class="bell-badge">{{ unread_notifications }}</span>{% endif %}
+    </a>
+    {% endif %}
 
     <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu"
             aria-expanded="false" aria-controls="mainNav">

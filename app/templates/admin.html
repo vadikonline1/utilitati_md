@@ -17,6 +17,9 @@
       <button type="button" class="tab-btn" data-tab="tab-faq">{{ t('admin_tab_faq') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-pages">{{ t('admin_tab_pages') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-seo">{{ t('admin_tab_seo') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-ads">{{ t('admin_tab_ads') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-push">{{ t('admin_tab_push') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-jobs">{{ t('admin_tab_jobs') }}</button>
     </div>
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
@@ -114,6 +117,30 @@
               </label>
             </div>
           </div>
+
+          <div class="card">
+            <h2>{{ t('admin_fcm') }}</h2>
+            <div class="form-stack">
+              <label>{{ t('admin_push_provider') }}
+                <select name="push_provider" {{ 'disabled' if settings.get('_env_push_provider') }}>
+                  <option value="fcm" {{ 'selected' if settings.get('push_provider', 'fcm') == 'fcm' else '' }}>Google Firebase (FCM)</option>
+                  <option value="expo" {{ 'selected' if settings.get('push_provider', '') == 'expo' else '' }}>Expo Push</option>
+                </select>
+                {% if settings.get('_env_push_provider') %}
+                  <span class="env-badge">{{ t('admin_from_env') }}</span>
+                  <span class="field-hint">{{ t('admin_push_provider_env_hint') }}</span>
+                {% endif %}
+              </label>
+              <label>{{ t('admin_fcm_service_account') }}
+                <textarea name="fcm_service_account" rows="6" placeholder='{ "type": "service_account", ... }'>{{ settings.get('fcm_service_account', '') }}</textarea>
+                {% if settings.get('_env_fcm_service_account') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+                {% if settings.get('fcm_service_account') %}<span class="field-hint">{{ t('admin_secret_hint') }}</span>{% endif %}
+                <span class="field-hint">
+                  {% if fcm_configured %}{{ t('admin_fcm_ok') }}{% else %}{{ t('admin_fcm_missing') }}{% endif %}
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="form-actions">
@@ -191,12 +218,15 @@
     <section id="tab-users" class="admin-tab-panel" hidden>
       <p class="subtitle">{{ t('admin_users_hint') }}</p>
       {% if users %}
-        <div class="data-list cols-8">
+        <div class="data-list cols-11">
           <div class="dl-head">
             <div class="dl-cell">{{ t('admin_users_id') }}</div>
             <div class="dl-cell">{{ t('admin_users_username') }}</div>
             <div class="dl-cell">{{ t('admin_users_fullname') }}</div>
             <div class="dl-cell">{{ t('admin_users_email') }}</div>
+            <div class="dl-cell">{{ t('admin_users_app') }}</div>
+            <div class="dl-cell">{{ t('admin_users_beta') }}</div>
+            <div class="dl-cell">{{ t('admin_users_notif') }}</div>
             <div class="dl-cell">{{ t('admin_users_status') }}</div>
             <div class="dl-cell">{{ t('admin_users_created') }}</div>
             <div class="dl-cell">{{ t('admin_users_last_login') }}</div>
@@ -208,6 +238,35 @@
               <div class="dl-cell" data-label="{{ t('admin_users_username') }}"><b>{{ u.username }}</b></div>
               <div class="dl-cell" data-label="{{ t('admin_users_fullname') }}">{{ u.full_name or '—' }}</div>
               <div class="dl-cell" data-label="{{ t('admin_users_email') }}">{{ u.email or '—' }}</div>
+              <div class="dl-cell" data-label="{{ t('admin_users_app') }}">
+                {% if u.device_count > 0 %}
+                  <span class="badge enabled">{{ t('admin_users_app_yes') }}</span>
+                {% else %}
+                  <span class="badge disabled">{{ t('admin_users_app_no') }}</span>
+                {% endif %}
+              </div>
+              <div class="dl-cell" data-label="{{ t('admin_users_beta') }}">
+                {% if u.release_channel == 'beta' %}
+                  <span class="badge warn" title="beta">{{ t('admin_users_beta_yes') }}</span>
+                {% else %}
+                  <span class="badge disabled" title="{{ u.release_channel or 'stable' }}">{{ t('admin_users_beta_no') }}</span>
+                {% endif %}
+              </div>
+              <div class="dl-cell" data-label="{{ t('admin_users_notif') }}">
+                {% if u.id != current_uid %}
+                  <form method="post" action="/admin/users/{{ u.id }}/notifications" class="inline-form">
+                    {% if u.notifications_enabled %}
+                      <input type="hidden" name="enabled" value="0">
+                      <button type="submit" class="badge enabled" title="{{ t('admin_users_notif_disable') }}">{{ t('admin_users_notif_yes') }}</button>
+                    {% else %}
+                      <input type="hidden" name="enabled" value="1">
+                      <button type="submit" class="badge disabled" title="{{ t('admin_users_notif_enable') }}">{{ t('admin_users_notif_no') }}</button>
+                    {% endif %}
+                  </form>
+                {% else %}
+                  <span class="badge enabled">{{ t('admin_users_notif_yes') }}</span>
+                {% endif %}
+              </div>
               <div class="dl-cell" data-label="{{ t('admin_users_status') }}">
                 {% if u.pending %}
                   <span class="badge warn">{{ t('admin_users_pending') }}</span>
@@ -428,7 +487,236 @@
       </form>
     </section>
 
-    {# Add-FAQ modal #}
+    {# ---------------- Ads (AdMob / Google Ads) ---------------- #}
+    <section id="tab-ads" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_ads_hint') }}</p>
+      <form method="post" action="/admin/ads">
+        <div class="config-grid">
+          <div class="card">
+            <h2>{{ t('admin_ads_master') }}</h2>
+            <div class="form-stack">
+              <label class="check">
+                <input type="checkbox" name="admob_enabled"
+                       {% if admob.enabled %}checked{% endif %}> {{ t('admin_ads_master_toggle') }}
+              </label>
+              <label>{{ t('admin_ads_app_id_android') }}
+                <input type="text" name="admob_app_id_android" value="{{ settings.get('admob_app_id_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_app_id_ios') }}
+                <input type="text" name="admob_app_id_ios" value="{{ settings.get('admob_app_id_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_ads_banner') }}</h2>
+            <div class="form-stack">
+              <label class="check">
+                <input type="checkbox" name="admob_banner_enabled"
+                       {% if admob.banner.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
+              </label>
+              <label>{{ t('admin_ads_banner_unit_android') }}
+                <input type="text" name="admob_banner_unit_android" value="{{ settings.get('admob_banner_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_banner_unit_ios') }}
+                <input type="text" name="admob_banner_unit_ios" value="{{ settings.get('admob_banner_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_ads_interstitial') }}</h2>
+            <div class="form-stack">
+              <label class="check">
+                <input type="checkbox" name="admob_interstitial_enabled"
+                       {% if admob.interstitial.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
+              </label>
+              <label>{{ t('admin_ads_interstitial_unit_android') }}
+                <input type="text" name="admob_interstitial_unit_android" value="{{ settings.get('admob_interstitial_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_interstitial_unit_ios') }}
+                <input type="text" name="admob_interstitial_unit_ios" value="{{ settings.get('admob_interstitial_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_interstitial_interval') }}
+                <input type="number" name="admob_interstitial_interval" min="1" max="720"
+                       value="{{ settings.get('admob_interstitial_interval', '5') }}">
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>{{ t('admin_ads_rewarded') }}</h2>
+            <div class="form-stack">
+              <label class="check">
+                <input type="checkbox" name="admob_rewarded_enabled"
+                       {% if admob.rewarded.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
+              </label>
+              <label>{{ t('admin_ads_rewarded_unit_android') }}
+                <input type="text" name="admob_rewarded_unit_android" value="{{ settings.get('admob_rewarded_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+              <label>{{ t('admin_ads_rewarded_unit_ios') }}
+                <input type="text" name="admob_rewarded_unit_ios" value="{{ settings.get('admob_rewarded_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              </label>
+            </div>
+          </div>
+
+          <div class="card" style="grid-column: 1 / -1;">
+            <h2>{{ t('admin_ads_placements') }}</h2>
+            <p class="field-hint">{{ t('admin_ads_placements_hint') }}</p>
+            <label class="check">
+              <input type="checkbox" name="php_placement_dashboard"
+                     {% if 'dashboard' in admob.placements %}checked{% endif %}> dashboard
+            </label>
+            <label class="check">
+              <input type="checkbox" name="php_placement_homes"
+                     {% if 'homes' in admob.placements %}checked{% endif %}> homes
+            </label>
+            <label class="check">
+              <input type="checkbox" name="php_placement_facturi"
+                     {% if 'facturi' in admob.placements %}checked{% endif %}> facturi
+            </label>
+            <label class="check">
+              <input type="checkbox" name="php_placement_home_detail"
+                     {% if 'home_detail' in admob.placements %}checked{% endif %}> home_detail
+            </label>
+            <label class="check">
+              <input type="checkbox" name="php_placement_notificari"
+                     {% if 'notificari' in admob.placements %}checked{% endif %}> notificari
+            </label>
+            <input type="hidden" name="admob_placements" id="admobPlacements"
+                   value="{{ admob.placements|join(',') }}">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn">{{ t('admin_save') }}</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="tab-push" class="admin-tab-panel" hidden>
+      <div class="card">
+        <h2>{{ t('admin_push_title') }}</h2>
+        <p class="field-hint">{{ t('admin_push_hint') }}</p>
+        <div class="form-stack">
+          <label>{{ t('admin_push_to') }}
+            <select id="pushRecipient">
+              <option value="all">{{ t('admin_push_all') }}</option>
+              {% for u in users %}
+                {% if u.is_active %}
+                  <option value="{{ u.id }}">{{ u.full_name or u.username }} ({{ u.email }})</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </label>
+          <label>{{ t('admin_push_msg_title') }}
+            <input type="text" id="pushTitle" maxlength="100"
+                   value="{{ default_push_title }}"
+                   placeholder="{{ t('admin_push_title_ph') }}">
+          </label>
+          <label>{{ t('admin_push_msg_body') }}
+            <textarea id="pushBody" rows="3" maxlength="500" placeholder="{{ t('admin_push_body_ph') }}"></textarea>
+          </label>
+          <button type="button" class="btn" id="pushSendBtn" onclick="sendPush()">{{ t('admin_push_send') }}</button>
+          <div id="pushResult" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </section>
+
+    {# ---------------- Jobs (background / scheduled) ---------------- #}
+    <section id="tab-jobs" class="admin-tab-panel" hidden>
+      <div class="card">
+        <h2>{{ t('admin_jobs_system_title') }}</h2>
+        <p class="field-hint">{{ t('admin_jobs_system_hint') }}</p>
+        <div class="data-list cols-3">
+          <div class="dl-head">
+            <div class="dl-cell">{{ t('admin_jobs_col_system_job') }}</div>
+            <div class="dl-cell">{{ t('admin_jobs_col_schedule') }}</div>
+            <div class="dl-cell">{{ t('admin_jobs_col_last_run') }}</div>
+          </div>
+          {% for j in system_jobs %}
+            <div class="dl-row">
+              <div class="dl-cell"><b>{{ j.name }}</b></div>
+              <div class="dl-cell"><span class="muted">{{ j.schedule }}</span></div>
+              <div class="dl-cell">
+                {% if j.last_run %}
+                  <span class="muted">{{ j.last_run }}</span>
+                {% else %}
+                  <span class="badge warn">—</span>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tab-toolbar">
+          <h2 style="flex:1">{{ t('admin_jobs_user_title') }}</h2>
+          <form method="post" action="/admin/jobs/cleanup"
+                onsubmit="return confirm('{{ t('admin_jobs_cleanup') }}?');">
+            <button type="submit" class="btn ghost small">{{ t('admin_jobs_cleanup') }}</button>
+          </form>
+        </div>
+        <p class="field-hint">{{ t('admin_jobs_user_hint') }}</p>
+        {% if invoice_jobs %}
+          <div class="data-list cols-9">
+            <div class="dl-head">
+              <div class="dl-cell">#</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_user') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_account') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_status') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_attempts') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_created') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_finished') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_result') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_actions') }}</div>
+            </div>
+            {% for j in invoice_jobs %}
+              <div class="dl-row">
+                <div class="dl-cell"><span class="muted">#{{ j.id }}</span></div>
+                <div class="dl-cell"><b>{{ j.username or ('#' ~ j.user_id) }}</b></div>
+                <div class="dl-cell">{{ j.account_label or '—' }}</div>
+                <div class="dl-cell">
+                  {% if j.status == 'pending' %}
+                    <span class="badge warn">{{ t('admin_jobs_status_pending') }}</span>
+                  {% elif j.status == 'running' %}
+                    <span class="badge run">{{ t('admin_jobs_status_running') }}</span>
+                  {% elif j.status == 'done' %}
+                    <span class="badge enabled">{{ t('admin_jobs_status_done') }}</span>
+                  {% elif j.status == 'failed' %}
+                    <span class="badge failed">{{ t('admin_jobs_status_failed') }}</span>
+                  {% else %}
+                    <span class="badge disabled">{{ t('admin_jobs_status_cancelled') }}</span>
+                  {% endif %}
+                </div>
+                <div class="dl-cell">{{ j.attempts }}</div>
+                <div class="dl-cell"><span class="muted">{{ j.created_at }}</span></div>
+                <div class="dl-cell"><span class="muted">{{ j.finished_at or '—' }}</span></div>
+                <div class="dl-cell"><span class="muted">{{ j.result or '—' }}</span></div>
+                <div class="dl-cell row-actions">
+                  {% if j.status != 'pending' %}
+                    <form method="post" action="/admin/jobs/{{ j.id }}/restart">
+                      <button type="submit" class="btn small">{{ t('admin_jobs_restart') }}</button>
+                    </form>
+                  {% endif %}
+                  {% if j.status == 'pending' or j.status == 'running' %}
+                    <form method="post" action="/admin/jobs/{{ j.id }}/cancel">
+                      <button type="submit" class="btn ghost small">{{ t('admin_jobs_cancel') }}</button>
+                    </form>
+                  {% endif %}
+                  <form method="post" action="/admin/jobs/{{ j.id }}/delete"
+                        onsubmit="return confirm('#{{ j.id }} · {{ t('admin_jobs_delete') }}?');">
+                    <button type="submit" class="btn ghost small">{{ t('admin_jobs_delete') }}</button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty">{{ t('admin_jobs_empty') }}</p>
+        {% endif %}
+      </div>
+    </section>
     <div class="modal-overlay" id="modal-faq-add" hidden>
       <div class="modal modal-wide">
         <div class="modal-head">
@@ -619,13 +907,19 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=pages");
       } else if (target === "tab-seo") {
         history.replaceState(null, "", "/admin?tab=seo");
+      } else if (target === "tab-ads") {
+        history.replaceState(null, "", "/admin?tab=ads");
+      } else if (target === "tab-push") {
+        history.replaceState(null, "", "/admin?tab=push");
+      } else if (target === "tab-jobs") {
+        history.replaceState(null, "", "/admin?tab=jobs");
       } else {
         history.replaceState(null, "", "/admin");
       }
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq", "pages", "seo"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push", "jobs"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
     var tabKey = params.get("saved") ? "messages" : params.get("tab");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
@@ -661,6 +955,58 @@ document.addEventListener("DOMContentLoaded", function () {
       if (tr) tr.remove();
     }
   });
+
+  // AdMob placements: compose the hidden comma-list from the checked boxes.
+  var adsForm = document.querySelector('#tab-ads form');
+  if (adsForm) {
+    adsForm.addEventListener('submit', function () {
+      var names = ['dashboard', 'homes', 'facturi', 'home_detail', 'notificari'];
+      var picks = names.filter(function (n) {
+        var cb = document.querySelector('input[name="php_placement_' + n + '"]');
+        return cb && cb.checked;
+      });
+      document.getElementById('admobPlacements').value = picks.join(',');
+    });
+  }
+
+  // Push notifications: AJAX send.
+  window.sendPush = function () {
+    var btn = document.getElementById('pushSendBtn');
+    var result = document.getElementById('pushResult');
+    var title = document.getElementById('pushTitle').value.trim();
+    var body = document.getElementById('pushBody').value.trim();
+    var recipient = document.getElementById('pushRecipient').value;
+    if (!title || !body) {
+      result.innerHTML = '<span style="color:red">Completează titlul și textul.</span>';
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '...';
+    result.innerHTML = '';
+    fetch('/admin/push', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({title: title, body: body, recipient: recipient})
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      btn.disabled = false;
+      btn.textContent = '{{ t("admin_push_send") }}';
+      if (data.error) {
+        result.innerHTML = '<span style="color:red">' + data.error + '</span>';
+      } else {
+        result.innerHTML = '<span style="color:green">Trimis: ' + data.sent + ' notificări' +
+          (data.failed ? ', eșuate: ' + data.failed : '') + '.</span>';
+        document.getElementById('pushTitle').value = '';
+        document.getElementById('pushBody').value = '';
+      }
+    })
+    .catch(function () {
+      btn.disabled = false;
+      btn.textContent = '{{ t("admin_push_send") }}';
+      result.innerHTML = '<span style="color:red">Eroare de rețea.</span>';
+    });
+  };
 });
 </script>
 {% endblock %}

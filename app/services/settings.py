@@ -30,6 +30,8 @@ ENV_SETTING_MAP = {
     "smtp_from": "SMTP_FROM",
     "telegram_token": "TELEGRAM_TOKEN",
     "telegram_botname": "TELEGRAM_BOTNAME",
+    "fcm_service_account": "FCM_SERVICE_ACCOUNT",
+    "push_provider": "PUSH_PROVIDER",
 }
 
 SETTING_KEYS = {
@@ -59,6 +61,23 @@ SETTING_KEYS = {
     "company_name",             # platform operator name (GDPR)
     "company_email",            # official email / GDPR requests
     "company_address",          # registered / juridical address
+    # AdMob / Google Ads (managed from /admin?tab=ads; consumed by the app).
+    "admob_enabled",                # '1'/'0' master switch for the mobile app
+    "admob_app_id_android",         # AdMob App ID (Android)
+    "admob_app_id_ios",             # AdMob App ID (iOS)
+    "admob_banner_enabled",         # '1'/'0'
+    "admob_banner_unit_android",    # Android banner ad unit id
+    "admob_banner_unit_ios",        # iOS banner ad unit id
+    "admob_interstitial_enabled",   # '1'/'0'
+    "admob_interstitial_unit_android",
+    "admob_interstitial_unit_ios",
+    "admob_interstitial_interval",  # min minutes between interstitials
+    "admob_rewarded_enabled",       # '1'/'0'
+    "admob_rewarded_unit_android",
+    "admob_rewarded_unit_ios",
+    "admob_placements",             # comma-list of screens that may show ads
+    "fcm_service_account",          # Google FCM service-account JSON (secret)
+    "push_provider",                # 'expo' or 'fcm' (mobile token mode)
 }
 
 # Per-type, per-language email templates edited from /admin (message management).
@@ -69,7 +88,7 @@ for _mt in MSG_TYPES:
         SETTING_KEYS.add(f"msg_{_mt}_body_{_lg}")
 
 # Values that must be stored encrypted so a database leak cannot reveal them.
-_SECRET_KEYS = {"smtp_user", "smtp_pass", "telegram_token"}
+_SECRET_KEYS = {"smtp_user", "smtp_pass", "telegram_token", "fcm_service_account"}
 
 
 def _read_decrypted(raw: str) -> str:
@@ -94,14 +113,25 @@ def get_setting(key: str, default: str = "") -> str:
         env_value = os.getenv(env_name)
         if env_value is not None:
             return env_value
+    return get_stored_setting(key, default)
+
+
+def get_stored_setting(key: str, default: str = "") -> str:
+    """Return the raw database value only (ignores the environment override)."""
     with _conn() as conn:
         row = conn.execute(
             "SELECT value FROM settings WHERE key = ?", (key,)
         ).fetchone()
     value = str(row["value"]) if row else default
     if key in _SECRET_KEYS:
-        return _read_decrypted(value)
+        value = _read_decrypted(value)
     return value
+
+
+def get_push_provider() -> str:
+    """Return the current push provider mode ('expo' or 'fcm', default 'fcm')."""
+    mode = get_setting("push_provider", "fcm").strip().lower()
+    return mode if mode in ("expo", "fcm") else "fcm"
 
 
 def set_setting(key: str, value: str) -> None:
@@ -273,5 +303,54 @@ def msg_templates(msg_type: str) -> dict[str, dict[str, str]]:
             "body": get_msg_body(msg_type, lang),
         }
         for lang in ("ro", "ru", "en")
+    }
+
+
+# --------------------------------------------------------------------------- #
+# AdMob / Google Ads configuration (served to the mobile app via /api/config)
+# --------------------------------------------------------------------------- #
+def _flag(value: str) -> bool:
+    return str(value).strip() == "1"
+
+
+def admob_placements() -> list[str]:
+    """Screens/placements that are allowed to show ads (from /admin)."""
+    return parse_csv_list(get_setting("admob_placements", ""))
+
+
+def placement_allows_ads(placement: str) -> bool:
+    """True when ads are globally enabled and the given placement is allowed."""
+    if not _flag(get_setting("admob_enabled", "0")):
+        return False
+    return placement in admob_placements()
+
+
+def admob_config() -> dict:
+    """Server-driven AdMob config for the mobile app (consumed at startup).
+
+    Only safe (non-secret) values are exposed. The app treats an empty
+    unit id as 'not configured for this platform' and disables that format.
+    """
+    return {
+        "enabled": _flag(get_setting("admob_enabled", "0")),
+        "app_id_android": get_setting("admob_app_id_android", "").strip(),
+        "app_id_ios": get_setting("admob_app_id_ios", "").strip(),
+        "banner": {
+            "enabled": _flag(get_setting("admob_banner_enabled", "0")),
+            "unit_android": get_setting("admob_banner_unit_android", "").strip(),
+            "unit_ios": get_setting("admob_banner_unit_ios", "").strip(),
+        },
+        "interstitial": {
+            "enabled": _flag(get_setting("admob_interstitial_enabled", "0")),
+            "unit_android": get_setting("admob_interstitial_unit_android", "").strip(),
+            "unit_ios": get_setting("admob_interstitial_unit_ios", "").strip(),
+            "interval_minutes": get_int_setting("admob_interstitial_interval", 5),
+        },
+        "rewarded": {
+            "enabled": _flag(get_setting("admob_rewarded_enabled", "0")),
+            "unit_android": get_setting("admob_rewarded_unit_android", "").strip(),
+            "unit_ios": get_setting("admob_rewarded_unit_ios", "").strip(),
+        },
+        "placements": admob_placements(),
     }
 

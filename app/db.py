@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS device_tokens (
     user_id INTEGER NOT NULL,
     platform TEXT NOT NULL DEFAULT 'android',
     token TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'expo',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     last_seen TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (user_id, token),
@@ -171,6 +172,19 @@ CREATE INDEX IF NOT EXISTS idx_invoices_account ON invoices (account_id);
 CREATE INDEX IF NOT EXISTS idx_history_invoice ON invoice_history (invoice_id, checked_at);
 CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON device_tokens (user_id);
 CREATE INDEX IF NOT EXISTS idx_invoice_jobs_pending ON invoice_jobs (status, id);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL DEFAULT '',
+    type TEXT NOT NULL DEFAULT 'admin',
+    channel TEXT NOT NULL DEFAULT 'push',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, id);
 """
 
 
@@ -245,6 +259,8 @@ def _migrate_sqlite(conn) -> None:
             "last_inactivity_email": "ALTER TABLE users ADD COLUMN last_inactivity_email TEXT",
             "deactivated": "ALTER TABLE users ADD COLUMN deactivated INTEGER NOT NULL DEFAULT 0",
             "delete_after": "ALTER TABLE users ADD COLUMN delete_after TEXT",
+            "notifications_enabled": "ALTER TABLE users ADD COLUMN notifications_enabled INTEGER NOT NULL DEFAULT 1",
+            "release_channel": "ALTER TABLE users ADD COLUMN release_channel TEXT NOT NULL DEFAULT 'stable'",
         }.items():
             if col not in ucols:
                 conn.execute(ddl)
@@ -259,6 +275,24 @@ def _migrate_sqlite(conn) -> None:
             conn.execute("ALTER TABLE accounts ADD COLUMN full_name TEXT")
         conn.execute(
             "UPDATE accounts SET provider = 'energocom' WHERE provider = 'moldovagaz'"
+        )
+
+    if "device_tokens" in tables:
+        dcols = {r["name"] for r in conn.execute("PRAGMA table_info(device_tokens)").fetchall()}
+        if "provider" not in dcols:
+            conn.execute(
+                "ALTER TABLE device_tokens ADD COLUMN provider TEXT NOT NULL DEFAULT 'expo'"
+            )
+
+    if "notifications" in tables:
+        ncols = {r["name"] for r in conn.execute("PRAGMA table_info(notifications)").fetchall()}
+        if "read" not in ncols:
+            conn.execute(
+                "ALTER TABLE notifications ADD COLUMN read INTEGER NOT NULL DEFAULT 0"
+            )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notifications_user_read "
+            "ON notifications (user_id, read, id)"
         )
 
     if "faq_items" not in tables:

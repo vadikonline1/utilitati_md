@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -12,9 +12,11 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { Home, Invoice, listHomes, listInvoices } from '../api/client';
 import AppHeader from '../components/AppHeader';
+import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
+import { loadAdConfig, showInterstitialOnce, showRewardedOnce } from '../utils/ads';
 
 type Nav = {
   navigate: (name: string, params?: object) => void;
@@ -78,6 +80,23 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [supportAds, setSupportAds] = useState(false);
+  const [supportBusy, setSupportBusy] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const cfg = await loadAdConfig();
+      if (mounted) {
+        setSupportAds(
+          !!cfg && cfg.enabled && cfg.interstitial.enabled && cfg.rewarded.enabled,
+        );
+      }
+    })().catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -107,6 +126,19 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const stats: Stats = { homeCount: homes.length, ...computeStats(invoices) };
   const grid: (keyof Stats)[] = ['unpaidBalance', 'openInvoices', 'paidInvoices', 'arrears'];
 
+  const onShowSupport = useCallback(async () => {
+    if (supportBusy) return;
+    setSupportBusy(true);
+    try {
+      const shown = await showInterstitialOnce();
+      if (shown) {
+        await showRewardedOnce();
+      }
+    } finally {
+      setSupportBusy(false);
+    }
+  }, [supportBusy]);
+
   return (
     <View style={styles.container}>
       <AppHeader />
@@ -133,12 +165,24 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
         }
         contentContainerStyle={styles.list}
         ListHeaderComponent={
-          <View style={styles.grid}>
-            <StatCard label="Sold total neachitat" value={`${stats.unpaidBalance.toFixed(2)} MDL`} accent={colors.danger} />
-            <StatCard label="Facturi deschise" value={String(stats.openInvoices)} />
-            <StatCard label="Facturi achitate" value={String(stats.paidInvoices)} accent={colors.success} />
-            <StatCard label="Restanțe" value={`${stats.arrears.toFixed(2)} MDL`} accent={colors.warning} />
-            <StatCard label="Locuințe" value={String(stats.homeCount)} />
+          <View>
+            <View style={styles.grid}>
+              <StatCard label="Sold total neachitat" value={`${stats.unpaidBalance.toFixed(2)} MDL`} accent={colors.danger} />
+              <StatCard label="Facturi deschise" value={String(stats.openInvoices)} />
+              <StatCard label="Facturi achitate" value={String(stats.paidInvoices)} accent={colors.success} />
+              <StatCard label="Restanțe" value={`${stats.arrears.toFixed(2)} MDL`} accent={colors.warning} />
+              <StatCard label="Locuințe" value={String(stats.homeCount)} />
+            </View>
+            {supportAds ? (
+              <TouchableOpacity
+                style={[styles.supportBtn, supportBusy ? styles.supportBtnBusy : null]}
+                onPress={onShowSupport}
+                disabled={supportBusy}
+              >
+                <Ionicons name="heart-outline" size={20} color="#fff" />
+                <Text style={styles.supportText}>Susține proiectul nostru</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
@@ -146,6 +190,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
             {loading ? 'Se încarcă…' : 'Nu ai nicio locuință încă.'}
           </Text>
         }
+        ListFooterComponent={<AdBanner placement="dashboard" />}
       />
       {menuOpen ? (
         <View style={styles.menu}>
@@ -213,6 +258,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   menuText: { color: colors.text, fontSize: 15, fontWeight: '600', marginLeft: spacing.sm },
+  supportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+  },
+  supportBtnBusy: { opacity: 0.6 },
+  supportText: { color: '#fff', fontSize: 15, fontWeight: '700', marginLeft: spacing.sm },
   fab: {
     position: 'absolute',
     right: spacing.xl,

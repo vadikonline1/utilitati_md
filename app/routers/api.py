@@ -19,9 +19,12 @@ from ..auth import (
     deactivate_user,
     get_user,
     get_user_lang,
+    is_notifications_enabled,
     register,
     resolve_reset_token,
+    set_notifications_enabled,
     set_password_for_user,
+    set_release_channel,
     set_reset_token,
     set_user_full_name,
     user_by_email,
@@ -29,8 +32,10 @@ from ..auth import (
 from ..config import SITE_URL
 from ..deps import get_auth_token
 from ..services import email as email_svc
+from ..services import notify as notify_svc
 from ..services import push as push_svc
 from ..services import telegram as telegram_svc
+from ..services.settings import admob_config
 from ..services.utilities import (
     active_unpaid_balance,
     create_home,
@@ -77,6 +82,8 @@ def _public_user(user_id: int) -> dict | None:
         "username": u["username"],
         "full_name": u.get("full_name") or "",
         "email": u.get("email") or "",
+        "notifications_enabled": bool(u.get("notifications_enabled", 1)),
+        "release_channel": u.get("release_channel") or "stable",
     }
 
 
@@ -146,12 +153,13 @@ async def auth_register(payload: dict):
 async def device_token_register(
     payload: dict, user_id: int = Depends(get_auth_token)
 ):
-    """Register a mobile Expo push token for the authenticated user."""
+    """Register a mobile push token ('fcm' firebase or 'expo') for a user."""
     token = str(payload.get("token", "")).strip()
     if not token or token == "ExponentPushToken[InvalidToken]":
         raise HTTPException(status_code=400, detail="Token invalid")
     platform = str(payload.get("platform", "android") or "android").lower()
-    push_svc.register_device_token(user_id, token, platform)
+    provider = str(payload.get("provider", "expo") or "expo").lower()
+    push_svc.register_device_token(user_id, token, platform, provider)
     return {"registered": True}
 
 
@@ -169,10 +177,44 @@ async def device_test_push(user_id: int = Depends(get_auth_token)):
         user_id,
         "Utilități.MD ✓",
         "Notificare de test — notificările sunt active.",
+        type_="test",
     )
     if sent == 0:
         raise HTTPException(status_code=400, detail="Niciun token de notificare înregistrat")
     return {"sent": sent}
+
+
+@router.get("/notifications")
+async def get_notifications(user_id: int = Depends(get_auth_token)):
+    """Most-recent notifications for the authenticated user (bell feed)."""
+    return {"notifications": push_svc.list_user_notifications(user_id)}
+
+
+@router.get("/notifications/unread-count")
+async def get_unread_notifications_count(user_id: int = Depends(get_auth_token)):
+    """Number of still-unread notifications (bell badge on mobile)."""
+    return {"count": push_svc.unread_notification_count(user_id)}
+
+
+@router.post("/notifications/read-all")
+async def read_all_notifications(user_id: int = Depends(get_auth_token)):
+    """Mark every notification of the current user as read."""
+    return {"read": push_svc.mark_all_notifications_read(user_id)}
+
+
+@router.post("/notifications/{notif_id}/read")
+async def read_notification(notif_id: int, user_id: int = Depends(get_auth_token)):
+    """Mark a single notification as read (must belong to the user)."""
+    if not push_svc.mark_notification_read(user_id, notif_id):
+        raise HTTPException(status_code=404, detail="Notificarea nu a fost găsită")
+    return {"read": True}
+
+
+@router.get("/config")
+async def app_config(user_id: int = Depends(get_auth_token)):
+    """Server-driven runtime config for the mobile app (e.g. AdMob)."""
+    from ..services.settings import get_push_provider
+    return {"admob": admob_config(), "push": {"provider": get_push_provider()}}
 
 
 @router.get("/auth/me")
@@ -185,14 +227,33 @@ async def auth_me(user_id: int = Depends(get_auth_token)):
 
 @router.put("/auth/me")
 async def auth_me_update(payload: dict, user_id: int = Depends(get_auth_token)):
-    full_name = str(payload.get("full_name", "")).strip()
-    if not full_name:
-        raise HTTPException(status_code=400, detail="Numele complet nu poate fi gol")
-    set_user_full_name(user_id, full_name)
+    if "full_name" in payload:
+        full_name = str(payload.get("full_name", "")).strip()
+        if not full_name:
+            raise HTTPException(status_code=400, detail="Numele complet nu poate fi gol")
+        set_user_full_name(user_id, full_name)
+    if "release_channel" in payload:
+        channel = str(payload.get("release_channel", "")).strip()
+        if channel not in ("beta", "stable", "play"):
+            raise HTTPException(
+                status_code=400,
+                detail="Canal de actualizare invalid (beta/stable/play)",
+            )
+        set_release_channel(user_id, channel)
     user = _public_user(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
     return user
+
+
+@router.put("/auth/notifications")
+async def update_notifications(payload: dict, user_id: int = Depends(get_auth_token)):
+    """Toggle the per-user 'oprire notificări' switch from the mobile profile."""
+    enabled = bool(payload.get("enabled", True))
+    set_notifications_enabled(user_id, enabled)
+    if not enabled:
+        push_svc.clear_device_tokens(user_id)
+    return {"notifications_enabled": is_notifications_enabled(user_id)}
 
 
 @router.post("/auth/forgot-password")
@@ -373,14 +434,16 @@ async def account_refresh(account_id: int, user_id: int = Depends(get_auth_token
     row = await _get_account(user_id, account_id)
     prev_balance = active_unpaid_balance(account_id)
     data = await fetch_account_data(row)
-    _created, saved_ids = persist_invoices(account_id, data)
+    created, saved_ids = persist_invoices(account_id, data)
     new_balance = active_unpaid_balance(account_id) if data.is_connected else prev_balance
+    if created:
+        await notify_svc.send_push_new_invoices(user_id, created)
     return {
         "is_connected": data.is_connected,
         "error_message": data.error_message,
         "unpaid_balance_mdl": data.unpaid_balance_mdl,
         "invoice_count": len(saved_ids),
-        "created_count": len(_created),
+        "created_count": len(created),
         "balance_increased": bool(new_balance > prev_balance),
         "invoices": _serialize_invoices(data),
         "last_invoice": _serialize_provider_invoice(data.last_invoice),

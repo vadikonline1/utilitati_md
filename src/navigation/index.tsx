@@ -19,6 +19,7 @@ import HomeDetailScreen from '../screens/HomeDetailScreen';
 import HomeFormScreen from '../screens/HomeFormScreen';
 import AccountFormScreen from '../screens/AccountFormScreen';
 import AccountDetailScreen from '../screens/AccountDetailScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -29,6 +30,7 @@ export type RootStackParamList = {
   HomeForm: { id?: number };
   AccountForm: { id?: number; homeId?: number; provider?: string; label?: string };
   AccountDetail: { id: number; label: string };
+  Notifications: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -87,6 +89,7 @@ function HomesStack() {
       <Stack.Screen name="HomeForm" component={HomeFormScreen} options={{ title: 'Locuință' }} />
       <Stack.Screen name="AccountForm" component={AccountFormScreen} options={{ title: 'Cont' }} />
       <Stack.Screen name="AccountDetail" component={AccountDetailScreen} options={{ title: 'Cont' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notificări' }} />
     </Stack.Navigator>
   );
 }

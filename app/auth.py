@@ -207,7 +207,8 @@ def get_user(user_id: int) -> dict | None:
     with _conn() as conn:
         row = conn.execute(
             "SELECT id, username, full_name, email, is_active, notification_emails, "
-            "telegram_chat_ids FROM users WHERE id = ?",
+            "telegram_chat_ids, notifications_enabled, release_channel "
+            "FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
     return dict(row) if row else None
@@ -217,10 +218,13 @@ def list_users() -> list[dict]:
     """Return all users (for the admin Users tab), newest first."""
     with _conn() as conn:
         rows = conn.execute(
-            "SELECT id, username, full_name, email, is_active, created_at, "
-            "datetime(last_login) AS last_login, "
-            "CASE WHEN confirm_token IS NOT NULL THEN 1 ELSE 0 END AS pending "
-            "FROM users ORDER BY id DESC"
+            "SELECT u.id, u.username, u.full_name, u.email, u.is_active, "
+            "u.created_at, datetime(u.last_login) AS last_login, "
+            "u.notifications_enabled, u.release_channel, "
+            "CASE WHEN u.confirm_token IS NOT NULL THEN 1 ELSE 0 END AS pending, "
+            "IFNULL((SELECT COUNT(*) FROM device_tokens d "
+            "         WHERE d.user_id = u.id), 0) AS device_count "
+            "FROM users u ORDER BY u.id DESC"
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -231,6 +235,33 @@ def set_user_active(user_id: int, is_active: bool) -> None:
         conn.execute(
             "UPDATE users SET is_active = ? WHERE id = ?",
             (1 if is_active else 0, user_id),
+        )
+
+
+def is_notifications_enabled(user_id: int) -> bool:
+    """True when the user has NOT switched push notifications OFF."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT notifications_enabled FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    return bool(row) and bool(row["notifications_enabled"])
+
+
+def set_notifications_enabled(user_id: int, enabled: bool) -> None:
+    """Set the user's per-user "oprire notificări" switch."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET notifications_enabled = ? WHERE id = ?",
+            (1 if enabled else 0, user_id),
+        )
+
+
+def set_release_channel(user_id: int, channel: str) -> None:
+    """Set the user's app release channel (beta/stable/play) reported by the app."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET release_channel = ? WHERE id = ?",
+            (channel, user_id),
         )
 
 

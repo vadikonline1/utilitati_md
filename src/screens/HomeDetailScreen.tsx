@@ -11,6 +11,7 @@ import {
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 
 import { Account, getHome, Home as HomeType } from '../api/client';
+import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
 import { colors, spacing } from '../theme';
 
@@ -100,6 +101,7 @@ export default function HomeDetailScreen({ navigation, route }: Props) {
         ListEmptyComponent={
           <Text style={styles.empty}>Niciun cont de utilități adăugat.</Text>
         }
+        ListFooterComponent={<AdBanner placement="home_detail" />}
       />
       <TouchableOpacity
         style={styles.fab}

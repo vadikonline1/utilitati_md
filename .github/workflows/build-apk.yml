@@ -1,11 +1,19 @@
 name: Build Android APK
 
-# Rulează la fiecare push pe `deploy` și manual (Actions -> Run workflow).
+# Rulează la fiecare push pe `deploy` (beta) și `main` (stable), și manual.
+# Tag-ul release-ului include ramura: apk-deploy-<sha> / apk-main-<sha> —
+# aplicația folosește acest prefix ca feed pentru actualizările in-app.
 on:
   push:
-    branches: [deploy]
+    branches: [deploy, main]
     paths:
-      - 'mobile/**'
+      - 'src/**'
+      - 'App.tsx'
+      - 'app.json'
+      - 'package.json'
+      - 'assets/**'
+      - 'google-services.json'
+      - 'GoogleService-Info.plist'
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
@@ -16,18 +24,14 @@ jobs:
     permissions:
       contents: write
 
-    defaults:
-      run:
-        working-directory: mobile
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -37,6 +41,15 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Get app version
+        id: version
+        run: echo "app_version=$(node -p "require('./app.json').expo.version")" >> "$GITHUB_OUTPUT"
+
+      - name: Embed build SHA (in-app update feed)
+        run: |
+          node -e "const fs=require('fs');const p='app.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.expo.extra.build_sha='${{ github.sha }}';fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
+          echo "embedded build_sha=${{ github.sha }}"
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -62,24 +75,24 @@ jobs:
           cd ..
 
       - name: Upload APK (workflow artifact)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: utilitati-mobile-apk
-          path: mobile/android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
       - name: Publish APK to GitHub Release
         uses: softprops/action-gh-release@v3
         if: success()
         with:
-          tag_name: apk-${{ github.sha }}
+          tag_name: apk-${{ github.ref_name }}-${{ github.sha }}
           name: APK ${{ github.ref_name }} (${{ github.sha }})
           body: |
             Build automat APK Android (debug-signed, instalabil direct).
 
-            **Versiune aplicație:** 1.0.0
+            **Versiune aplicație:** ${{ steps.version.outputs.app_version }}
             **API URL:** https://utilitati.nistorlazar.md/api
-          files: mobile/android/app/build/outputs/apk/release/*.apk
+          files: android/app/build/outputs/apk/release/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -91,20 +104,18 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: npm install
-        working-directory: mobile
 
       - name: Generate native ios project (expo prebuild)
         run: npx expo prebuild --platform ios --no-install
-        working-directory: mobile
 
       - name: Install CocoaPods
         run: |
@@ -112,7 +123,6 @@ jobs:
           cd ios
           if [ -f Podfile ]; then pod install; fi
           cd ..
-        working-directory: mobile
 
       - name: Build iOS app (simulator, unsigned)
         run: |
@@ -139,13 +149,12 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build
           cd ..
-        working-directory: mobile
 
       - name: Upload iOS app (workflow artifact)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: utilitati-mobile-ios-simulator
-          path: mobile/ios/build/Build/Products/Release-iphonesimulator/*.app
+          path: ios/build/Build/Products/Release-iphonesimulator/*.app
           if-no-files-found: warn
 
       - name: Publish iOS info to GitHub Release

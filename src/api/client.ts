@@ -1,17 +1,24 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
+import { resolveApiBase } from './dns';
+
 const DEFAULT_API_URL = 'https://utilitati.nistorlazar.md/api';
 const TOKEN_KEY = 'utilitati.token';
 
-function apiUrl(): string {
+/** Built-in fallback (app.json `extra.apiUrl` or the default constant). */
+function fallbackApiUrl(): string {
   const extra = Constants.expoConfig?.extra as { apiUrl?: string } | undefined;
   return extra?.apiUrl || DEFAULT_API_URL;
 }
 
 export function getApiUrl(): string {
-  return apiUrl();
+  return fallbackApiUrl();
 }
+
+// Kick off the DNS resolution as soon as the module loads, so the first real
+// request is usually not blocked by the lookup.
+void resolveApiBase(fallbackApiUrl()).catch(() => undefined);
 
 export async function saveToken(token: string): Promise<void> {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -46,7 +53,8 @@ async function request<T>(
 
   let res: Response;
   try {
-    res = await fetch(`${apiUrl()}${path}`, {
+    const base = await resolveApiBase(fallbackApiUrl());
+    res = await fetch(`${base}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -76,6 +84,8 @@ export interface PublicUser {
   username: string;
   full_name: string;
   email: string;
+  notifications_enabled?: boolean;
+  release_channel?: string;
 }
 
 export function login(username: string, password: string): Promise<{ token: string; user: PublicUser }> {
@@ -104,6 +114,16 @@ export function updateSelf(
   fullName: string,
 ): Promise<PublicUser> {
   return request('/auth/me', { method: 'PUT', body: { full_name: fullName } });
+}
+
+export type ReleaseChannel = 'beta' | 'stable' | 'play';
+
+export function updateReleaseChannel(channel: ReleaseChannel): Promise<PublicUser> {
+  return request('/auth/me', { method: 'PUT', body: { release_channel: channel } });
+}
+
+export function updateNotificationsEnabled(enabled: boolean): Promise<{ notifications_enabled: boolean }> {
+  return request('/auth/notifications', { method: 'PUT', body: { enabled } });
 }
 
 export function forgotPassword(email: string): Promise<{ ok: boolean }> {
@@ -246,11 +266,12 @@ export function setAccountStatus(id: number, status: string): Promise<Account> {
 
 export function registerDeviceToken(
   token: string,
+  provider: 'fcm' | 'expo' = 'fcm',
   platform: 'android' | 'ios' = 'android',
 ): Promise<{ registered: boolean }> {
   return request('/devices/token', {
     method: 'POST',
-    body: { token, platform },
+    body: { token, provider, platform },
   });
 }
 
@@ -260,6 +281,59 @@ export function clearDeviceToken(): Promise<{ cleared: boolean }> {
 
 export function sendTestNotification(): Promise<{ sent: number }> {
   return request('/devices/test', { method: 'POST' });
+}
+
+export interface AppNotification {
+  id: number;
+  title: string;
+  body: string;
+  type: string;
+  read: number;
+  created_at: string;
+}
+
+export function getNotifications(): Promise<{ notifications: AppNotification[] }> {
+  return request('/notifications');
+}
+
+export function getUnreadNotificationsCount(): Promise<{ count: number }> {
+  return request('/notifications/unread-count');
+}
+
+export function markNotificationRead(id: number): Promise<{ read: boolean }> {
+  return request(`/notifications/${id}/read`, { method: 'POST' });
+}
+
+export function markAllNotificationsRead(): Promise<{ read: number }> {
+  return request('/notifications/read-all', { method: 'POST' });
+}
+
+// --------------------------------------------------------------------------- //
+// Runtime config (server-driven AdMob settings from /admin)
+// --------------------------------------------------------------------------- //
+export interface AdmobAdFormatConfig {
+  enabled: boolean;
+  unit_android: string;
+  unit_ios: string;
+}
+
+export interface AdmobConfig {
+  enabled: boolean;
+  app_id_android: string;
+  app_id_ios: string;
+  banner: AdmobAdFormatConfig;
+  interstitial: AdmobAdFormatConfig & { interval_minutes: number };
+  rewarded: AdmobAdFormatConfig;
+  placements: string[];
+}
+
+export interface AppConfig {
+  admob: AdmobConfig;
+  push: { provider: 'fcm' | 'expo' };
+}
+
+export function getConfig(): Promise<AppConfig> {
+  return request('/config');
 }
 
 export function deleteAccount(id: number): Promise<{ deleted: boolean }> {

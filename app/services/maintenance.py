@@ -191,6 +191,8 @@ def run_maintenance() -> dict:
         # account cleanups are explicit business rules and always run.
         result["deactivated"] = _run_deactivated(conn)
         result["unconfirmed"] = _run_unconfirmed(conn)
+        # Notification history older than 60 days is always pruned (bell feed).
+        result["notifications"] = _run_old_notifications(conn)
         if not retention_enabled():
             result["disabled"] = True
         else:
@@ -198,3 +200,12 @@ def run_maintenance() -> dict:
             result["invoices"] = _run_invoices(conn)
     _LOGGER.info("Maintenance run: %s", result)
     return result
+
+
+def _run_old_notifications(conn, days: int = 60) -> int:
+    """Delete notification-history rows older than `days` days (bell feed)."""
+    cur = conn.execute(
+        "DELETE FROM notifications WHERE created_at < datetime('now', ?)",
+        (f"-{int(days)} days",),
+    )
+    return cur.rowcount

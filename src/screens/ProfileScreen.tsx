@@ -15,9 +15,10 @@ import {
 import Input from '../components/Input';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { ApiError, changePassword, clearDeviceToken, deactivateAccount, sendTestNotification, updateSelf } from '../api/client';
+import { ApiError, changePassword, clearDeviceToken, deactivateAccount, ReleaseChannel, sendTestNotification, updateNotificationsEnabled, updateReleaseChannel, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
-import { registerPushToken } from '../utils/notify';
+import { registerPushTokenResult } from '../utils/notify';
+import { checkForUpdate, getLocalVersion, installUpdate } from '../utils/updater';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
@@ -25,10 +26,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 const LANG_KEY = 'utilitati.language';
 const NOTIF_KEY = 'utilitati.notifications';
+const CHANNEL_KEY = 'utilitati.release_channel';
 const LANGUAGES = [
   { code: 'ro', label: 'Română' },
   { code: 'ru', label: 'Русский' },
   { code: 'en', label: 'English' },
+];
+const CHANNELS: { id: ReleaseChannel; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'beta', label: 'Beta', desc: 'Build din ramura deploy — actualizare directă din GitHub, detectată după SHA-ul noului build', icon: 'flask-outline' },
 ];
 
 function SettingsRow({
@@ -66,6 +71,8 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
   const [editName, setEditName] = useState(user?.full_name || '');
   const [notifOn, setNotifOn] = useState(false);
+  const [channel, setChannel] = useState<ReleaseChannel>('beta');
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -73,26 +80,48 @@ export default function ProfileScreen() {
       if (saved) setLang(saved);
       const n = await AsyncStorage.getItem(NOTIF_KEY);
       setNotifOn(n === '1');
+      const serverChannel = user?.release_channel as ReleaseChannel | undefined;
+      const stored = (await AsyncStorage.getItem(CHANNEL_KEY)) as ReleaseChannel | null;
+      const effective: ReleaseChannel = 'beta';
+      setChannel(effective);
+      if (stored !== effective) {
+        await AsyncStorage.setItem(CHANNEL_KEY, effective);
+      }
+      if (serverChannel !== effective) {
+        updateReleaseChannel(effective).catch(() => undefined);
+      }
     })();
-  }, []);
+  }, [user?.release_channel]);
 
   const toggleNotifications = async (value: boolean) => {
     setNotifOn(value);
     if (value) {
       // Register the device and send a test push so the user can verify it works.
-      try {
-        await registerPushToken();
-        await sendTestNotification();
+      let activationDetail = '';
+      const res = await registerPushTokenResult();
+      if (!res.ok) activationDetail = res.detail || '';
+      if (res.ok) {
+        try {
+          await sendTestNotification();
+        } catch {
+          activationDetail = 'Autentificarea a mers, dar trimiterea notificării de test a eșuat.';
+        }
+      }
+      if (res.ok && !activationDetail) {
         Alert.alert('Gata', 'Ai activat notificările. Notificarea de test a fost trimisă.');
         await AsyncStorage.setItem(NOTIF_KEY, '1');
-      } catch {
+        await updateNotificationsEnabled(true).catch(() => undefined);
+      } else {
+        setNotifOn(false);
+        const detail = activationDetail ? `\n\n${activationDetail}` : '';
         Alert.alert(
           'Atenție',
-          'Nu am putut activa notificările. Verifică permisiunile aplicației și contul Expo (projectId).',
+          `Nu am putut activa notificările.${detail}\n\nVerifică permisiunea de notificări pentru aplicație și instalează o versiune nouă (rebuild) care conține projectId-ul Expo corect.`,
         );
         await AsyncStorage.setItem(NOTIF_KEY, '0');
       }
     } else {
+      await updateNotificationsEnabled(false).catch(() => undefined);
       await clearDeviceToken().catch(() => undefined);
       await AsyncStorage.setItem(NOTIF_KEY, '0');
     }
@@ -176,6 +205,73 @@ export default function ProfileScreen() {
     }
   };
 
+  const selectChannel = async (id: ReleaseChannel) => {
+    const previous = channel;
+    setChannel(id);
+    await AsyncStorage.setItem(CHANNEL_KEY, id);
+    try {
+      const updated = await updateReleaseChannel(id);
+      if (updated) setUser(updated);
+    } catch (e) {
+      setChannel(previous);
+      Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Nu am putut salva canalul.');
+    }
+  };
+
+  const checkUpdates = async () => {
+    setChecking(true);
+    const label = CHANNELS.find((c) => c.id === channel)?.label || 'Beta';
+    try {
+      if (Platform.OS === 'ios') {
+        Alert.alert(
+          'iOS',
+          'Pe iOS actualizarea se face din App Store / TestFlight — aici poți doar verifica canalul Beta.',
+        );
+        return;
+      }
+      const info = await checkForUpdate();
+      if (!info.apkUrl) {
+        Alert.alert('La zi', `Canalul ${label} nu are încă un build publicat.`);
+        return;
+      }
+      const localVersion = info.localVersion;
+      const parts: string[] = [];
+      if (info.remoteSha) parts.push(`Build/deploy: ${info.remoteSha.slice(0, 7)}`);
+      if (info.remoteVersion && info.remoteVersion !== localVersion) {
+        parts.push(`Versiune: v${info.remoteVersion} (ai v${localVersion})`);
+      }
+      if (!info.available) {
+        Alert.alert('La zi', `Ai instalat ultimul build Beta${parts.length ? ` (${parts.join(', ')})` : ''}.`);
+        return;
+      }
+      Alert.alert(
+        'Build nou disponibil',
+        `Pe canalul ${label} este un build mai nou${parts.length ? `: ${parts.join(', ')}` : ''}.\n\nDescarc APK-ul și îl deschid pentru instalare?`,
+        [
+          { text: 'Anulează', style: 'cancel' },
+          {
+            text: 'Descarcă și instalează',
+            style: 'default',
+            onPress: async () => {
+              try {
+                await installUpdate(info.apkUrl!);
+              } catch (err) {
+                Alert.alert(
+                  'Eroare',
+                  err instanceof Error && err.message
+                    ? err.message
+                    : 'Nu am putut descărca/instala APK-ul. Deschide fișierul apk-ului din GitHub release.',
+                );
+              }
+            },
+          },
+        ],
+      );
+    } finally {
+      setChecking(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader />
@@ -230,6 +326,34 @@ export default function ProfileScreen() {
           icon="person-remove-outline"
           title="Dezactivarea contului"
           onPress={deactivate}
+        />
+
+        <Text style={styles.section}>Canal de actualizare</Text>
+        {CHANNELS.map((c) => (
+          <TouchableOpacity
+            key={c.id}
+            style={[styles.row, channel === c.id && styles.rowActive]}
+            onPress={() => selectChannel(c.id)}
+          >
+            <Ionicons name={c.icon} size={22} color={colors.primary} />
+            <View style={styles.rowBody}>
+              <Text style={styles.rowTitle}>{c.label}</Text>
+              <Text style={styles.muted}>{c.desc}</Text>
+            </View>
+            {channel === c.id ? (
+              <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+            ) : null}
+          </TouchableOpacity>
+        ))}
+        <Text style={[styles.muted, styles.versionText]}>
+          Versiune instalată: v{getLocalVersion()}
+        </Text>
+        <Button
+          title="Verifică actualizări"
+          onPress={checkUpdates}
+          loading={checking}
+          disabled={checking}
+          style={styles.updateBtn}
         />
 
         <Text style={styles.section}>Cont</Text>
@@ -324,8 +448,14 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginVertical: spacing.xs,
   },
+  rowActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#f0fdfa',
+  },
   rowBody: { flex: 1, marginLeft: spacing.md },
   rowTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+  versionText: { marginTop: spacing.md },
+  updateBtn: { marginTop: spacing.sm },
   logout: { marginTop: spacing.md },
   modalWrap: {
     flex: 1,
