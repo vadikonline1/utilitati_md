@@ -85,6 +85,7 @@ export interface PublicUser {
   full_name: string;
   email: string;
   notifications_enabled?: boolean;
+  release_channel?: string;
 }
 
 export function login(username: string, password: string): Promise<{ token: string; user: PublicUser }> {
@@ -113,6 +114,12 @@ export function updateSelf(
   fullName: string,
 ): Promise<PublicUser> {
   return request('/auth/me', { method: 'PUT', body: { full_name: fullName } });
+}
+
+export type ReleaseChannel = 'beta' | 'stable' | 'play';
+
+export function updateReleaseChannel(channel: ReleaseChannel): Promise<PublicUser> {
+  return request('/auth/me', { method: 'PUT', body: { release_channel: channel } });
 }
 
 export function updateNotificationsEnabled(enabled: boolean): Promise<{ notifications_enabled: boolean }> {

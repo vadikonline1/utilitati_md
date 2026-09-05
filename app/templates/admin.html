@@ -217,13 +217,14 @@
     <section id="tab-users" class="admin-tab-panel" hidden>
       <p class="subtitle">{{ t('admin_users_hint') }}</p>
       {% if users %}
-        <div class="data-list cols-10">
+        <div class="data-list cols-11">
           <div class="dl-head">
             <div class="dl-cell">{{ t('admin_users_id') }}</div>
             <div class="dl-cell">{{ t('admin_users_username') }}</div>
             <div class="dl-cell">{{ t('admin_users_fullname') }}</div>
             <div class="dl-cell">{{ t('admin_users_email') }}</div>
             <div class="dl-cell">{{ t('admin_users_app') }}</div>
+            <div class="dl-cell">{{ t('admin_users_beta') }}</div>
             <div class="dl-cell">{{ t('admin_users_notif') }}</div>
             <div class="dl-cell">{{ t('admin_users_status') }}</div>
             <div class="dl-cell">{{ t('admin_users_created') }}</div>
@@ -241,6 +242,13 @@
                   <span class="badge enabled">{{ t('admin_users_app_yes') }}</span>
                 {% else %}
                   <span class="badge disabled">{{ t('admin_users_app_no') }}</span>
+                {% endif %}
+              </div>
+              <div class="dl-cell" data-label="{{ t('admin_users_beta') }}">
+                {% if u.release_channel == 'beta' %}
+                  <span class="badge warn" title="beta">{{ t('admin_users_beta_yes') }}</span>
+                {% else %}
+                  <span class="badge disabled" title="{{ u.release_channel or 'stable' }}">{{ t('admin_users_beta_no') }}</span>
                 {% endif %}
               </div>
               <div class="dl-cell" data-label="{{ t('admin_users_notif') }}">

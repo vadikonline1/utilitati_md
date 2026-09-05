@@ -207,7 +207,8 @@ def get_user(user_id: int) -> dict | None:
     with _conn() as conn:
         row = conn.execute(
             "SELECT id, username, full_name, email, is_active, notification_emails, "
-            "telegram_chat_ids, notifications_enabled FROM users WHERE id = ?",
+            "telegram_chat_ids, notifications_enabled, release_channel "
+            "FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
     return dict(row) if row else None
@@ -219,7 +220,7 @@ def list_users() -> list[dict]:
         rows = conn.execute(
             "SELECT u.id, u.username, u.full_name, u.email, u.is_active, "
             "u.created_at, datetime(u.last_login) AS last_login, "
-            "u.notifications_enabled, "
+            "u.notifications_enabled, u.release_channel, "
             "CASE WHEN u.confirm_token IS NOT NULL THEN 1 ELSE 0 END AS pending, "
             "IFNULL((SELECT COUNT(*) FROM device_tokens d "
             "         WHERE d.user_id = u.id), 0) AS device_count "
@@ -252,6 +253,15 @@ def set_notifications_enabled(user_id: int, enabled: bool) -> None:
         conn.execute(
             "UPDATE users SET notifications_enabled = ? WHERE id = ?",
             (1 if enabled else 0, user_id),
+        )
+
+
+def set_release_channel(user_id: int, channel: str) -> None:
+    """Set the user's app release channel (beta/stable/play) reported by the app."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET release_channel = ? WHERE id = ?",
+            (channel, user_id),
         )
 
 

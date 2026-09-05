@@ -15,9 +15,10 @@ import {
 import Input from '../components/Input';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { ApiError, changePassword, clearDeviceToken, deactivateAccount, sendTestNotification, updateNotificationsEnabled, updateSelf } from '../api/client';
+import { ApiError, changePassword, clearDeviceToken, deactivateAccount, ReleaseChannel, sendTestNotification, updateNotificationsEnabled, updateReleaseChannel, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
 import { registerPushTokenResult } from '../utils/notify';
+import { checkForUpdate, getLocalVersion, installUpdate, openPlayStore } from '../utils/updater';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
@@ -25,10 +26,16 @@ import { Ionicons } from '@expo/vector-icons';
 
 const LANG_KEY = 'utilitati.language';
 const NOTIF_KEY = 'utilitati.notifications';
+const CHANNEL_KEY = 'utilitati.release_channel';
 const LANGUAGES = [
   { code: 'ro', label: 'Română' },
   { code: 'ru', label: 'Русский' },
   { code: 'en', label: 'English' },
+];
+const CHANNELS: { id: ReleaseChannel; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'beta', label: 'Beta', desc: 'Build din ramura deploy — actualizare directă din GitHub', icon: 'flask-outline' },
+  { id: 'stable', label: 'Stable', desc: 'Build din ramura main — versiuni testate', icon: 'shield-checkmark-outline' },
+  { id: 'play', label: 'Play Market', desc: 'Instalare din Google Play (magazinul oficial)', icon: 'cloud-download-outline' },
 ];
 
 function SettingsRow({
@@ -66,6 +73,8 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
   const [editName, setEditName] = useState(user?.full_name || '');
   const [notifOn, setNotifOn] = useState(false);
+  const [channel, setChannel] = useState<ReleaseChannel>('stable');
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -73,8 +82,18 @@ export default function ProfileScreen() {
       if (saved) setLang(saved);
       const n = await AsyncStorage.getItem(NOTIF_KEY);
       setNotifOn(n === '1');
+      const serverChannel = user?.release_channel as ReleaseChannel | undefined;
+      const stored = (await AsyncStorage.getItem(CHANNEL_KEY)) as ReleaseChannel | null;
+      const effective = serverChannel || stored || 'stable';
+      setChannel(effective);
+      if (stored !== effective) {
+        await AsyncStorage.setItem(CHANNEL_KEY, effective);
+      }
+      if (serverChannel !== effective) {
+        updateReleaseChannel(effective).catch(() => undefined);
+      }
     })();
-  }, []);
+  }, [user?.release_channel]);
 
   const toggleNotifications = async (value: boolean) => {
     setNotifOn(value);
@@ -188,6 +207,73 @@ export default function ProfileScreen() {
     }
   };
 
+  const selectChannel = async (id: ReleaseChannel) => {
+    const previous = channel;
+    setChannel(id);
+    await AsyncStorage.setItem(CHANNEL_KEY, id);
+    try {
+      const updated = await updateReleaseChannel(id);
+      if (updated) setUser(updated);
+    } catch (e) {
+      setChannel(previous);
+      Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Nu am putut salva canalul.');
+    }
+  };
+
+  const checkUpdates = async () => {
+    setChecking(true);
+    const label = CHANNELS.find((c) => c.id === channel)?.label || channel;
+    try {
+      if (Platform.OS === 'ios') {
+        Alert.alert(
+          'iOS',
+          'Pe iOS actualizarea se face din App Store / TestFlight — aici poți doar alege canalul.',
+        );
+        return;
+      }
+      if (channel === 'play') {
+        await openPlayStore();
+        return;
+      }
+      const localVersion = getLocalVersion();
+      const info = await checkForUpdate(channel);
+      if (!info.remoteVersion || !info.apkUrl) {
+        Alert.alert(
+          'Canal indisponibil',
+          `Nu există încă un build publicat pe canalul ${label}.`,
+        );
+        return;
+      }
+      if (!info.available) {
+        Alert.alert('La zi', `Ai versiunea v${localVersion} pe canalul ${label}.`);
+        return;
+      }
+      Alert.alert(
+        'Versiune nouă',
+        `Pe canalul ${label} este versiunea v${info.remoteVersion} (ai v${localVersion}).\n\nDescarc APK-ul și îl deschid pentru instalare.`,
+        [
+          { text: 'Anulează', style: 'cancel' },
+          {
+            text: 'Descarcă și instalează',
+            style: 'default',
+            onPress: async () => {
+              try {
+                await installUpdate(info.apkUrl!);
+              } catch (err) {
+                Alert.alert(
+                  'Eroare',
+                  'Nu am putut descărca/instala APK-ul. Deschide fișierul apk-ului din GitHub release.',
+                );
+              }
+            },
+          },
+        ],
+      );
+    } finally {
+      setChecking(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader />
@@ -242,6 +328,34 @@ export default function ProfileScreen() {
           icon="person-remove-outline"
           title="Dezactivarea contului"
           onPress={deactivate}
+        />
+
+        <Text style={styles.section}>Canal de actualizare</Text>
+        {CHANNELS.map((c) => (
+          <TouchableOpacity
+            key={c.id}
+            style={[styles.row, channel === c.id && styles.rowActive]}
+            onPress={() => selectChannel(c.id)}
+          >
+            <Ionicons name={c.icon} size={22} color={colors.primary} />
+            <View style={styles.rowBody}>
+              <Text style={styles.rowTitle}>{c.label}</Text>
+              <Text style={styles.muted}>{c.desc}</Text>
+            </View>
+            {channel === c.id ? (
+              <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+            ) : null}
+          </TouchableOpacity>
+        ))}
+        <Text style={[styles.muted, styles.versionText]}>
+          Versiune instalată: v{getLocalVersion()}
+        </Text>
+        <Button
+          title="Verifică actualizări"
+          onPress={checkUpdates}
+          loading={checking}
+          disabled={checking}
+          style={styles.updateBtn}
         />
 
         <Text style={styles.section}>Cont</Text>
@@ -336,8 +450,14 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginVertical: spacing.xs,
   },
+  rowActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#f0fdfa',
+  },
   rowBody: { flex: 1, marginLeft: spacing.md },
   rowTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+  versionText: { marginTop: spacing.md },
+  updateBtn: { marginTop: spacing.sm },
   logout: { marginTop: spacing.md },
   modalWrap: {
     flex: 1,

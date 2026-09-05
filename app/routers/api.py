@@ -24,6 +24,7 @@ from ..auth import (
     resolve_reset_token,
     set_notifications_enabled,
     set_password_for_user,
+    set_release_channel,
     set_reset_token,
     set_user_full_name,
     user_by_email,
@@ -81,6 +82,7 @@ def _public_user(user_id: int) -> dict | None:
         "full_name": u.get("full_name") or "",
         "email": u.get("email") or "",
         "notifications_enabled": bool(u.get("notifications_enabled", 1)),
+        "release_channel": u.get("release_channel") or "stable",
     }
 
 
@@ -224,10 +226,19 @@ async def auth_me(user_id: int = Depends(get_auth_token)):
 
 @router.put("/auth/me")
 async def auth_me_update(payload: dict, user_id: int = Depends(get_auth_token)):
-    full_name = str(payload.get("full_name", "")).strip()
-    if not full_name:
-        raise HTTPException(status_code=400, detail="Numele complet nu poate fi gol")
-    set_user_full_name(user_id, full_name)
+    if "full_name" in payload:
+        full_name = str(payload.get("full_name", "")).strip()
+        if not full_name:
+            raise HTTPException(status_code=400, detail="Numele complet nu poate fi gol")
+        set_user_full_name(user_id, full_name)
+    if "release_channel" in payload:
+        channel = str(payload.get("release_channel", "")).strip()
+        if channel not in ("beta", "stable", "play"):
+            raise HTTPException(
+                status_code=400,
+                detail="Canal de actualizare invalid (beta/stable/play)",
+            )
+        set_release_channel(user_id, channel)
     user = _public_user(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")

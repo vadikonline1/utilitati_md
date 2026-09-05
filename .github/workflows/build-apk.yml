@@ -1,9 +1,11 @@
 name: Build Android APK
 
-# Rulează la fiecare push pe `deploy` și manual (Actions -> Run workflow).
+# Rulează la fiecare push pe `deploy` (beta) și `main` (stable), și manual.
+# Tag-ul release-ului include ramura: apk-deploy-<sha> / apk-main-<sha> —
+# aplicația folosește acest prefix ca feed pentru actualizările in-app.
 on:
   push:
-    branches: [deploy]
+    branches: [deploy, main]
     paths:
       - 'src/**'
       - 'App.tsx'
@@ -78,7 +80,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         if: success()
         with:
-          tag_name: apk-${{ github.sha }}
+          tag_name: apk-${{ github.ref_name }}-${{ github.sha }}
           name: APK ${{ github.ref_name }} (${{ github.sha }})
           body: |
             Build automat APK Android (debug-signed, instalabil direct).

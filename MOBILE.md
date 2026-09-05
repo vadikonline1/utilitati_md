@@ -179,6 +179,35 @@ Pentru testare locală, schimbă fallback-ul la
 ProjectId-ul Expo (folosit pentru push notifications) este în
 `app.json` → `extra.expo.projectId`.
 
+## Actualizări in-app (canale beta / stable / Play)
+
+În **Profil → Canal de actualizare** fiecare utilizator alege canalul:
+
+- **Beta** — build-uri din ramura `deploy` (release-uri GitHub `apk-deploy-*`).
+- **Stable** — build-uri din ramura `main` (release-uri GitHub `apk-main-*`).
+- **Play Market** — deschide pagina Google Play în magazin.
+
+Canalul ales se salvează local (AsyncStorage) și se raportează la server
+(`PUT /api/auth/me { release_channel }`) — în admin, tabul **Users**, coloana
+**Beta** afișează **Da/Nu** în funcție de canalul utilizatorului.
+
+Butonul **„Verifică actualizări"**:
+
+1. Citește versiunea aplicației instalate (`app.json → expo.version`).
+2. Compară cu versiunea din `app.json` de pe ramura corespunzătoare
+   (branch deploy/main pe GitHub) — „ultima versiune din git".
+3. Dacă există una mai nouă, descarcă APK-ul (cel mai recent release
+   `apk-<branch>-<sha>` din GitHub) în cache și îl deschide cu installer-ul
+   Android (`expo-file-system` + `expo-intent-launcher`, content URI).
+
+Detalii de implementare în `src/utils/updater.ts`. Dependențele noi:
+`expo-file-system` (~19, pe API-ul legacy pentru `getContentUriAsync`) și
+`expo-intent-launcher` (~13).
+
+> **iOS**: instalarea nativă in-app nu există — actualizările vin din App
+> Store / TestFlight. Utilizatorul poate totuși alege canalul (pentru raportare
+> în admin), dar butonul de actualizare afișează explicația.
+
 ## Autentificare
 
 Aplicația se loghează prin `POST /api/auth/login` cu username + parolă,
