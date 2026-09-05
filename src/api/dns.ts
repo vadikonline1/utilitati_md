@@ -6,10 +6,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 //
 // Source: https://raw.githubusercontent.com/vadikonline1/pi.hole/.../hosts_app_dns
 // The file is a plain-text list of `key=host` (Pi-hole hosts style) lines; we
-// pick the value of `md.utilitati.app` and use `<host>` as the API origin.
+// pick the value of `md.vadikonline1.utilitati` and use `<host>` as the API origin.
 const DNS_SOURCE_URL =
   'https://raw.githubusercontent.com/vadikonline1/pi.hole/refs/heads/main/hosts_app_dns';
-const HOST_KEY = 'md.utilitati.app';
+const HOST_KEY = 'md.vadikonline1.utilitati';
 const CACHE_KEY = 'utilitati.api_dns';
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -27,7 +27,7 @@ function normalizeBaseUrl(value: string): string {
   return `https://${host}/api`;
 }
 
-/** Extract the `md.utilitati.app` entry from the DNS source file (or null). */
+/** Extract the `md.vadikonline1.utilitati` entry from the DNS source file (or null). */
 export function parseDnsSource(text: string): string | null {
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.split('#')[0].trim();

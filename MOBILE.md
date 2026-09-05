@@ -163,7 +163,7 @@ după acest pas, build-urile iOS din GitHub Actions / EAS Workflows merg automat
 URL-ul de API nu mai este „cimentat" în build. La fiecare pornire aplicația își
 **rezolvă dinamic DNS-ul** din sursa versionată
 [`hosts_app_dns`](https://raw.githubusercontent.com/vadikonline1/pi.hole/refs/heads/main/hosts_app_dns):
-caută linia `md.utilitati.app=<host>` și folosește `https://<host>/api` ca bază
+caută linia `md.vadikonline1.utilitati=<host>` și folosește `https://<host>/api` ca bază
 pentru toate cererile. Astfel, când DNS-ul curent expiră, e suficient să
 actualizezi **fișierul din repo** (nu trebuie un build nou).
 
@@ -174,6 +174,33 @@ Ordinea de precedență:
 - `src/api/dns.ts` — preluarea + parsarea sursei (`resolveApiBase`), cu timeout
   de 5s și fallback la cache; `src/api/client.ts` folosește rezultatul în
   `request()`.
+
+## Identitate aplicație + Firebase
+
+- **App ID:** `md.vadikonline1.utilitati` (Android `android.package` + iOS
+  `ios.bundleIdentifier` din `app.json`). Cheia de DNS din `hosts_app_dns`
+  (vezi secțiunea de mai sus) folosește exact acest ID.
+- **Firebase** (proiectul `utilitati-md`): aplicația folosește FCM doar pe
+  Android pentru token-uri bruta exacte (`getDevicePushTokenAsync`); pe iOS
+  push-ul merge prin **relay-ul Expo (APNs)**, fără SDK Firebase.
+
+Fișiere de config (referițe în `app.json`, consumate de EAS prebuild):
+
+- `google-services.json` (rootul repo-ului) — Android. `expo-notifications` îl
+  folosește la build pentru FCM; `package_name` trebuie să corespundă cu
+  `android.package`. **Dacă schimbi applicationId-ul**, regenerează fișierul din
+  Firebase Console → *Add app → Android* (pachetul nou) și commit.
+- `GoogleService-Info.plist` (rootul repo-ului) — iOS. Se include în build via
+  `ios.googleServicesFile`; pentru push e redundant (iOS folosește Expo), dar
+  vă e folositor dacă adaugi ulterior Analytics/Messaging nativ.
+- **Instrucțiunile „Add Firebase to your iOS app"** (SPM / Add Packages din
+  Xcode) **NU se aplică** la un proiect Expo: nu adăuga manual SDK-ul iOS în
+  Xcode — build-ul se face în cloud (EAS). Dacă vrei să folosești Firebase nativ
+  pe iOS, setezi `@react-native-firebase/app` & `messaging` în `package.json`
+  (cu `bundleIdentifier` deja setat, EAS injectează plist-ul automat).
+- **Web:** site-ul/admin-ul folosește Firebase Web prin **„Cod personalizat" →
+  „Cod în `<head>`"** din `/admin?tab=seo` (SDK + `initializeApp`), aplicat de
+  admin deja.
 
 Pentru testare locală, schimbă fallback-ul la
 `http://<IP-masina>:<port>/api` (backend-ul rulează cu CORS activat).

@@ -762,6 +762,17 @@
                       <input type="color"
                              name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
                              value="{{ f.values[code] }}">
+                    {% elif f.control == 'checkbox' %}
+                      <label class="checkbox-inline">
+                        <input type="hidden"
+                               name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                               value="0">
+                        <input type="checkbox"
+                               name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                               value="1"
+                               {% if f.values[code] == '1' %}checked{% endif %}>
+                        <span>{{ t('admin_app_active') }}</span>
+                      </label>
                     {% elif f.control == 'textarea' %}
                       <textarea rows="2"
                                 name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}">{{ f.values[code] }}</textarea>

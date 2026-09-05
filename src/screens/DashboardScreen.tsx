@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -17,7 +17,7 @@ import Card from '../components/Card';
 import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
-import { loadAdConfig, showInterstitialOnce, showRewardedOnce } from '../utils/ads';
+import { showInterstitialOnce, showRewardedOnce } from '../utils/ads';
 
 type Nav = {
   navigate: (name: string, params?: object) => void;
@@ -82,23 +82,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [supportAds, setSupportAds] = useState(false);
   const [supportBusy, setSupportBusy] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const cfg = await loadAdConfig();
-      if (mounted) {
-        setSupportAds(
-          !!cfg && cfg.enabled && cfg.interstitial.enabled && cfg.rewarded.enabled,
-        );
-      }
-    })().catch(() => undefined);
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -127,6 +111,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
 
   const stats: Stats = { homeCount: homes.length, ...computeStats(invoices) };
   const grid: (keyof Stats)[] = ['unpaidBalance', 'openInvoices', 'paidInvoices', 'arrears'];
+  const supportEnabled = t('dashboard', 'support_enabled') === '1';
 
   const onShowSupport = useCallback(async () => {
     if (supportBusy) return;
@@ -175,14 +160,17 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
               <StatCard label={t('dashboard', 'stat_arrears')} value={`${stats.arrears.toFixed(2)} MDL`} accent={colors.warning} />
               <StatCard label={t('dashboard', 'stat_homes')} value={String(stats.homeCount)} />
             </View>
-            {supportAds ? (
+            {supportEnabled ? (
               <TouchableOpacity
                 style={[styles.supportBtn, supportBusy ? styles.supportBtnBusy : null]}
                 onPress={onShowSupport}
                 disabled={supportBusy}
               >
-                <Ionicons name="heart-outline" size={20} color="#fff" />
-                <Text style={styles.supportText}>{t('dashboard', 'support')}</Text>
+                <View style={styles.supportTitleRow}>
+                  <Ionicons name="heart-outline" size={20} color="#fff" />
+                  <Text style={styles.supportTitle}>{t('dashboard', 'support_title')}</Text>
+                </View>
+                <Text style={styles.supportText}>{t('dashboard', 'support_text')}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -261,16 +249,23 @@ const styles = StyleSheet.create({
   },
   menuText: { color: colors.text, fontSize: 15, fontWeight: '600', marginLeft: spacing.sm },
   supportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: spacing.lg,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     backgroundColor: colors.primary,
     borderRadius: 12,
+    alignItems: 'center',
   },
   supportBtnBusy: { opacity: 0.6 },
-  supportText: { color: '#fff', fontSize: 15, fontWeight: '700', marginLeft: spacing.sm },
+  supportTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  supportTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginLeft: spacing.sm },
+  supportText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
   fab: {
     position: 'absolute',
     right: spacing.xl,
