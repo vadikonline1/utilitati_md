@@ -811,13 +811,10 @@ button { font-family: inherit; }
   .app-field-cols { grid-template-columns: 1fr; }
 }
 
-/* App modal toolbar: language tabs + section jump-links */
-.app-modal-toolbar {
-  position: sticky; top: 66px; z-index: 3; margin: 0 -24px 14px;
-  padding: 10px 24px; background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-}
+/* App modal toolbar: language tabs + section jump-links. The toolbar scrolls
+   together with the modal head + hint as ONE sticky header (see
+   .app-modal-sticky). It must stay static here; making it sticky again makes it
+   float over the fields. */
 .app-modal-toolbar .app-lang-tabs { display: flex; gap: 6px; }
 .app-lang-tab {
   background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);

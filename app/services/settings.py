@@ -32,6 +32,7 @@ ENV_SETTING_MAP = {
     "telegram_botname": "TELEGRAM_BOTNAME",
     "fcm_service_account": "FCM_SERVICE_ACCOUNT",
     "push_provider": "PUSH_PROVIDER",
+    "admob_banner_unit": "ADMOB_ID_BANNER",
 }
 
 SETTING_KEYS = {
@@ -68,8 +69,7 @@ SETTING_KEYS = {
     "admob_app_id_android",         # AdMob App ID (Android)
     "admob_app_id_ios",             # AdMob App ID (iOS)
     "admob_banner_enabled",         # '1'/'0'
-    "admob_banner_unit_android",    # Android banner ad unit id
-    "admob_banner_unit_ios",        # iOS banner ad unit id
+    "admob_banner_unit",            # banner ad unit id (shared, ADMOB_ID_BANNER)
     "admob_interstitial_enabled",   # '1'/'0'
     "admob_interstitial_unit_android",
     "admob_interstitial_unit_ios",
@@ -333,14 +333,17 @@ def admob_config() -> dict:
     Only safe (non-secret) values are exposed. The app treats an empty
     unit id as 'not configured for this platform' and disables that format.
     """
+    banner_unit = get_setting("admob_banner_unit", "").strip()
+    banner_unit_android = banner_unit or get_setting("admob_banner_unit_android", "").strip()
+    banner_unit_ios = banner_unit or get_setting("admob_banner_unit_ios", "").strip()
     return {
         "enabled": _flag(get_setting("admob_enabled", "0")),
         "app_id_android": get_setting("admob_app_id_android", "").strip(),
         "app_id_ios": get_setting("admob_app_id_ios", "").strip(),
         "banner": {
             "enabled": _flag(get_setting("admob_banner_enabled", "0")),
-            "unit_android": get_setting("admob_banner_unit_android", "").strip(),
-            "unit_ios": get_setting("admob_banner_unit_ios", "").strip(),
+            "unit_android": banner_unit_android,
+            "unit_ios": banner_unit_ios,
         },
         "interstitial": {
             "enabled": _flag(get_setting("admob_interstitial_enabled", "0")),

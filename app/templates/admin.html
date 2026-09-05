@@ -522,12 +522,36 @@
                 <input type="checkbox" name="admob_banner_enabled"
                        {% if admob.banner.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
               </label>
-              <label>{{ t('admin_ads_banner_unit_android') }}
-                <input type="text" name="admob_banner_unit_android" value="{{ settings.get('admob_banner_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              <label>{{ t('admin_ads_banner_unit') }}
+                <input type="text" name="admob_banner_unit" value="{{ settings.get('admob_banner_unit', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false" {{ 'readonly' if settings.get('_env_admob_banner_unit') }}>
+                {% if settings.get('_env_admob_banner_unit') %}<span class="env-badge">{{ t('admin_from_env') }}</span>
+                <span class="field-hint">{{ t('admin_ads_banner_unit_env_hint') }}</span>{% endif %}
               </label>
-              <label>{{ t('admin_ads_banner_unit_ios') }}
-                <input type="text" name="admob_banner_unit_ios" value="{{ settings.get('admob_banner_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
+              <div class="ads-screens">
+                <p class="field-hint">{{ t('admin_ads_placements_hint') }}</p>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_dashboard"
+                         {% if 'dashboard' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_dashboard') }}
+                </label>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_homes"
+                         {% if 'homes' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_homes') }}
+                </label>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_facturi"
+                         {% if 'facturi' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_facturi') }}
+                </label>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_home_detail"
+                         {% if 'home_detail' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_home_detail') }}
+                </label>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_notificari"
+                         {% if 'notificari' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_notificari') }}
+                </label>
+                <input type="hidden" name="admob_placements" id="admobPlacements"
+                       value="{{ admob.placements|join(',') }}">
+              </div>
             </div>
           </div>
 
@@ -565,33 +589,6 @@
                 <input type="text" name="admob_rewarded_unit_ios" value="{{ settings.get('admob_rewarded_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
               </label>
             </div>
-          </div>
-
-          <div class="card" style="grid-column: 1 / -1;">
-            <h2>{{ t('admin_ads_placements') }}</h2>
-            <p class="field-hint">{{ t('admin_ads_placements_hint') }}</p>
-            <label class="check">
-              <input type="checkbox" name="php_placement_dashboard"
-                     {% if 'dashboard' in admob.placements %}checked{% endif %}> dashboard
-            </label>
-            <label class="check">
-              <input type="checkbox" name="php_placement_homes"
-                     {% if 'homes' in admob.placements %}checked{% endif %}> homes
-            </label>
-            <label class="check">
-              <input type="checkbox" name="php_placement_facturi"
-                     {% if 'facturi' in admob.placements %}checked{% endif %}> facturi
-            </label>
-            <label class="check">
-              <input type="checkbox" name="php_placement_home_detail"
-                     {% if 'home_detail' in admob.placements %}checked{% endif %}> home_detail
-            </label>
-            <label class="check">
-              <input type="checkbox" name="php_placement_notificari"
-                     {% if 'notificari' in admob.placements %}checked{% endif %}> notificari
-            </label>
-            <input type="hidden" name="admob_placements" id="admobPlacements"
-                   value="{{ admob.placements|join(',') }}">
           </div>
         </div>
         <div class="form-actions">
