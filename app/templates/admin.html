@@ -562,12 +562,7 @@
                 <input type="checkbox" name="admob_interstitial_enabled"
                        {% if admob.interstitial.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
               </label>
-              <label>{{ t('admin_ads_interstitial_unit_android') }}
-                <input type="text" name="admob_interstitial_unit_android" value="{{ settings.get('admob_interstitial_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
-              <label>{{ t('admin_ads_interstitial_unit_ios') }}
-                <input type="text" name="admob_interstitial_unit_ios" value="{{ settings.get('admob_interstitial_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
+              <p class="field-hint">{{ t('admin_ads_shared_unit_hint') }}</p>
               <label>{{ t('admin_ads_interstitial_interval') }}
                 <input type="number" name="admob_interstitial_interval" min="1" max="720"
                        value="{{ settings.get('admob_interstitial_interval', '5') }}">
@@ -582,12 +577,7 @@
                 <input type="checkbox" name="admob_rewarded_enabled"
                        {% if admob.rewarded.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
               </label>
-              <label>{{ t('admin_ads_rewarded_unit_android') }}
-                <input type="text" name="admob_rewarded_unit_android" value="{{ settings.get('admob_rewarded_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
-              <label>{{ t('admin_ads_rewarded_unit_ios') }}
-                <input type="text" name="admob_rewarded_unit_ios" value="{{ settings.get('admob_rewarded_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
+              <p class="field-hint">{{ t('admin_ads_shared_unit_hint') }}</p>
             </div>
           </div>
         </div>

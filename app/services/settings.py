@@ -336,6 +336,13 @@ def admob_config() -> dict:
     banner_unit = get_setting("admob_banner_unit", "").strip()
     banner_unit_android = banner_unit or get_setting("admob_banner_unit_android", "").strip()
     banner_unit_ios = banner_unit or get_setting("admob_banner_unit_ios", "").strip()
+    # All three ad formats (Banner, Interstitial, Rewarded) share the SAME unit
+    # id, taken from admob_banner_unit / ADMOB_ID_BANNER. Legacy per-format ids
+    # are kept as a fallback so existing installations keep working.
+    interstitial_unit_android = banner_unit_android or get_setting("admob_interstitial_unit_android", "").strip()
+    interstitial_unit_ios = banner_unit_ios or get_setting("admob_interstitial_unit_ios", "").strip()
+    rewarded_unit_android = banner_unit_android or get_setting("admob_rewarded_unit_android", "").strip()
+    rewarded_unit_ios = banner_unit_ios or get_setting("admob_rewarded_unit_ios", "").strip()
     return {
         "enabled": _flag(get_setting("admob_enabled", "0")),
         "app_id_android": get_setting("admob_app_id_android", "").strip(),
@@ -347,14 +354,14 @@ def admob_config() -> dict:
         },
         "interstitial": {
             "enabled": _flag(get_setting("admob_interstitial_enabled", "0")),
-            "unit_android": get_setting("admob_interstitial_unit_android", "").strip(),
-            "unit_ios": get_setting("admob_interstitial_unit_ios", "").strip(),
+            "unit_android": interstitial_unit_android,
+            "unit_ios": interstitial_unit_ios,
             "interval_minutes": get_int_setting("admob_interstitial_interval", 5),
         },
         "rewarded": {
             "enabled": _flag(get_setting("admob_rewarded_enabled", "0")),
-            "unit_android": get_setting("admob_rewarded_unit_android", "").strip(),
-            "unit_ios": get_setting("admob_rewarded_unit_ios", "").strip(),
+            "unit_android": rewarded_unit_android,
+            "unit_ios": rewarded_unit_ios,
         },
         "placements": admob_placements(),
     }
