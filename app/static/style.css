@@ -720,14 +720,32 @@ button { font-family: inherit; }
 /* App content editor (admin "App" tab, per-screen modals) */
 .modal-tall { display: flex; flex-direction: column; max-height: 84vh; overflow-y: auto; }
 .app-modal-wide { max-width: 960px; }
-.modal-tall .modal-head {
-  position: sticky; top: 0; z-index: 2; margin: -24px -24px 14px;
-  padding: 20px 24px 14px; background: var(--panel);
-  border-bottom: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
+/* Modal head + hint + toolbar scroll together as one sticky header so nothing
+   overlaps the fields beneath. */
+.app-modal-sticky {
+  position: sticky; top: 0; z-index: 5;
+  margin: -24px -24px 14px; padding: 20px 24px 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
 }
+.app-modal-sticky .modal-head {
+  position: static; margin: 0 0 8px; padding: 0;
+  border-bottom: none; background: transparent;
+}
+.app-modal-toolbar {
+  position: static; z-index: auto;
+  margin: 0 -24px 0; padding: 10px 24px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+/* Bottom "Cancel / Save" bar stays pinned while scrolling, but scrolls away
+   once the last field is reached so it never covers the content. */
 .modal-tall .form-actions {
-  position: sticky; bottom: 0; z-index: 2; margin: 16px -24px -24px;
-  padding: 12px 24px 20px; background: var(--panel);
+  position: sticky; bottom: 0; z-index: 4;
+  margin: 16px -24px -24px; padding: 12px 24px 20px;
+  background: var(--panel);
   border-top: 1px solid var(--border);
 }
 .app-panel-head .field-hint { margin-top: 6px; }

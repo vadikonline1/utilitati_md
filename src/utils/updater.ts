@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { startActivityAsync } from 'expo-intent-launcher';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 const GITHUB_OWNER = 'vadikonline1';
 const GITHUB_REPO = 'utilitati_md';
@@ -164,6 +164,9 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
  * Download the APK into the app cache and hand it to the Android package
  * installer via a content:// URI. Only works on Android (iOS updates come
  * from the App Store / TestFlight instead).
+ *
+ * Returns after the OS installer activity is started (not after the user
+ * finishes installing).
  */
 export async function installUpdate(apkUrl: string): Promise<void> {
   if (Platform.OS !== 'android') {
@@ -184,21 +187,39 @@ export async function installUpdate(apkUrl: string): Promise<void> {
   if (!contentUri) {
     throw new Error('Nu am putut accesa fișierul APK descărcat.');
   }
-  // ActivityAction.VIEW doesn't exist in this expo-intent-launcher version,
-  // so we pass the raw Android action string. See expo/expo#20949.
+  // FLAG_GRANT_READ_URI_PERMISSION (0x1) lets the package installer read our
+  // content:// URI; FLAG_ACTIVITY_NEW_TASK (0x10000000) keeps the installer in
+  // its own task. ActivityAction.VIEW doesn't exist in this library version, so
+  // we pass the raw Android action string (see expo/expo#20949).
   try {
     await startActivityAsync('android.intent.action.VIEW', {
       data: contentUri,
       type: 'application/vnd.android.package-archive',
-      flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+      flags: 0x00000001 | 0x10000000, // READ_URI + NEW_TASK
     });
   } catch (err) {
-    if (err instanceof TypeError && /activityAction/.test(err.message || '')) {
+    if (err instanceof TypeError && /activityAction/i.test(err.message || '')) {
       throw new Error(
         'Build-ul instalat este prea vechi pentru instalarea automată. ' +
         'Instalează manual noul APK din pagina de GitHub Releases.',
       );
     }
     throw err;
+  }
+}
+
+/** Latest beta release direct download URL (or null). */
+export async function getLatestApkUrl(): Promise<string | null> {
+  const apk = await fetchBetaRelease();
+  return apk ? apk.browser_download_url : null;
+}
+
+/** Open the GitHub releases page in the system browser (manual fallback). */
+export async function openReleasesUrl(): Promise<void> {
+  const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
+  try {
+    await Linking.openURL(url);
+  } catch {
+    // ignore: no browser available
   }
 }

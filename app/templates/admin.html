@@ -775,13 +775,14 @@
     {% for scr in app_editor %}
       <div class="modal-overlay" id="modal-app-{{ scr.screen }}" hidden>
         <div class="modal app-modal-wide modal-tall">
-          <div class="modal-head">
-            <h2>{{ scr.title }}</h2>
-            <button type="button" class="modal-close"
-                    onclick="closeModal('modal-app-{{ scr.screen }}')">×</button>
-          </div>
-          <p class="field-hint app-modal-hint">{{ scr.hint }}</p>
-          <div class="app-modal-toolbar">
+          <div class="app-modal-sticky">
+            <div class="modal-head">
+              <h2>{{ scr.title }}</h2>
+              <button type="button" class="modal-close"
+                      onclick="closeModal('modal-app-{{ scr.screen }}')">×</button>
+            </div>
+            <p class="field-hint app-modal-hint">{{ scr.hint }}</p>
+            <div class="app-modal-toolbar">
             <div class="app-lang-tabs" role="tablist">
               {% for code in ['ro', 'ru', 'en'] %}
                 <button type="button" class="app-lang-tab{{ ' active' if code == lang }}"
@@ -797,6 +798,7 @@
                 {% endfor %}
               </nav>
             {% endif %}
+          </div>
           </div>
           <form method="post" action="/admin/app/{{ scr.screen }}" class="form-stack app-form">
             <div class="home-info-block app-modal-note">

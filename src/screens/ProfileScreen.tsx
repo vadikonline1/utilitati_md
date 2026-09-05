@@ -19,7 +19,7 @@ import { ApiError, changePassword, clearDeviceToken, deactivateAccount, ReleaseC
 import { useAuth } from '../api/auth-context';
 import { useContent } from '../content/useContent';
 import { registerPushTokenResult } from '../utils/notify';
-import { checkForUpdate, getLocalVersion, installUpdate } from '../utils/updater';
+import { checkForUpdate, getLocalVersion, installUpdate, openReleasesUrl } from '../utils/updater';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
@@ -254,12 +254,14 @@ export default function ProfileScreen() {
               try {
                 await installUpdate(info.apkUrl!);
               } catch (err) {
-                Alert.alert(
-                  'Eroare',
+                const message =
                   err instanceof Error && err.message
                     ? err.message
-                    : 'Nu am putut descărca/instala APK-ul. Deschide fișierul apk-ului din GitHub release.',
-                );
+                    : 'Nu am putut descărca/instala APK-ul automat. Deschide pagina de GitHub Releases și descarcă build-ul de acolo.';
+                Alert.alert('Eroare', message, [
+                  { text: t('common', 'cancel'), style: 'cancel' },
+                  { text: 'Deschide GitHub Releases', onPress: () => openReleasesUrl() },
+                ]);
               }
             },
           },
