@@ -609,6 +609,14 @@ button { font-family: inherit; }
 .tab-btn.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
 .admin-tab-panel { margin-top: 8px; }
 
+.deploy-commit {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.78rem; color: var(--muted);
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 1px 8px; white-space: nowrap;
+}
+.subtitle .deploy-commit { display: inline-block; margin-left: 2px; }
+
 /* Message management modals */
 .modal-wide { max-width: 720px; }
 .msg-lang {
@@ -704,7 +712,18 @@ button { font-family: inherit; }
 .msg-actions form { margin: 0; }
 
 /* App content editor (admin "App" tab, per-screen modals) */
-.modal-tall { max-height: 84vh; overflow-y: auto; }
+.modal-tall { display: flex; flex-direction: column; max-height: 84vh; overflow-y: auto; }
+.app-modal-wide { max-width: 960px; }
+.modal-tall .modal-head {
+  position: sticky; top: 0; z-index: 2; margin: -24px -24px 14px;
+  padding: 20px 24px 14px; background: var(--panel);
+  border-bottom: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
+}
+.modal-tall .form-actions {
+  position: sticky; bottom: 0; z-index: 2; margin: 16px -24px -24px;
+  padding: 12px 24px 20px; background: var(--panel);
+  border-top: 1px solid var(--border);
+}
 .app-panel-head .field-hint { margin-top: 6px; }
 .app-head-row {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
@@ -712,6 +731,9 @@ button { font-family: inherit; }
 .app-search {
   min-width: 260px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
   background: var(--panel-2); color: var(--text); font-size: 0.9rem; margin-left: auto;
+}
+@media (max-width: 640px) {
+  .app-search { min-width: 0; width: 100%; margin-left: 0; }
 }
 .app-group-title {
   margin: 24px 0 10px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em;
@@ -736,14 +758,26 @@ button { font-family: inherit; }
 .app-field-default { font-size: 0.75rem; color: var(--muted); line-height: 1.35; }
 .app-field { gap: 6px; }
 .app-field textarea { min-height: 0; }
-.app-field-lang {
-  display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: center;
+.app-field-cols {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start;
 }
-.app-field-lang input[type="color"] {
-  width: 62px; height: 34px; padding: 2px; border: 1px solid var(--border);
+.app-field-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.app-field-col .msg-default-lang { flex: 0 0 auto; }
+.app-field-col input[type="text"],
+.app-field-col textarea { width: 100%; }
+.app-field-col input[type="color"] {
+  width: 68px; height: 34px; padding: 2px; border: 1px solid var(--border);
   border-radius: var(--radius); background: #fff; cursor: pointer;
 }
-.app-field-lang textarea { resize: vertical; min-height: 56px; }
+.app-field-col textarea { resize: vertical; min-height: 64px; }
+.app-check-field {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  border: 1px dashed var(--border); border-radius: var(--radius); padding: 10px 12px;
+  background: var(--panel-2);
+}
+@media (max-width: 760px) {
+  .app-field-cols { grid-template-columns: 1fr; }
+}
 
 /* Print */
 @media print {

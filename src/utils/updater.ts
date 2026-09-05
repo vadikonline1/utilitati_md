@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { ActivityAction, startActivityAsync } from 'expo-intent-launcher';
+import { startActivityAsync } from 'expo-intent-launcher';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 
@@ -181,7 +181,12 @@ export async function installUpdate(apkUrl: string): Promise<void> {
     );
   }
   const contentUri = await FileSystem.getContentUriAsync(fileUri);
-  await startActivityAsync(ActivityAction.VIEW, {
+  if (!contentUri) {
+    throw new Error('Nu am putut accesa fișierul APK descărcat.');
+  }
+  // ActivityAction.VIEW doesn't exist in this expo-intent-launcher version,
+  // so we pass the raw Android action string. See expo/expo#20949.
+  await startActivityAsync('android.intent.action.VIEW', {
     data: contentUri,
     type: 'application/vnd.android.package-archive',
     flags: 1, // FLAG_GRANT_READ_URI_PERMISSION

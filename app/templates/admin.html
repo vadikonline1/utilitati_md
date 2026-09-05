@@ -6,7 +6,7 @@
   {% if denied %}
     <p class="notice">{{ message }}</p>
   {% else %}
-    <p class="subtitle">{{ t('admin_subtitle') }}</p>
+    <p class="subtitle">{{ t('admin_subtitle') }} {% if deploy_commit %}<span class="deploy-commit" title="commit {{ deploy_commit }}">({{ deploy_commit }})</span>{% endif %}</p>
     {% if message %}<p class="notice">{{ message }}</p>{% endif %}
 
     <div class="admin-tabs">
@@ -768,7 +768,7 @@
     </section>
     {% for scr in app_editor %}
       <div class="modal-overlay" id="modal-app-{{ scr.screen }}" hidden>
-        <div class="modal modal-wide modal-tall">
+        <div class="modal app-modal-wide modal-tall">
           <div class="modal-head">
             <h2>{{ scr.title }}</h2>
             <button type="button" class="modal-close"
@@ -782,43 +782,44 @@
             {% for f in scr.fields %}
               <fieldset class="msg-lang app-field">
                 <legend>{{ f.label }}</legend>
-                {% for code in ['ro', 'ru', 'en'] %}
-                  <div class="app-field-lang">
-                    <span class="msg-default-lang">{{ t('msg_lang_' ~ code) }}</span>
-                    <div class="app-field-input">
-                      {% if f.control == 'color' %}
-                        <input type="color"
-                               name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
-                               value="{{ f.values[code] }}">
-                      {% elif f.control == 'checkbox' %}
-                        <label class="checkbox-inline">
-                          <input type="hidden"
-                                 name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
-                                 value="0">
-                          <input type="checkbox"
-                                 name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
-                                 value="1"
-                                 {% if f.values[code] == '1' %}checked{% endif %}>
-                          <span>{{ t('admin_app_active') }}</span>
-                        </label>
-                      {% elif f.control == 'textarea' %}
-                        <textarea rows="3"
-                                  name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}">{{ f.values[code] }}</textarea>
-                      {% else %}
-                        <input type="text"
-                               name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
-                               value="{{ f.values[code] }}">
-                      {% endif %}
-                      {% if f.control != 'checkbox' %}
-                        <span class="app-field-default">
-                          {% if f.overridden[code] %}{{ t('admin_app_default_value') }} {{ f.defaults[code] }}{% endif %}
-                        </span>
-                      {% endif %}
-                    </div>
-                  </div>
-                {% endfor %}
                 {% if f.control == 'checkbox' %}
-                  <span class="app-field-default">{{ t('admin_app_checkbox_note') }}</span>
+                  <div class="app-check-field">
+                    <input type="checkbox"
+                           onchange="appCheckboxSync(this)"
+                           {% if f['values']['ro'] == '1' %}checked{% endif %}>
+                    <span>{{ t('admin_app_active') }}</span>
+                    <span class="app-field-default">{{ t('admin_app_checkbox_note') }}</span>
+                    {% for code in ['ro', 'ru', 'en'] %}
+                      <input type="hidden"
+                             name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                             value="{% if f['values'][code] == '1' %}1{% else %}0{% endif %}">
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <div class="app-field-cols">
+                    {% for code in ['ro', 'ru', 'en'] %}
+                      <div class="app-field-col">
+                        <span class="msg-default-lang">{{ t('msg_lang_' ~ code) }}</span>
+                        <div class="app-field-input">
+                          {% if f.control == 'color' %}
+                            <input type="color"
+                                   name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                                   value="{{ f['values'][code] }}">
+                          {% elif f.control == 'textarea' %}
+                            <textarea rows="3"
+                                      name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}">{{ f['values'][code] }}</textarea>
+                          {% else %}
+                            <input type="text"
+                                   name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                                   value="{{ f['values'][code] }}">
+                          {% endif %}
+                          {% if f['overridden'][code] %}
+                            <span class="app-field-default">{{ t('admin_app_default_value') }} {{ f['defaults'][code] }}</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
                 {% endif %}
               </fieldset>
             {% endfor %}
@@ -1063,6 +1064,17 @@ document.addEventListener("DOMContentLoaded", function () {
       if (empty) empty.hidden = visible !== 0;
     });
   }
+
+  // App checkbox fields: one checkbox mirrors the 1/0 state into the three
+  // per-language hidden inputs (ro/ru/en) of the same app_* setting key.
+  window.appCheckboxSync = function (cb) {
+    var scope = cb.closest('.app-check-field');
+    if (!scope) return;
+    var v = cb.checked ? '1' : '0';
+    scope.querySelectorAll('input[type="hidden"]').forEach(function (h) {
+      h.value = v;
+    });
+  };
 
   var RESET_LBL = '{{ t('admin_placeholder_reset') }}';
   function phRow(name, value) {

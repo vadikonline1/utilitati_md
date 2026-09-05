@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import base64
+import functools
 import hashlib
 import hmac
 import os
 import re
 import secrets
+import subprocess
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
@@ -46,7 +48,7 @@ from ..auth import (
     user_state,
     verify_password,
 )
-from ..config import SECRET_KEY, is_admin_username, SITE_URL, TEMPLATES_DIR
+from ..config import BASE_DIR, SECRET_KEY, is_admin_username, SITE_URL, TEMPLATES_DIR
 from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import contact as contact_svc
@@ -215,6 +217,29 @@ def _job_wait_response(request: Request, url: str, attempt: int, message: str):
 # --------------------------------------------------------------------------- #
 # SEO / company info exposed to every template (metas + custom head/footer HTML)
 # --------------------------------------------------------------------------- #
+@functools.lru_cache(maxsize=1)
+def deployed_commit() -> str:
+    """Short SHA of the commit currently deployed on this server.
+
+    Uses the ``GIT_SHA`` build arg (Docker) when set; falls back to reading the
+    local git HEAD for bare-hosted deployments.
+    """
+    sha = os.getenv("GIT_SHA", "").strip()
+    if sha:
+        return sha
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(BASE_DIR), "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        sha = result.stdout.strip()
+    except Exception:
+        sha = ""
+    return sha
+
+
 def _seo() -> dict:
     """Site-wide SEO values from /admin?tab=seo, included in every page context."""
     return {
@@ -942,6 +967,7 @@ def _admin_base_ctx() -> dict:
         "invoice_jobs": list_invoice_jobs(),
         "system_jobs": system_jobs_status(),
         "app_editor": app_content_svc.admin_editor(),
+        "deploy_commit": deployed_commit(),
         "current_uid": None,
     }
 
