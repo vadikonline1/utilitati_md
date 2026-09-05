@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from .settings import SETTING_KEYS, get_setting, set_settings
+from .settings import SETTING_KEYS, admob_config, get_setting, set_settings
 
 APP_LANGS = ("ro", "ru", "en")
 DEFAULT_LANG = "ro"
@@ -44,9 +44,9 @@ DEFAULTS: dict[str, dict[str, dict]] = {
             "stat_arrears": "Restanțe",
             "stat_homes": "Locuințe",
             "vezi": "vezi",
-            "support_enabled": "1",
-            "support_title": "Susține proiectul GustBebe",
-            "support_text": "Urmărește o reclamă și ne ajuți să adăugăm rețete noi în fiecare săptămână.",
+            "support_enabled": "0",
+            "support_title": "Susține proiectul Utilități.MD",
+            "support_text": "Urmărește o reclamă și ne ajuți să menținem aplicația gratuită și actualizată.",
             "empty": "Nu ai nicio locuință încă.",
             "fab_home": "Locuință",
             "fab_utility": "Utilitate",
@@ -198,9 +198,9 @@ DEFAULTS: dict[str, dict[str, dict]] = {
             "stat_arrears": "Задолженность",
             "stat_homes": "Квартиры",
             "vezi": "смотреть",
-            "support_enabled": "1",
-            "support_title": "Поддержите проект GustBebe",
-            "support_text": "Посмотрите рекламу и помогите нам добавлять новые рецепты каждую неделю.",
+            "support_enabled": "0",
+            "support_title": "Поддержите проект Utilități.MD",
+            "support_text": "Посмотрите рекламу и помогите нам поддерживать приложение бесплатным и актуальным.",
             "empty": "У вас пока нет ни одной квартиры.",
             "fab_home": "Квартира",
             "fab_utility": "Коммунальная услуга",
@@ -351,9 +351,9 @@ DEFAULTS: dict[str, dict[str, dict]] = {
             "stat_arrears": "Arrears",
             "stat_homes": "Homes",
             "vezi": "view",
-            "support_enabled": "1",
-            "support_title": "Support the GustBebe project",
-            "support_text": "Watch an ad and help us add new recipes every week.",
+            "support_enabled": "0",
+            "support_title": "Support the Utilități.MD project",
+            "support_text": "Watch an ad and help us keep the app free and up to date.",
             "empty": "No homes yet.",
             "fab_home": "Home",
             "fab_utility": "Utility",
@@ -798,6 +798,27 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
     return out
 
 
+def _support_enabled_default() -> str:
+    """Auto value for dashboard 'support_enabled'.
+
+    The support button (watch-an-ad) is available when at least one rewarded
+    OR interstitial ad unit is configured and enabled in /admin?tab=ads.
+    An explicit admin override (stored value) always wins over this default.
+    """
+    cfg = admob_config()
+    interstitial = cfg.get("interstitial", {})
+    rewarded = cfg.get("rewarded", {})
+    inter_ok = bool(
+        interstitial.get("enabled")
+        and (interstitial.get("unit_android") or interstitial.get("unit_ios"))
+    )
+    rew_ok = bool(
+        rewarded.get("enabled")
+        and (rewarded.get("unit_android") or rewarded.get("unit_ios"))
+    )
+    return "1" if (inter_ok or rew_ok) else "0"
+
+
 def resolve_screen(screen: str, lang: str) -> dict:
     """Resolve one screen for a language: localized default + admin overrides."""
     base = deepcopy(DEFAULTS[DEFAULT_LANG].get(screen, {}))
@@ -807,6 +828,12 @@ def resolve_screen(screen: str, lang: str) -> dict:
         stored = get_setting(_setting_key(screen, path, lang), "").strip()
         if stored:
             _set_nested(out, path, stored)
+    # Auto-default: the support button follows the AdMob rewarded/interstitial
+    # config unless the admin explicitly overrode it per language.
+    if screen == "dashboard" and "support_enabled" in out:
+        stored = get_setting(_setting_key(screen, "support_enabled", lang), "").strip()
+        if not stored:
+            out["support_enabled"] = _support_enabled_default()
     return out
 
 
@@ -869,11 +896,12 @@ def admin_editor() -> list[dict]:
             values = {}
             defaults = {}
             overridden = {}
+            auto_support = _support_enabled_default() if path == "support_enabled" else None
             for lang in APP_LANGS:
                 default = _default_at(DEFAULT_LANG, screen, path)
                 localized = _default_at(lang, screen, path)
                 stored = get_setting(_setting_key(screen, path, lang), "").strip()
-                defaults[lang] = localized or default
+                defaults[lang] = auto_support if auto_support is not None else (localized or default)
                 overridden[lang] = bool(stored)
                 values[lang] = stored or defaults[lang]
                 if overridden[lang]:

@@ -16,9 +16,10 @@ export const DEFAULT_SCREENS: Record<string, ScreenContent> = {
     stat_arrears: 'Restanțe',
     stat_homes: 'Locuințe',
     vezi: 'vezi',
-    support_enabled: '1',
-    support_title: 'Susține proiectul GustBebe',
-    support_text: 'Urmărește o reclamă și ne ajuți să adăugăm rețete noi în fiecare săptămână.',
+    support_enabled: '0',
+    support_title: 'Susține proiectul Utilități.MD',
+    support_text:
+      'Urmărește o reclamă și ne ajuți să menținem aplicația gratuită și actualizată.',
     empty: 'Nu ai nicio locuință încă.',
     fab_home: 'Locuință',
     fab_utility: 'Utilitate',

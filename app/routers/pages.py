@@ -217,15 +217,21 @@ def _job_wait_response(request: Request, url: str, attempt: int, message: str):
 # --------------------------------------------------------------------------- #
 # SEO / company info exposed to every template (metas + custom head/footer HTML)
 # --------------------------------------------------------------------------- #
+_DEPLOY_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
+
+
 @functools.lru_cache(maxsize=1)
 def deployed_commit() -> str:
     """Short SHA of the commit currently deployed on this server.
 
-    Uses the ``GIT_SHA`` build arg (Docker) when set; falls back to reading the
-    local git HEAD for bare-hosted deployments.
+    Uses the ``GIT_SHA`` build arg (Docker) when set to a real SHA; Docker
+    builds that never passed ``--build-arg GIT_SHA=...`` receive the placeholder
+    "unknown", which is treated as invalid. Falls back to reading the local git
+    HEAD for bare-hosted deployments. Returns "" when neither is available so
+    the admin subtitle hides the deploy badge instead of showing "unknown".
     """
     sha = os.getenv("GIT_SHA", "").strip()
-    if sha:
+    if _DEPLOY_SHA_RE.match(sha):
         return sha
     try:
         result = subprocess.run(
@@ -237,7 +243,7 @@ def deployed_commit() -> str:
         sha = result.stdout.strip()
     except Exception:
         sha = ""
-    return sha
+    return sha if _DEPLOY_SHA_RE.match(sha) else ""
 
 
 def _seo() -> dict:

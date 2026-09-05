@@ -216,6 +216,24 @@ export async function registerPushToken(): Promise<boolean> {
   return (await registerPushTokenResult()).ok;
 }
 
+/**
+ * Subscribe to push-token rotations. Fired whenever the OS issues a new token
+ * (after an app reinstall, a provider switch, or an APK redeploy that changes
+ * the Firebase/Expo identity). The callback should re-run the registration so
+ * the backend DB always holds the *current* token — stale rows are then pruned
+ * server-side on the next send. Returns an unsubscribe function.
+ */
+export function watchPushTokenRefresh(onRefresh: () => void): () => void {
+  if (Platform.OS === 'web') return () => {};
+  try {
+    const subscription = Notifications.addPushTokenListener(() => onRefresh());
+    return () => subscription.remove();
+  } catch {
+    // listener setup is best-effort
+    return () => {};
+  }
+}
+
 export async function notifyNewInvoice(title: string, body: string): Promise<void> {
   if (Platform.OS === 'web') return;
   await ensureChannel();

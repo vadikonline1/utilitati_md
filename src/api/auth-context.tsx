@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 
 import { PublicUser, clearToken, getToken, login as apiLogin, me as apiMe, registerInvite, saveToken } from './client';
-import { registerPushTokenResult } from '../utils/notify';
+import { registerPushTokenResult, watchPushTokenRefresh } from '../utils/notify';
 
 interface AuthState {
   user: PublicUser | null;
@@ -62,12 +62,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (user && !initializing) {
-      // Register this device for server→push notifications automatically on
-      // every launch / login. Notifications are ON by default (server flag
-      // `notifications_enabled` defaults to true); we only skip when the user
-      // explicitly turned them OFF (local switch 'utilitati.notifications' = '0'
-      // or the server reports the account has them disabled).
+    if (!user || initializing) return;
+
+    // Register this device for server→push notifications automatically on
+    // every launch / login. Notifications are ON by default (server flag
+    // `notifications_enabled` defaults to true); we only skip when the user
+    // explicitly turned them OFF (local switch 'utilitati.notifications' = '0'
+    // or the server reports the account has them disabled).
+    let mounted = true;
+    const register = () => {
       (async () => {
         try {
           const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
@@ -75,14 +78,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const explicitlyOff = pref === '0' || user.notifications_enabled === false;
           if (explicitlyOff) return;
           const res = await registerPushTokenResult();
-          if (res.ok) {
+          if (res.ok && mounted) {
             await AsyncStorage.setItem('utilitati.notifications', '1');
           }
         } catch {
           // best-effort: never block the app on push registration
         }
       })();
-    }
+    };
+    register();
+
+    // A redeploy / reinstall can rotate the OS push token while the app runs:
+    // keep the backend DB token current, otherwise the stale row keeps failing.
+    const unsubscribe = watchPushTokenRefresh(register);
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, [user, initializing]);
 
   const value = useMemo(
