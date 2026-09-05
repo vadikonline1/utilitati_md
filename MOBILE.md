@@ -208,6 +208,31 @@ Detalii de implementare în `src/utils/updater.ts`. Dependențele noi:
 > Store / TestFlight. Utilizatorul poate totuși alege canalul (pentru raportare
 > în admin), dar butonul de actualizare afișează explicația.
 
+## Reclame (AdMob)
+
+Configurația reclamelor este **server-driven**: citită la pornire din
+`GET /api/config` (modificată din `GET /admin` → tabul **Ads**), fără să fie
+nevoie de build nou. Formatările:
+
+- **Banner** — momentan controlat de lista **Poziții (placements)** din admin
+  (`dashboard`, `homes`, `facturi`, `home_detail`, `notificari`). Apare **doar
+  în partea de jos** a ecranelor bifate:
+  - Dashboard → după lista de locuințe.
+  - Locuințe (`homes`) → după listă.
+  - Detalii locuință (`home_detail`) → doar la final (în lista de utilități).
+  - Facturi (`facturi`) → după fiecare 10 facturi; dacă sunt sub 10, un singur
+    banner la finalul listei.
+  - Notificări (`notificari`) → după fiecare 10 notificări; dacă sunt sub 10,
+    un singur banner la finalul listei.
+- **Interstițial + Recompensată** — **nu depind** de lista Poziții; sunt
+  mereu active când sunt activate. Se declanșează doar din butonul
+  **„Susține proiectul nostru"** de pe Dashboard (după diagrame/stats):
+  `Interstițial` (limitat la intervalul din admin) → dacă se afișează, urmează
+  și `Recompensată`. Butonul este vizibil doar când ambele sunt activate.
+
+Unitățile (`ca-app-pub-...`) se setează în admin pe platformă (Android/iOS);
+dacă lipsesc, aplicația folosește id-urile de test oferite de Google.
+
 ## Autentificare
 
 Aplicația se loghează prin `POST /api/auth/login` cu username + parolă,

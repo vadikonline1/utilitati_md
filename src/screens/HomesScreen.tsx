@@ -91,8 +91,8 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
             <Text style={styles.empty}>Nu ai nicio locuință încă.</Text>
           )
         }
+        ListFooterComponent={<AdBanner placement="homes" />}
       />
-      <AdBanner placement="homes" />
       {menuOpen ? (
         <View style={styles.menu}>
           <TouchableOpacity

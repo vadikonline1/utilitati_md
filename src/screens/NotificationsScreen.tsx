@@ -30,6 +30,26 @@ function typeStyle(type: string) {
   return TYPE_STYLE[type] || { color: colors.primary, label: 'Altele' };
 }
 
+type Row =
+  | { kind: 'notif'; key: string; item: AppNotification }
+  | { kind: 'banner'; key: string };
+
+function buildRows(items: AppNotification[]): Row[] {
+  const rows: Row[] = [];
+  const pushNotif = (item: AppNotification) =>
+    rows.push({ kind: 'notif', key: `n-${item.id}`, item });
+  if (items.length > 0 && items.length < 10) {
+    items.forEach(pushNotif);
+    rows.push({ kind: 'banner', key: `banner-end` });
+    return rows;
+  }
+  items.forEach((item, idx) => {
+    pushNotif(item);
+    if ((idx + 1) % 10 === 0) rows.push({ kind: 'banner', key: `banner-${idx}` });
+  });
+  return rows;
+}
+
 export default function NotificationsScreen() {
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,8 +93,8 @@ export default function NotificationsScreen() {
     <View style={styles.screen}>
       <AppHeader />
       <FlatList
-        data={items}
-        keyExtractor={(item) => String(item.id)}
+        data={buildRows(items)}
+        keyExtractor={(row) => row.key}
         contentContainerStyle={styles.content}
         refreshing={refreshing}
         onRefresh={() => load(true)}
@@ -103,33 +123,34 @@ export default function NotificationsScreen() {
             </View>
           )
         }
-        ListFooterComponent={<AdBanner placement="dashboard" />}
         renderItem={({ item }) => {
-          const ts = typeStyle(item.type);
+          if (item.kind === 'banner') return <AdBanner placement="notificari" />;
+          const notif = item.item;
+          const ts = typeStyle(notif.type);
           return (
-            <TouchableOpacity activeOpacity={0.7} onPress={() => markRead(item)}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => markRead(notif)}>
               <View
                 style={[
                   styles.card,
                   { borderLeftColor: ts.color },
-                  item.read ? null : styles.cardUnread,
+                  notif.read ? null : styles.cardUnread,
                 ]}
               >
                 <View style={styles.cardHead}>
                   <View style={[styles.badge, { backgroundColor: ts.color }]}>
                     <Text style={styles.badgeText}>{ts.label}</Text>
                   </View>
-                  {!item.read ? <View style={styles.dot} /> : null}
+                  {!notif.read ? <View style={styles.dot} /> : null}
                   <Text style={styles.date} numberOfLines={1}>
-                    {item.created_at}
+                    {notif.created_at}
                   </Text>
                 </View>
                 <Text
-                  style={[styles.cardTitle, item.read ? styles.cardTitleRead : null]}
+                  style={[styles.cardTitle, notif.read ? styles.cardTitleRead : null]}
                 >
-                  {item.title || 'Notificare'}
+                  {notif.title || 'Notificare'}
                 </Text>
-                {item.body ? <Text style={styles.body}>{item.body}</Text> : null}
+                {notif.body ? <Text style={styles.body}>{notif.body}</Text> : null}
               </View>
             </TouchableOpacity>
           );

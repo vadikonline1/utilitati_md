@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -13,7 +13,6 @@ import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Account, getHome, Home as HomeType } from '../api/client';
 import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
-import { showInterstitialOnce } from '../utils/ads';
 import { colors, spacing } from '../theme';
 
 type ParamList = {
@@ -55,10 +54,6 @@ export default function HomeDetailScreen({ navigation, route }: Props) {
       load();
     }, [load]),
   );
-
-  useEffect(() => {
-    showInterstitialOnce().catch(() => undefined);
-  }, []);
 
   const renderAccount = ({ item }: { item: Account }) => (
     <TouchableOpacity
@@ -106,8 +101,8 @@ export default function HomeDetailScreen({ navigation, route }: Props) {
         ListEmptyComponent={
           <Text style={styles.empty}>Niciun cont de utilități adăugat.</Text>
         }
+        ListFooterComponent={<AdBanner placement="home_detail" />}
       />
-      <AdBanner placement="home_detail" />
       <TouchableOpacity
         style={styles.fab}
         onPress={() =>

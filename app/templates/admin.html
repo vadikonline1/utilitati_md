@@ -578,6 +578,10 @@
               <input type="checkbox" name="php_placement_home_detail"
                      {% if 'home_detail' in admob.placements %}checked{% endif %}> home_detail
             </label>
+            <label class="check">
+              <input type="checkbox" name="php_placement_notificari"
+                     {% if 'notificari' in admob.placements %}checked{% endif %}> notificari
+            </label>
             <input type="hidden" name="admob_placements" id="admobPlacements"
                    value="{{ admob.placements|join(',') }}">
           </div>
@@ -857,7 +861,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var adsForm = document.querySelector('#tab-ads form');
   if (adsForm) {
     adsForm.addEventListener('submit', function () {
-      var names = ['dashboard', 'homes', 'facturi', 'home_detail'];
+      var names = ['dashboard', 'homes', 'facturi', 'home_detail', 'notificari'];
       var picks = names.filter(function (n) {
         var cb = document.querySelector('input[name="php_placement_' + n + '"]');
         return cb && cb.checked;

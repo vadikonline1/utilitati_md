@@ -5,6 +5,7 @@ import {
   InterstitialAd,
   MobileAds,
   RewardedAd,
+  RewardedAdEventType,
   TestIds,
   AdEventType,
 } from 'react-native-google-mobile-ads';
@@ -111,6 +112,42 @@ export async function showInterstitialOnce(): Promise<boolean> {
   const ad = InterstitialAd.createForAdRequest(unitId);
   const shown = await new Promise<boolean>((resolve) => {
     const loaded = ad.addAdEventListener(AdEventType.LOADED, () => ad.show());
+    const closed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+      loaded(); // remove listeners
+      closed();
+      resolve(true);
+    });
+    const failed = ad.addAdEventListener(AdEventType.ERROR, () => {
+      loaded();
+      failed();
+      resolve(false);
+    });
+    ad.load();
+  });
+  return shown;
+}
+
+let lastRewardedAt = 0;
+
+/**
+ * Show a rewarded ad. Returns true when the ad was shown.
+ * Rewarded ads are only presented via the "Sustine proiectul" button and are
+ * NOT gated by the placement list (they are always active when enabled).
+ */
+export async function showRewardedOnce(): Promise<boolean> {
+  const cfg = await loadAdConfig();
+  if (!cfg || !cfg.enabled || !cfg.rewarded.enabled) return false;
+  const real = platformUnit(cfg.rewarded.unit_android, cfg.rewarded.unit_ios);
+  const unitId = resolveUnitId('rewarded', real);
+  if (!unitId) return false;
+
+  const now = Date.now();
+  if (now - lastRewardedAt < 60 * 1000) return false;
+  lastRewardedAt = now;
+
+  const ad = RewardedAd.createForAdRequest(unitId);
+  const shown = await new Promise<boolean>((resolve) => {
+    const loaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => ad.show());
     const closed = ad.addAdEventListener(AdEventType.CLOSED, () => {
       loaded(); // remove listeners
       closed();

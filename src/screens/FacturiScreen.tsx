@@ -26,6 +26,27 @@ import { Ionicons } from '@expo/vector-icons';
 
 type Section = { title: string; invoices: Invoice[] };
 
+type Row =
+  | { kind: 'section'; key: string; title: string }
+  | { kind: 'invoice'; key: string; inv: Invoice }
+  | { kind: 'banner'; key: string };
+
+function buildRows(sections: Section[]): Row[] {
+  const rows: Row[] = [];
+  let count = 0;
+  const pushBanner = () => rows.push({ kind: 'banner', key: `banner-${rows.length}` });
+  for (const s of sections) {
+    rows.push({ kind: 'section', key: `sec-${s.title}`, title: s.title });
+    for (const inv of s.invoices) {
+      rows.push({ kind: 'invoice', key: `inv-${inv.id}`, inv });
+      count += 1;
+      if (count % 10 === 0) pushBanner();
+    }
+  }
+  if (count > 0 && count < 10) pushBanner();
+  return rows;
+}
+
 export default function FacturiScreen() {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,14 +168,15 @@ export default function FacturiScreen() {
     <View style={styles.container}>
       <AppHeader />
       <FlatList
-        data={sections}
-        keyExtractor={(s) => `${s.title}-${s.invoices[0]?.id}`}
-        renderItem={({ item }) => (
-          <View>
-            <Text style={styles.sectionTitle}>{item.title}</Text>
-            {item.invoices.map((inv) => renderInvoice({ item: inv }))}
-          </View>
-        )}
+        data={buildRows(sections)}
+        keyExtractor={(row) => row.key}
+        renderItem={({ item }) => {
+          if (item.kind === 'banner') return <AdBanner placement="facturi" />;
+          if (item.kind === 'section') {
+            return <Text style={styles.sectionTitle}>{item.title}</Text>;
+          }
+          return renderInvoice({ item: item.inv });
+        }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
         }
@@ -165,7 +187,6 @@ export default function FacturiScreen() {
           </Text>
         }
       />
-      <AdBanner placement="facturi" />
     </View>
   );
 }
