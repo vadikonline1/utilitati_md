@@ -77,7 +77,17 @@ from ..services.settings import (
     unconfirmed_hours,
     warn_days,
 )
-from ..services.sync import dashboard_stats, enqueue_invoice_job, job_info
+from ..services.sync import (
+    dashboard_stats,
+    enqueue_invoice_job,
+    job_info,
+    list_invoice_jobs,
+    restart_invoice_job,
+    cancel_invoice_job,
+    delete_invoice_job,
+    cleanup_old_jobs,
+    system_jobs_status,
+)
 from ..services.utilities import (
     create_home,
     delete_account,
@@ -928,6 +938,8 @@ def _admin_base_ctx() -> dict:
         "pages": pages_svc.list_pages(),
         "page_placeholders": pages_svc.PLACEHOLDERS,
         "placeholder_rows": _page_placeholder_rows(),
+        "invoice_jobs": list_invoice_jobs(),
+        "system_jobs": system_jobs_status(),
         "current_uid": None,
     }
 
@@ -1341,6 +1353,49 @@ async def admin_ads_submit(
         "admob_placements": placements,
     })
     return _admin_render(request, user_id, message=_t("admin_saved"))
+
+
+@router.post("/admin/jobs/{job_id}/restart")
+async def admin_jobs_restart_submit(
+    job_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=jobs", status_code=303)
+    restart_invoice_job(job_id)
+    return RedirectResponse("/admin?tab=jobs", status_code=303)
+
+
+@router.post("/admin/jobs/{job_id}/cancel")
+async def admin_jobs_cancel_submit(
+    job_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=jobs", status_code=303)
+    cancel_invoice_job(job_id)
+    return RedirectResponse("/admin?tab=jobs", status_code=303)
+
+
+@router.post("/admin/jobs/{job_id}/delete")
+async def admin_jobs_delete_submit(
+    job_id: int, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=jobs", status_code=303)
+    delete_invoice_job(job_id)
+    return RedirectResponse("/admin?tab=jobs", status_code=303)
+
+
+@router.post("/admin/jobs/cleanup")
+async def admin_jobs_cleanup_submit(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=jobs", status_code=303)
+    cleaned = cleanup_old_jobs()
+    return _admin_render(
+        request, user_id,
+        message=_t("admin_jobs_cleanup_done").format(count=cleaned),
+    )
 
 
 @router.post("/admin/push")

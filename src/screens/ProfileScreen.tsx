@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ApiError, changePassword, clearDeviceToken, deactivateAccount, ReleaseChannel, sendTestNotification, updateNotificationsEnabled, updateReleaseChannel, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
 import { registerPushTokenResult } from '../utils/notify';
-import { checkForUpdate, getLocalVersion, installUpdate, openPlayStore } from '../utils/updater';
+import { checkForUpdate, getLocalVersion, installUpdate } from '../utils/updater';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
@@ -33,9 +33,7 @@ const LANGUAGES = [
   { code: 'en', label: 'English' },
 ];
 const CHANNELS: { id: ReleaseChannel; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'beta', label: 'Beta', desc: 'Build din ramura deploy — actualizare directă din GitHub', icon: 'flask-outline' },
-  { id: 'stable', label: 'Stable', desc: 'Build din ramura main — versiuni testate', icon: 'shield-checkmark-outline' },
-  { id: 'play', label: 'Play Market', desc: 'Instalare din Google Play (magazinul oficial)', icon: 'cloud-download-outline' },
+  { id: 'beta', label: 'Beta', desc: 'Build din ramura deploy — actualizare directă din GitHub, detectată după SHA-ul noului build', icon: 'flask-outline' },
 ];
 
 function SettingsRow({
@@ -73,7 +71,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
   const [editName, setEditName] = useState(user?.full_name || '');
   const [notifOn, setNotifOn] = useState(false);
-  const [channel, setChannel] = useState<ReleaseChannel>('stable');
+  const [channel, setChannel] = useState<ReleaseChannel>('beta');
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
@@ -84,7 +82,7 @@ export default function ProfileScreen() {
       setNotifOn(n === '1');
       const serverChannel = user?.release_channel as ReleaseChannel | undefined;
       const stored = (await AsyncStorage.getItem(CHANNEL_KEY)) as ReleaseChannel | null;
-      const effective = serverChannel || stored || 'stable';
+      const effective: ReleaseChannel = 'beta';
       setChannel(effective);
       if (stored !== effective) {
         await AsyncStorage.setItem(CHANNEL_KEY, effective);
@@ -222,35 +220,32 @@ export default function ProfileScreen() {
 
   const checkUpdates = async () => {
     setChecking(true);
-    const label = CHANNELS.find((c) => c.id === channel)?.label || channel;
+    const label = CHANNELS.find((c) => c.id === channel)?.label || 'Beta';
     try {
       if (Platform.OS === 'ios') {
         Alert.alert(
           'iOS',
-          'Pe iOS actualizarea se face din App Store / TestFlight — aici poți doar alege canalul.',
+          'Pe iOS actualizarea se face din App Store / TestFlight — aici poți doar verifica canalul Beta.',
         );
         return;
       }
-      if (channel === 'play') {
-        await openPlayStore();
-        return;
-      }
       const localVersion = getLocalVersion();
-      const info = await checkForUpdate(channel);
-      if (!info.remoteVersion || !info.apkUrl) {
+      const info = await checkForUpdate();
+      if (!info.apkUrl) {
         Alert.alert(
           'Canal indisponibil',
           `Nu există încă un build publicat pe canalul ${label}.`,
         );
         return;
       }
-      if (!info.available) {
-        Alert.alert('La zi', `Ai versiunea v${localVersion} pe canalul ${label}.`);
+      if (info.localSha && info.remoteSha === info.localSha) {
+        Alert.alert('La zi', `Ai instalat ultimul build Beta (v${localVersion}).`);
         return;
       }
+      const remoteNote = info.remoteSha ? ` (build ${info.remoteSha.slice(0, 7)})` : '';
       Alert.alert(
-        'Versiune nouă',
-        `Pe canalul ${label} este versiunea v${info.remoteVersion} (ai v${localVersion}).\n\nDescarc APK-ul și îl deschid pentru instalare.`,
+        'Build nou disponibil',
+        `Pe canalul ${label} este un build nou${remoteNote} — ai v${localVersion}.\n\nDescarc APK-ul și îl deschid pentru instalare?`,
         [
           { text: 'Anulează', style: 'cancel' },
           {

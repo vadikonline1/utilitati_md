@@ -46,6 +46,11 @@ jobs:
         id: version
         run: echo "app_version=$(node -p "require('./app.json').expo.version")" >> "$GITHUB_OUTPUT"
 
+      - name: Embed build SHA (in-app update feed)
+        run: |
+          node -e "const fs=require('fs');const p='app.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.expo.extra.build_sha='${{ github.sha }}';fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
+          echo "embedded build_sha=${{ github.sha }}"
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 

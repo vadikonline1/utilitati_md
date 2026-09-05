@@ -41,6 +41,7 @@
       }
     },
     "extra": {
+      "build_sha": "",
       "apiUrl": "https://utilitati.nistorlazar.md/api",
       "eas": {
         "projectId": "a6825545-6d60-4504-aafd-0f8d7c1e9f56"

@@ -19,6 +19,7 @@
       <button type="button" class="tab-btn" data-tab="tab-seo">{{ t('admin_tab_seo') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-ads">{{ t('admin_tab_ads') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-push">{{ t('admin_tab_push') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-jobs">{{ t('admin_tab_jobs') }}</button>
     </div>
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
@@ -620,6 +621,102 @@
         </div>
       </div>
     </section>
+
+    {# ---------------- Jobs (background / scheduled) ---------------- #}
+    <section id="tab-jobs" class="admin-tab-panel" hidden>
+      <div class="card">
+        <h2>{{ t('admin_jobs_system_title') }}</h2>
+        <p class="field-hint">{{ t('admin_jobs_system_hint') }}</p>
+        <div class="data-list cols-3">
+          <div class="dl-head">
+            <div class="dl-cell">{{ t('admin_jobs_col_system_job') }}</div>
+            <div class="dl-cell">{{ t('admin_jobs_col_schedule') }}</div>
+            <div class="dl-cell">{{ t('admin_jobs_col_last_run') }}</div>
+          </div>
+          {% for j in system_jobs %}
+            <div class="dl-row">
+              <div class="dl-cell"><b>{{ j.name }}</b></div>
+              <div class="dl-cell"><span class="muted">{{ j.schedule }}</span></div>
+              <div class="dl-cell">
+                {% if j.last_run %}
+                  <span class="muted">{{ j.last_run }}</span>
+                {% else %}
+                  <span class="badge warn">—</span>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tab-toolbar">
+          <h2 style="flex:1">{{ t('admin_jobs_user_title') }}</h2>
+          <form method="post" action="/admin/jobs/cleanup"
+                onsubmit="return confirm('{{ t('admin_jobs_cleanup') }}?');">
+            <button type="submit" class="btn ghost small">{{ t('admin_jobs_cleanup') }}</button>
+          </form>
+        </div>
+        <p class="field-hint">{{ t('admin_jobs_user_hint') }}</p>
+        {% if invoice_jobs %}
+          <div class="data-list cols-9">
+            <div class="dl-head">
+              <div class="dl-cell">#</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_user') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_account') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_status') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_attempts') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_created') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_finished') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_result') }}</div>
+              <div class="dl-cell">{{ t('admin_jobs_col_actions') }}</div>
+            </div>
+            {% for j in invoice_jobs %}
+              <div class="dl-row">
+                <div class="dl-cell"><span class="muted">#{{ j.id }}</span></div>
+                <div class="dl-cell"><b>{{ j.username or ('#' ~ j.user_id) }}</b></div>
+                <div class="dl-cell">{{ j.account_label or '—' }}</div>
+                <div class="dl-cell">
+                  {% if j.status == 'pending' %}
+                    <span class="badge warn">{{ t('admin_jobs_status_pending') }}</span>
+                  {% elif j.status == 'running' %}
+                    <span class="badge run">{{ t('admin_jobs_status_running') }}</span>
+                  {% elif j.status == 'done' %}
+                    <span class="badge enabled">{{ t('admin_jobs_status_done') }}</span>
+                  {% elif j.status == 'failed' %}
+                    <span class="badge failed">{{ t('admin_jobs_status_failed') }}</span>
+                  {% else %}
+                    <span class="badge disabled">{{ t('admin_jobs_status_cancelled') }}</span>
+                  {% endif %}
+                </div>
+                <div class="dl-cell">{{ j.attempts }}</div>
+                <div class="dl-cell"><span class="muted">{{ j.created_at }}</span></div>
+                <div class="dl-cell"><span class="muted">{{ j.finished_at or '—' }}</span></div>
+                <div class="dl-cell"><span class="muted">{{ j.result or '—' }}</span></div>
+                <div class="dl-cell row-actions">
+                  {% if j.status != 'pending' %}
+                    <form method="post" action="/admin/jobs/{{ j.id }}/restart">
+                      <button type="submit" class="btn small">{{ t('admin_jobs_restart') }}</button>
+                    </form>
+                  {% endif %}
+                  {% if j.status == 'pending' or j.status == 'running' %}
+                    <form method="post" action="/admin/jobs/{{ j.id }}/cancel">
+                      <button type="submit" class="btn ghost small">{{ t('admin_jobs_cancel') }}</button>
+                    </form>
+                  {% endif %}
+                  <form method="post" action="/admin/jobs/{{ j.id }}/delete"
+                        onsubmit="return confirm('#{{ j.id }} · {{ t('admin_jobs_delete') }}?');">
+                    <button type="submit" class="btn ghost small">{{ t('admin_jobs_delete') }}</button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty">{{ t('admin_jobs_empty') }}</p>
+        {% endif %}
+      </div>
+    </section>
     <div class="modal-overlay" id="modal-faq-add" hidden>
       <div class="modal modal-wide">
         <div class="modal-head">
@@ -814,13 +911,15 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=ads");
       } else if (target === "tab-push") {
         history.replaceState(null, "", "/admin?tab=push");
+      } else if (target === "tab-jobs") {
+        history.replaceState(null, "", "/admin?tab=jobs");
       } else {
         history.replaceState(null, "", "/admin");
       }
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push", "jobs"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
     var tabKey = params.get("saved") ? "messages" : params.get("tab");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');

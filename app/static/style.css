@@ -414,6 +414,8 @@ textarea {
 .badge.enabled, .badge.pay-paid { background: var(--badge-ok-bg); color: var(--green); }
 .badge.disabled { background: var(--badge-mut-bg); color: var(--muted); }
 .badge.warn { background: var(--badge-warn-bg); color: var(--amber); }
+.badge.run { background: rgba(26,115,232,0.14); color: var(--accent); }
+.badge.failed { background: var(--badge-bad-bg); color: var(--red); }
 .badge.pay-unpaid { background: var(--badge-warn-bg); color: var(--amber); }
 .badge.pay-overdue { background: var(--badge-bad-bg); color: var(--red); }
 .badge.pay-partially_paid { background: var(--badge-warn-bg); color: var(--amber); }

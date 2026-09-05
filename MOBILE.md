@@ -181,34 +181,38 @@ Pentru testare locală, schimbă fallback-ul la
 ProjectId-ul Expo (folosit pentru push notifications) este în
 `app.json` → `extra.expo.projectId`.
 
-## Actualizări in-app (canale beta / stable / Play)
+## Actualizări in-app (canal Beta)
 
-În **Profil → Canal de actualizare** fiecare utilizator alege canalul:
-
-- **Beta** — build-uri din ramura `deploy` (release-uri GitHub `apk-deploy-*`).
-- **Stable** — build-uri din ramura `main` (release-uri GitHub `apk-main-*`).
-- **Play Market** — deschide pagina Google Play în magazin.
+În **Profil → Canal de actualizare** există un singur canal: **Beta** (build-uri
+din ramura `deploy`, release-uri GitHub `apk-deploy-<sha>` cu buton „comutator").
 
 Canalul ales se salvează local (AsyncStorage) și se raportează la server
 (`PUT /api/auth/me { release_channel }`) — în admin, tabul **Users**, coloana
 **Beta** afișează **Da/Nu** în funcție de canalul utilizatorului.
 
+**Stable (main) și Play Market au fost eliminate** — versiunile de producție se
+instalează doar din Google Play; actualizarea in-app există exclusiv pentru
+build-urile Beta.
+
 Butonul **„Verifică actualizări"**:
 
-1. Citește versiunea aplicației instalate (`app.json → expo.version`).
-2. Compară cu versiunea din `app.json` de pe ramura corespunzătoare
-   (branch deploy/main pe GitHub) — „ultima versiune din git".
-3. Dacă există una mai nouă, descarcă APK-ul (cel mai recent release
-   `apk-<branch>-<sha>` din GitHub) în cache și îl deschide cu installer-ul
-   Android (`expo-file-system` + `expo-intent-launcher`, content URI).
+1. Citește **SHA-ul de build** al aplicației instalate (`app.json → expo.extra.build_sha`,
+   introdus de CI la fiecare build: `apk-deploy-<sha>`).
+2. Ia ultimul release `apk-deploy-<sha>` de pe GitHub (feed-ul Beta).
+3. Dacă SHA-ul difieră de cel instalat → există un **deploy nou** și APK-ul se
+   descarcă/instalează (content URI + `expo-intent-launcher`).
+
+Detecția se face **după SHA-ul noului deploy, NU după versiunea aplicației**
+(`extra.build_sha` este injectat în `app.json` de
+`.github/workflows/build-apk.yml` înainte de build).
 
 Detalii de implementare în `src/utils/updater.ts`. Dependențele noi:
 `expo-file-system` (~19, pe API-ul legacy pentru `getContentUriAsync`) și
 `expo-intent-launcher` (~13).
 
 > **iOS**: instalarea nativă in-app nu există — actualizările vin din App
-> Store / TestFlight. Utilizatorul poate totuși alege canalul (pentru raportare
-> în admin), dar butonul de actualizare afișează explicația.
+> Store / TestFlight. Utilizatorul poate totuși verifica canalul Beta, dar
+> butonul de actualizare afișează explicația.
 
 ## Reclame (AdMob)
 
