@@ -229,23 +229,24 @@ export default function ProfileScreen() {
         );
         return;
       }
-      const localVersion = getLocalVersion();
       const info = await checkForUpdate();
       if (!info.apkUrl) {
-        Alert.alert(
-          'Canal indisponibil',
-          `Nu există încă un build publicat pe canalul ${label}.`,
-        );
+        Alert.alert('La zi', `Canalul ${label} nu are încă un build publicat.`);
         return;
       }
-      if (info.localSha && info.remoteSha === info.localSha) {
-        Alert.alert('La zi', `Ai instalat ultimul build Beta (v${localVersion}).`);
+      const localVersion = info.localVersion;
+      const parts: string[] = [];
+      if (info.remoteSha) parts.push(`Build/deploy: ${info.remoteSha.slice(0, 7)}`);
+      if (info.remoteVersion && info.remoteVersion !== localVersion) {
+        parts.push(`Versiune: v${info.remoteVersion} (ai v${localVersion})`);
+      }
+      if (!info.available) {
+        Alert.alert('La zi', `Ai instalat ultimul build Beta${parts.length ? ` (${parts.join(', ')})` : ''}.`);
         return;
       }
-      const remoteNote = info.remoteSha ? ` (build ${info.remoteSha.slice(0, 7)})` : '';
       Alert.alert(
         'Build nou disponibil',
-        `Pe canalul ${label} este un build nou${remoteNote} — ai v${localVersion}.\n\nDescarc APK-ul și îl deschid pentru instalare?`,
+        `Pe canalul ${label} este un build mai nou${parts.length ? `: ${parts.join(', ')}` : ''}.\n\nDescarc APK-ul și îl deschid pentru instalare?`,
         [
           { text: 'Anulează', style: 'cancel' },
           {
@@ -257,7 +258,9 @@ export default function ProfileScreen() {
               } catch (err) {
                 Alert.alert(
                   'Eroare',
-                  'Nu am putut descărca/instala APK-ul. Deschide fișierul apk-ului din GitHub release.',
+                  err instanceof Error && err.message
+                    ? err.message
+                    : 'Nu am putut descărca/instala APK-ul. Deschide fișierul apk-ului din GitHub release.',
                 );
               }
             },

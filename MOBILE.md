@@ -198,9 +198,13 @@ Butonul **„Verifică actualizări"**:
 
 1. Citește **SHA-ul de build** al aplicației instalate (`app.json → expo.extra.build_sha`,
    introdus de CI la fiecare build: `apk-deploy-<sha>`).
-2. Ia ultimul release `apk-deploy-<sha>` de pe GitHub (feed-ul Beta).
-3. Dacă SHA-ul difieră de cel instalat → există un **deploy nou** și APK-ul se
-   descarcă/instalează (content URI + `expo-intent-launcher`).
+2. Ia ultimul release `apk-deploy-<sha>` de pe GitHub (feed-ul Beta — release-urile
+   draft și cele `apk-main-` / `ios-` sunt ignorate; ordinea e sortată după data
+   publicării). Verifică în plus versiunea `app.json` de pe ramura `deploy`.
+3. Dacă există un **deploy nou** (SHA diferit față de cel instalat, sau o versiune
+   mai nouă la build-urile vechi fără SHA încorporat) → APK-ul se descarcă/instalează
+   (content URI + `expo-intent-launcher`). Dacă nu — „La zi"; fără release publicat —
+   „La zi" cu mențiunea că nu există încă build.
 
 Detecția se face **după SHA-ul noului deploy, NU după versiunea aplicației**
 (`extra.build_sha` este injectat în `app.json` de
