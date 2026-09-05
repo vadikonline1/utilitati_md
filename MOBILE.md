@@ -119,7 +119,9 @@ Fiecare utilizator are un flag `notifications_enabled` (implicit pornit):
 - Din **admin** (`?tab=users` → coloana „Notificări"): adminul poate opri/porni
   notificările oricărui utilizator.
 - Când flagul este oprit, `send_push` / `send_push_multi` **sar** peste utilizator
-  (nu se trimit push-uri, istoricul de notificări nu se mai scrie).
+  (nu se trimit push-uri). Excepție: **facturile noi** (la conectare/refresh/sync
+  programată) apar întotdeauna în lista/clopotelul de notificări, chiar și când
+  push-urile sunt oprite sau nu există niciun dispozitiv înregistrat.
 
 ### Prima configurare iOS (o singură dată, interactivă)
 

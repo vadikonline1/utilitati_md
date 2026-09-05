@@ -121,10 +121,12 @@ async def notify_new_invoices(
 
 
 async def send_push_new_invoices(user_id: int, new_ids: list[int]) -> None:
-    """Send a mobile push notification about newly found invoices.
+    """Send a mobile push + in-app bell entry about newly found invoices.
 
-    Uses the user's registered Expo push tokens (no app-open required). The exact
-    invoice rows are read from the store so we can report a total amount.
+    The bell history row is ALWAYS written, even when the user disabled push
+    notifications or has no registered device — the notification list must
+    reflect every new invoice found on connect/refresh/sync. When a push is
+    actually delivered it does not write a second row (record=False).
     """
     if not new_ids:
         return
@@ -140,7 +142,8 @@ async def send_push_new_invoices(user_id: int, new_ids: list[int]) -> None:
         return
     title = "Factură nouă 🔔"
     body = f"Ai {count} factură(e) nouă(e), total {_fmt(total)} MDL."
-    await push_svc.send_push(user_id, title, body, type_="invoice")
+    push_svc.record_notification(user_id, title, body, "invoice")
+    await push_svc.send_push(user_id, title, body, type_="invoice", record=False)
 
 
 def list_user_invoices(user_id: int) -> list[list[dict]]:

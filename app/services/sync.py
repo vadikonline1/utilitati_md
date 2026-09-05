@@ -50,6 +50,7 @@ async def sync_all() -> dict:
                 await notify.notify_new_invoices(
                     account["user_id"], account, data, created, SITE_URL
                 )
+                await notify.send_push_new_invoices(account["user_id"], created)
                 notified += 1
             if data.is_connected:
                 updated += 1

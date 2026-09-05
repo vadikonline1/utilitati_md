@@ -32,6 +32,7 @@ from ..auth import (
 from ..config import SITE_URL
 from ..deps import get_auth_token
 from ..services import email as email_svc
+from ..services import notify as notify_svc
 from ..services import push as push_svc
 from ..services import telegram as telegram_svc
 from ..services.settings import admob_config
@@ -433,14 +434,16 @@ async def account_refresh(account_id: int, user_id: int = Depends(get_auth_token
     row = await _get_account(user_id, account_id)
     prev_balance = active_unpaid_balance(account_id)
     data = await fetch_account_data(row)
-    _created, saved_ids = persist_invoices(account_id, data)
+    created, saved_ids = persist_invoices(account_id, data)
     new_balance = active_unpaid_balance(account_id) if data.is_connected else prev_balance
+    if created:
+        await notify_svc.send_push_new_invoices(user_id, created)
     return {
         "is_connected": data.is_connected,
         "error_message": data.error_message,
         "unpaid_balance_mdl": data.unpaid_balance_mdl,
         "invoice_count": len(saved_ids),
-        "created_count": len(_created),
+        "created_count": len(created),
         "balance_increased": bool(new_balance > prev_balance),
         "invoices": _serialize_invoices(data),
         "last_invoice": _serialize_provider_invoice(data.last_invoice),

@@ -358,9 +358,14 @@ async def _send_one(
 
 
 async def send_push(
-    user_id: int, title: str, body: str, type_: str = "general"
+    user_id: int, title: str, body: str, type_: str = "general", *, record: bool = True
 ) -> int:
-    """Send a push to all of a user's devices. Returns tokens attempted."""
+    """Send a push to all of a user's devices. Returns tokens attempted.
+
+    When ``record`` is True (default) a delivered push is also appended to the
+    user's in-app notification feed (the bell). Callers that already wrote the
+    feed row themselves pass ``record=False`` to avoid duplicates.
+    """
     if not _notifications_enabled(user_id):
         return 0
     tokens = _user_tokens(user_id)
@@ -371,7 +376,7 @@ async def send_push(
     for provider, token in tokens:
         if await _send_one(provider, token, title, body, data):
             sent += 1
-    if sent:
+    if sent and record:
         record_notification(user_id, title, body, type_)
     return sent
 
