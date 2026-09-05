@@ -21,6 +21,7 @@ import {
 import AppHeader from '../components/AppHeader';
 import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
+import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -48,6 +49,7 @@ function buildRows(sections: Section[]): Row[] {
 }
 
 export default function FacturiScreen() {
+  const { t } = useContent();
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,15 +80,15 @@ export default function FacturiScreen() {
       }
       const grouped: Section[] = [];
       byAccount.forEach((list, title) => grouped.push({ title, invoices: list }));
-      if (ungrouped.length > 0) grouped.push({ title: 'Altele', invoices: ungrouped });
+      if (ungrouped.length > 0) grouped.push({ title: t('invoices', 'group_others'), invoices: ungrouped });
       setSections(grouped);
     } catch {
-      Alert.alert('Eroare', 'Nu s-au putut încărca facturile.');
+      Alert.alert('Eroare', t('invoices', 'error_load'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,22 +101,22 @@ export default function FacturiScreen() {
       await setInvoiceStatus(inv.id, 'paid');
       await load();
     } catch (e) {
-      Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Operațiunea a eșuat.');
+      Alert.alert('Eroare', e instanceof ApiError ? e.message : t('invoices', 'error_save'));
     }
   };
 
   const remove = async (inv: Invoice) => {
-    Alert.alert('Șterge factura', 'Sigur vrei să ștergi această factură?', [
-      { text: 'Anulează', style: 'cancel' },
+    Alert.alert(t('invoices', 'delete_title'), t('invoices', 'delete_confirm'), [
+      { text: t('common', 'cancel'), style: 'cancel' },
       {
-        text: 'Șterge',
+        text: t('common', 'delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await deleteInvoice(inv.id);
             await load();
           } catch (e) {
-            Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Ștergerea a eșuat.');
+            Alert.alert('Eroare', e instanceof ApiError ? e.message : t('invoices', 'error_delete'));
           }
         },
       },
@@ -128,17 +130,21 @@ export default function FacturiScreen() {
         <View style={styles.row}>
           <View style={styles.flex}>
             <Text style={styles.invTitle}>
-              {item.invoice_number || item.period || 'Factură'}
+              {item.invoice_number || item.period || t('invoices', 'default_title')}
             </Text>
-            {item.period ? <Text style={styles.muted}>Perioada {item.period}</Text> : null}
-            {item.due_date ? <Text style={styles.muted}>Scadență {item.due_date}</Text> : null}
+            {item.period ? (
+              <Text style={styles.muted}>{t('invoices', 'period', { value: item.period })}</Text>
+            ) : null}
+            {item.due_date ? (
+              <Text style={styles.muted}>{t('invoices', 'due', { value: item.due_date })}</Text>
+            ) : null}
           </View>
           <View style={styles.invRight}>
             <Text style={styles.amount}>
               {Number(item.amount_mdl).toFixed(2)} {item.currency}
             </Text>
             <Text style={[styles.status, paid ? styles.paid : styles.unpaid]}>
-              {paid ? 'Plătită' : 'Neplătită'}
+              {paid ? t('invoices', 'paid') : t('invoices', 'unpaid')}
             </Text>
             <View style={styles.actions}>
               {!paid ? (
@@ -183,7 +189,7 @@ export default function FacturiScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {loading ? 'Se încarcă…' : 'Nicio factură disponibilă.'}
+            {loading ? t('common', 'loading') : t('invoices', 'empty')}
           </Text>
         }
       />

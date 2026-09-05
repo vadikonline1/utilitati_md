@@ -77,6 +77,7 @@ from ..services.settings import (
     unconfirmed_hours,
     warn_days,
 )
+from ..services import app_content as app_content_svc
 from ..services.sync import (
     dashboard_stats,
     enqueue_invoice_job,
@@ -940,6 +941,7 @@ def _admin_base_ctx() -> dict:
         "placeholder_rows": _page_placeholder_rows(),
         "invoice_jobs": list_invoice_jobs(),
         "system_jobs": system_jobs_status(),
+        "app_editor": app_content_svc.admin_editor(),
         "current_uid": None,
     }
 
@@ -1395,6 +1397,35 @@ async def admin_jobs_cleanup_submit(
     return _admin_render(
         request, user_id,
         message=_t("admin_jobs_cleanup_done").format(count=cleaned),
+    )
+
+
+@router.post("/admin/app/{screen}")
+async def admin_app_submit(
+    screen: str, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=app", status_code=303)
+    if screen not in app_content_svc.SCREENS:
+        return RedirectResponse("/admin?tab=app", status_code=303)
+    form = await request.form()
+    app_content_svc.save_screen(screen, {str(k): str(v) for k, v in form.items()})
+    return RedirectResponse(f"/admin?tab=app&saved={screen}", status_code=303)
+
+
+@router.post("/admin/app/{screen}/reset")
+async def admin_app_reset(
+    screen: str, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=app", status_code=303)
+    if screen not in app_content_svc.SCREENS:
+        return RedirectResponse("/admin?tab=app", status_code=303)
+    app_content_svc.reset_screen(screen)
+    return RedirectResponse(
+        f"/admin?tab=app&saved={screen}&reset=1", status_code=303
     )
 
 

@@ -217,6 +217,15 @@ async def app_config(user_id: int = Depends(get_auth_token)):
     return {"admob": admob_config(), "push": {"provider": get_push_provider()}}
 
 
+@router.get("/content")
+async def app_content(lang: str = Query("ro", max_length=8)):
+    """Server-driven UI content for the mobile app (per-screen strings, edited
+    in /admin "Aplicație"). Public: the app fetches it before/without auth and
+    it contains no user data."""
+    from ..services.app_content import resolve_content
+    return resolve_content(lang)
+
+
 @router.get("/auth/me")
 async def auth_me(user_id: int = Depends(get_auth_token)):
     user = _public_user(user_id)

@@ -20,6 +20,7 @@
       <button type="button" class="tab-btn" data-tab="tab-ads">{{ t('admin_tab_ads') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-push">{{ t('admin_tab_push') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-jobs">{{ t('admin_tab_jobs') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-app">{{ t('admin_tab_app') }}</button>
     </div>
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
@@ -717,6 +718,71 @@
         {% endif %}
       </div>
     </section>
+
+    {# ---------------- App content (mobile screens) ---------------- #}
+    <section id="tab-app" class="admin-tab-panel" hidden>
+      <div class="card">
+        <h2>{{ t('admin_tab_app') }}</h2>
+        <p class="field-hint">{{ t('admin_app_hint') }}</p>
+        <p class="field-hint">{{ t('admin_app_langs_note') }}</p>
+      </div>
+      <div class="config-grid">
+        {% for scr in app_editor %}
+          <div class="card msg-card">
+            <h2>{{ scr.title }}</h2>
+            <p class="field-hint">{{ scr.hint }}</p>
+            <div class="row-actions msg-actions">
+              <button type="button" class="btn"
+                      onclick="openModal('modal-app-{{ scr.screen }}')">{{ t('admin_app_edit') }}</button>
+              <form method="post" action="/admin/app/{{ scr.screen }}/reset"
+                    onsubmit="return confirm('{{ t('admin_app_reset_confirm') }}');">
+                <button type="submit" class="btn ghost">{{ t('admin_app_reset') }}</button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% for scr in app_editor %}
+      <div class="modal-overlay" id="modal-app-{{ scr.screen }}" hidden>
+        <div class="modal modal-wide modal-tall">
+          <div class="modal-head">
+            <h2>{{ scr.title }}</h2>
+            <button type="button" class="modal-close"
+                    onclick="closeModal('modal-app-{{ scr.screen }}')">×</button>
+          </div>
+          <form method="post" action="/admin/app/{{ scr.screen }}" class="form-stack">
+            {% for f in scr.fields %}
+              <fieldset class="msg-lang app-field">
+                <legend>{{ f.label }}</legend>
+                {% for code in ['ro', 'ru', 'en'] %}
+                  <div class="app-field-lang">
+                    <span class="msg-default-lang">{{ t('msg_lang_' ~ code) }}</span>
+                    {% if f.control == 'color' %}
+                      <input type="color"
+                             name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                             value="{{ f.values[code] }}">
+                    {% elif f.control == 'textarea' %}
+                      <textarea rows="2"
+                                name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}">{{ f.values[code] }}</textarea>
+                    {% else %}
+                      <input type="text"
+                             name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                             value="{{ f.values[code] }}">
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </fieldset>
+            {% endfor %}
+            <div class="form-actions">
+              <button type="button" class="btn ghost"
+                      onclick="closeModal('modal-app-{{ scr.screen }}')">{{ t('admin_cancel') }}</button>
+              <button type="submit" class="btn">{{ t('admin_app_save') }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
     <div class="modal-overlay" id="modal-faq-add" hidden>
       <div class="modal modal-wide">
         <div class="modal-head">
@@ -913,15 +979,17 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=push");
       } else if (target === "tab-jobs") {
         history.replaceState(null, "", "/admin?tab=jobs");
+      } else if (target === "tab-app") {
+        history.replaceState(null, "", "/admin?tab=app");
       } else {
         history.replaceState(null, "", "/admin");
       }
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push", "jobs"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push", "jobs", "app"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
-    var tabKey = params.get("saved") ? "messages" : params.get("tab");
+    var tabKey = params.get("tab") || (params.get("saved") ? "messages" : "");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
     if (msgBtn) msgBtn.click();
   }

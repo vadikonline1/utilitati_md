@@ -13,6 +13,7 @@ import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Account, getHome, Home as HomeType } from '../api/client';
 import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
+import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
 
 type ParamList = {
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function HomeDetailScreen({ navigation, route }: Props) {
+  const { t } = useContent();
   const homeId = route.params.id;
   const [home, setHome] = useState<HomeType | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -41,12 +43,12 @@ export default function HomeDetailScreen({ navigation, route }: Props) {
         setHome(data.home);
         setAccounts(data.accounts);
       } catch {
-        Alert.alert('Eroare', 'Nu s-au putut încărca datele.');
+        Alert.alert('Eroare', t('home_detail', 'error_load'));
       } finally {
         setRefreshing(false);
       }
     },
-    [homeId],
+    [homeId, t],
   );
 
   useFocusEffect(
@@ -66,11 +68,15 @@ export default function HomeDetailScreen({ navigation, route }: Props) {
           <View style={styles.flex}>
             <Text style={styles.name}>{item.label}</Text>
             <Text style={styles.muted}>{item.provider}</Text>
-            <Text style={styles.muted}>Contract: {item.contract_number}</Text>
+            <Text style={styles.muted}>
+              {t('home_detail', 'contract', { value: item.contract_number })}
+            </Text>
           </View>
           <View style={[styles.badge, item.status === 'disabled' ? styles.badgeOff : styles.badgeOn]}>
             <Text style={styles.badgeText}>
-              {item.status === 'disabled' ? 'Dezactivat' : 'Activ'}
+              {item.status === 'disabled'
+                ? t('home_detail', 'status_disabled')
+                : t('home_detail', 'status_active')}
             </Text>
           </View>
         </View>
@@ -93,13 +99,17 @@ export default function HomeDetailScreen({ navigation, route }: Props) {
             <Card>
               <Text style={styles.name}>{home.name}</Text>
               {home.address ? <Text style={styles.muted}>{home.address}</Text> : null}
-              {home.floor ? <Text style={styles.muted}>Etaj {home.floor}</Text> : null}
+              {home.floor ? (
+                <Text style={styles.muted}>
+                  {t('home_detail', 'floor', { value: home.floor })}
+                </Text>
+              ) : null}
               {home.metro_area ? <Text style={styles.muted}>{home.metro_area}</Text> : null}
             </Card>
           ) : null
         }
         ListEmptyComponent={
-          <Text style={styles.empty}>Niciun cont de utilități adăugat.</Text>
+          <Text style={styles.empty}>{t('home_detail', 'empty')}</Text>
         }
         ListFooterComponent={<AdBanner placement="home_detail" />}
       />

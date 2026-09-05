@@ -243,6 +243,42 @@ nevoie de build nou. Formatările:
 Unitățile (`ca-app-pub-...`) se setează în admin pe platformă (Android/iOS);
 dacă lipsesc, aplicația folosește id-urile de test oferite de Google.
 
+## Conținut server-driven (texte & config din admin)
+
+Toate textele și etichetele din aplicație (ecrane: Dashboard, Locuințe, Facturi,
+Notificări, Detalii locuință/cont, formulare, Profil) sunt rezolvate din
+`GET /api/content?lang=...` — un obiect `{lang, screens: {...}}` construit
+server-side din valorile implicite + supra-scrierile din admin
+(`/admin` → tabul **Aplicație**, chei `app_<ecran>_<camp>_<lang>`). Modificarea
+textelor **nu necesită rebuild**: aplicația reîncarcă conținutul la pornire și
+la schimbarea limbii.
+
+- Limbile: `ro` / `ru` / `en` (selectate în Profil; cheia
+  `utilitati.language` din AsyncStorage).
+- Aplicația ține un mirror al valorilor implicite în `src/content/defaults.ts`
+  (afișare imediată, offline) și surprapune peste el răspunsul serverului prin
+  `ContentProvider` (`src/content/useContent.tsx`). Componentele citesc
+  strings prin `useContent().t(ecran, cheie, variabile)`.
+- Placeholder-e: `{value}`, `{count}`, `{home}`, `{utility}`, `{amount}`,
+  `{total}`, `{icon}` etc., completate de consumator.
+
+### Notificarea „Factură nouă" (semafor/badge din aplicație + push)
+
+Când se găsesc facturi noi (conectare, refresh manual, sync programat),
+notificarea din aplicație și push-ul includ **detaliile fiecărei facturi**:
+locuința, utilitatea și suma — o linie per factură, template-uri editate din
+admin (Aplicație → Notificări):
+
+```
+S-a găsit factură nouă:
+• Ap. 12 · Str. X 1 · Gaze — 500.00 MDL
+• Ap. 12 · Str. X 1 · Gaze — 250.50 MDL
+Total: 750.50 MDL
+```
+
+Peste 8 facturi: se afișează primele 8 + `+N facturi în plus`. Facturile sunt
+ordonate de la cea mai nouă.
+
 ## Autentificare
 
 Aplicația se loghează prin `POST /api/auth/login` cu username + parolă,

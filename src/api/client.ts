@@ -336,6 +336,19 @@ export function getConfig(): Promise<AppConfig> {
   return request('/config');
 }
 
+// --------------------------------------------------------------------------- //
+// Server-driven UI content (editable from /admin "Aplicație", no app rebuild)
+// --------------------------------------------------------------------------- //
+export interface AppContent {
+  lang: string;
+  screens: Record<string, Record<string, unknown>>;
+}
+
+export function getAppContent(lang = 'ro'): Promise<AppContent> {
+  const qs = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+  return request(`/content${qs}`, { token: null });
+}
+
 export function deleteAccount(id: number): Promise<{ deleted: boolean }> {
   return request(`/accounts/${id}`, { method: 'DELETE' });
 }

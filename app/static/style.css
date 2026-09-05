@@ -694,6 +694,19 @@ button { font-family: inherit; }
 .msg-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: auto; }
 .msg-actions form { margin: 0; }
 
+/* App content editor (admin "App" tab, per-screen modals) */
+.modal-tall { max-height: 84vh; overflow-y: auto; }
+.app-field { gap: 6px; }
+.app-field textarea { min-height: 0; }
+.app-field-lang {
+  display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: center;
+}
+.app-field-lang input[type="color"] {
+  width: 62px; height: 34px; padding: 2px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: #fff; cursor: pointer;
+}
+.app-field-lang textarea { resize: vertical; min-height: 56px; }
+
 /* Print */
 @media print {
   .topbar, .site-footer, .nav-toggle, .lang-dropdown, .theme-toggle, .hero-buttons, .form-actions, .row-actions,

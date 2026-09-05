@@ -13,6 +13,7 @@ import { RouteProp } from '@react-navigation/native';
 import { ApiError, createHome, getHome, updateHome } from '../api/client';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
 
 type ParamList = {
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function HomeFormScreen({ navigation, route }: Props) {
+  const { t } = useContent();
   const homeId = route.params?.id;
   const isEdit = homeId != null;
 
@@ -44,13 +46,13 @@ export default function HomeFormScreen({ navigation, route }: Props) {
           setFloor(home.floor || '');
           setMetroArea(home.metro_area || '');
         })
-        .catch(() => Alert.alert('Eroare', 'Locuința nu a putut fi încărcată.'));
+        .catch(() => Alert.alert('Eroare', t('home_form', 'error_load')));
     }
-  }, [isEdit, homeId]);
+  }, [isEdit, homeId, t]);
 
   const save = async () => {
     if (!name.trim()) {
-      Alert.alert('Atenție', 'Numele este obligatoriu.');
+      Alert.alert('Atenție', t('home_form', 'warn_required_name'));
       return;
     }
     setSaving(true);
@@ -62,7 +64,7 @@ export default function HomeFormScreen({ navigation, route }: Props) {
       }
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Salvarea a eșuat.');
+      Alert.alert('Eroare', e instanceof ApiError ? e.message : t('home_form', 'error_save'));
     } finally {
       setSaving(false);
     }
@@ -75,17 +77,27 @@ export default function HomeFormScreen({ navigation, route }: Props) {
     >
       <ScrollView contentContainerStyle={styles.container}>
         {loading ? (
-          <Text style={styles.muted}>Se încarcă…</Text>
+          <Text style={styles.muted}>{t('common', 'loading')}</Text>
         ) : (
           <View>
             <Text style={styles.title}>
-              {isEdit ? 'Editează locuința' : 'Locuință nouă'}
+              {isEdit ? t('home_form', 'title_edit') : t('home_form', 'title_new')}
             </Text>
-            <Input label="Nume *" value={name} onChangeText={setName} placeholder="ex. Apartament 12" />
-            <Input label="Adresă" value={address} onChangeText={setAddress} />
-            <Input label="Etaj" value={floor} onChangeText={setFloor} keyboardType="number-pad" />
-            <Input label="Sector" value={metroArea} onChangeText={setMetroArea} />
-            <Button title="Salvează" onPress={save} loading={saving} />
+            <Input
+              label={t('home_form', 'label_name')}
+              value={name}
+              onChangeText={setName}
+              placeholder={t('home_form', 'placeholder_name')}
+            />
+            <Input label={t('home_form', 'label_address')} value={address} onChangeText={setAddress} />
+            <Input
+              label={t('home_form', 'label_floor')}
+              value={floor}
+              onChangeText={setFloor}
+              keyboardType="number-pad"
+            />
+            <Input label={t('home_form', 'label_sector')} value={metroArea} onChangeText={setMetroArea} />
+            <Button title={t('common', 'save')} onPress={save} loading={saving} />
           </View>
         )}
       </ScrollView>
