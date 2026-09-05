@@ -716,6 +716,51 @@ FIELDS: dict[str, list[tuple[str, str, str]]] = {
     ],
 }
 
+# Sections inside each per-screen admin modal, so the fields are grouped and
+# the editor scrools less. Keys are FIELDS paths; a trailing ``None`` catches
+# every field not listed above it. Screens without a spec get one "General"
+# section (title-less).
+FIELD_SECTIONS: dict[str, list[tuple[str, tuple[str, ...] | None]]] = {
+    "dashboard": [
+        ("Statistici", ("stat_unpaid_balance", "stat_open_invoices",
+                        "stat_paid_invoices", "stat_arrears", "stat_homes")),
+        ("Buton „Susține proiectul”", ("support_enabled", "support_title", "support_text")),
+        ("General", None),
+    ],
+    "notifications": [
+        ("General", ("title", "read_all", "empty", "default_title", "error_load")),
+        ("Tipuri notificare",
+         ("badge.invoice.label", "badge.invoice.color",
+          "badge.unpaid.label", "badge.unpaid.color",
+          "badge.admin.label", "badge.admin.color",
+          "badge.general.label", "badge.general.color",
+          "badge.other.label", "badge.other.color")),
+        ("Clopot/push: „factură nouă”", None),
+    ],
+    "home_form": [
+        ("Câmpuri", ("title_new", "title_edit", "label_name", "placeholder_name",
+                     "label_address", "label_floor", "label_sector")),
+        ("Avertismente și erori", None),
+    ],
+    "account_form": [
+        ("Câmpuri", ("title_new", "title_edit", "section_home", "section_provider",
+                     "picker_provider", "provider_label", "provider_readonly",
+                     "label_contract", "modal_title")),
+        ("Avertismente și erori", None),
+    ],
+    "account_detail": [
+        ("Informații și status", ("contract", "location", "refresh", "edit",
+                                  "invoices_title", "status_paid", "status_unpaid",
+                                  "status_unknown", "empty")),
+        ("Erori și sfaturi", None),
+    ],
+    "invoices": [
+        ("General", ("group_others", "default_title", "period", "due", "paid",
+                     "unpaid", "empty", "error_load")),
+        ("Ștergere și erori", None),
+    ],
+}
+
 
 def _setting_suffix(path: str, lang: str) -> str:
     return f"{path.replace('.', '_')}_{lang}"
@@ -789,10 +834,33 @@ def _default_at(lang: str, screen: str, path: str) -> str:
 # --------------------------------------------------------------------------- #
 # Admin editor data
 # --------------------------------------------------------------------------- #
+def _screen_sections(screen: str, fields: list[dict]) -> list[dict]:
+    """Group admin modal fields into titled sections (see FIELD_SECTIONS).
+
+    A trailing ``None`` in the spec consumes every remaining field, so no key
+    is ever dropped. Screens without a spec return one title-less section.
+    """
+    spec = FIELD_SECTIONS.get(screen)
+    if not spec:
+        return [{"title": None, "fields": fields}]
+    sections: list[dict] = []
+    remaining = list(fields)
+    for title, keys in spec:
+        if keys is None:
+            picked, remaining = remaining, []
+        else:
+            key_set = set(keys)
+            picked = [f for f in remaining if f["path"] in key_set]
+            remaining = [f for f in remaining if f["path"] not in key_set]
+        if picked:
+            sections.append({"title": title, "fields": picked})
+    return sections
+
+
 def admin_editor() -> list[dict]:
-    """[{screen, title, hint, group, modified, field_count,
+    """[{screen, title, hint, group, modified, field_count, sections:[{title,
         fields:[{path, control, label, values:{lang}, defaults:{lang},
-                 overridden:{lang}}]}]."""
+                 overridden:{lang}}]}]}]."""
     result = []
     for screen in SCREENS:
         fields = []
@@ -827,6 +895,7 @@ def admin_editor() -> list[dict]:
                 "modified": modified,
                 "field_count": len(fields),
                 "fields": fields,
+                "sections": _screen_sections(screen, fields),
             }
         )
     return result

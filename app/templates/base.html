@@ -89,6 +89,36 @@
         <a href="/contact">{{ t('nav_contact') }}</a>
       </nav>
     </div>
+    {% if seo.get('store_android_url') or seo.get('store_ios_url') %}
+    <div class="store-badges">
+      {% if seo.get('store_android_url') %}
+        <a class="store-badge" href="{{ seo.store_android_url }}" target="_blank" rel="noopener"
+           title="Google Play">
+          <svg width="135" height="40" viewBox="0 0 135 40" role="img" aria-label="Google Play">
+            <rect width="135" height="40" rx="6" fill="#0b0b0b"/>
+            <path d="M30.5 8.2 48 20 30.5 31.8c-.9.5-2-.1-2-1.2V9.4c0-1.1 1.1-1.7 2-1.2z" fill="#00d3ff"/>
+            <path d="M30.5 20 48 31.8 26.4 33.4c-.6 0-1.2-.5-1.2-1.1V20z" fill="#fa4b3e"/>
+            <path d="M26 9c-.6 0-1.2.5-1.2 1.1L25 16l5.5 4z" fill="#febd0c"/>
+            <path d="M25.2 20l-2.2 2.9c-.7.9-.9 2 0 2.8V20z" fill="#7dfb7c"/>
+            <text x="52" y="18.5" font-family="-apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="9" fill="#fff" font-weight="600">GET IT ON</text>
+            <text x="52" y="30.5" font-family="-apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#fff" font-weight="700">Google Play</text>
+          </svg>
+        </a>
+      {% endif %}
+      {% if seo.get('store_ios_url') %}
+        <a class="store-badge" href="{{ seo.store_ios_url }}" target="_blank" rel="noopener"
+           title="App Store">
+          <svg width="135" height="40" viewBox="0 0 135 40" role="img" aria-label="App Store">
+            <rect width="135" height="40" rx="6" fill="#0b0b0b"/>
+            <path d="M28.6 13.2c1.6-1.9 3.8-2.9 6-2.6 0 .2-.1.6-.3 1-.2.4-.4.7-.7 1-.5.6-1.5 1.9-1.4 3.4.1 2 1.4 3 1.4 3s-2.4 2.7-6.1 2.4c-1.5-.1-2.6-.7-3.5-1.4.2-1.4 1-3.3 2.7-3.5-.7-.4-1.3-1-1.7-1.6-.4-.5-.6-1.1-.8-1.6.2-.1.5-.1.8-.1.7-.1 1.6 0 2.5.5z" fill="#fff"/>
+            <path d="M27.8 15.9c.1 2.7 2.3 3.6 4 3.7Zm-4.1-2.6c.2-.1 1.3-.8 2.8-.2 0 0-1.2 3.1-2.8 3.1-.2 0-.6-.2-1-.8-.3-.5-.4-1-.4-1.5s.7-.5 1.4-.6z" fill="#fff"/>
+            <text x="38" y="18.5" font-family="-apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="9" fill="#fff" font-weight="600">Download on the</text>
+            <text x="38" y="30.5" font-family="-apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#fff" font-weight="700">App Store</text>
+          </svg>
+        </a>
+      {% endif %}
+    </div>
+    {% endif %}
     <p class="footer-desc">{{ t('footer_desc') }}</p>
     <div class="footer-copy">© {{ now.year }} {{ t('footer_site') }}</div>
   </footer>

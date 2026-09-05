@@ -584,6 +584,10 @@ button { font-family: inherit; }
 .footer-nav a:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
 .footer-desc { color: var(--muted); margin: 0; max-width: 720px; line-height: 1.5; font-size: 0.9rem; }
 .footer-copy { color: var(--muted); }
+.store-badges { display: flex; gap: 12px; flex-wrap: wrap; }
+.store-badge { display: inline-block; line-height: 0; border-radius: 6px; opacity: 0.96; }
+.store-badge:hover { opacity: 1; transform: translateY(-1px); }
+.store-badge svg { display: block; }
 
 @media (max-width: 640px) {
   .footer-row { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -616,6 +620,8 @@ button { font-family: inherit; }
   padding: 1px 8px; white-space: nowrap;
 }
 .subtitle .deploy-commit { display: inline-block; margin-left: 2px; }
+.deploy-commit a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.deploy-commit a:hover { text-decoration: underline; }
 
 /* Message management modals */
 .modal-wide { max-width: 720px; }
@@ -729,9 +735,17 @@ button { font-family: inherit; }
   display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
 }
 .app-search {
-  min-width: 260px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--panel-2); color: var(--text); font-size: 0.9rem; margin-left: auto;
+  min-width: 260px; padding: 9px 12px 9px 36px; border: 1px solid var(--border); border-radius: 8px;
+  background-color: var(--panel-2); color: var(--text); font-size: 0.9rem; margin-left: auto;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 12px center; background-size: 15px 15px;
 }
+.app-search::placeholder { color: var(--muted); }
+.app-search:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2);
+  background-color: var(--panel);
+}
+.app-search::-webkit-search-cancel-button { -webkit-appearance: none; height: 14px; width: 14px; cursor: pointer; }
 @media (max-width: 640px) {
   .app-search { min-width: 0; width: 100%; margin-left: 0; }
 }
@@ -777,6 +791,43 @@ button { font-family: inherit; }
 }
 @media (max-width: 760px) {
   .app-field-cols { grid-template-columns: 1fr; }
+}
+
+/* App modal toolbar: language tabs + section jump-links */
+.app-modal-toolbar {
+  position: sticky; top: 66px; z-index: 3; margin: 0 -24px 14px;
+  padding: 10px 24px; background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.app-modal-toolbar .app-lang-tabs { display: flex; gap: 6px; }
+.app-lang-tab {
+  background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+  padding: 7px 16px; border-radius: 999px; cursor: pointer; font-size: 0.82rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.app-lang-tab:hover { border-color: var(--accent-2); color: var(--text); }
+.app-lang-tab.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.app-section-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.app-section-nav-link {
+  font-size: 0.78rem; color: var(--muted); text-decoration: none;
+  border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px;
+}
+.app-section-nav-link:hover { color: var(--accent); border-color: var(--accent-2); }
+.app-section-title {
+  margin: 26px 0 10px; padding-top: 14px; border-top: 1px dashed var(--border);
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--accent);
+}
+.app-section-title:first-of-type { margin-top: 0; }
+.app-field-label { margin-right: 8px; }
+.app-field-reset {
+  margin-left: auto; background: none; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 6px; font-size: 0.72rem; padding: 2px 8px; cursor: pointer;
+}
+.app-field-reset:hover { color: var(--accent); border-color: var(--accent-2); }
+@media (max-width: 640px) {
+  .app-modal-toolbar { flex-direction: column; align-items: flex-start; }
 }
 
 /* Print */

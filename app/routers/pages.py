@@ -253,6 +253,8 @@ def _seo() -> dict:
         "company_name": get_setting("company_name", "").strip() or "UTILITĂȚI.MD",
         "company_email": get_setting("company_email", "").strip(),
         "company_address": get_setting("company_address", "").strip(),
+        "store_android_url": get_setting("store_android_url", "").strip(),
+        "store_ios_url": get_setting("store_ios_url", "").strip(),
     }
 
 
@@ -358,8 +360,24 @@ async def home(request: Request, user_id: int | None = Depends(optional_auth_tok
 
 
 # --------------------------------------------------------------------------- #
-# Language switch
+# App download links (store badges in the footer redirects per device type;
+# /download is the shared destination when only one badge is shown).
 # --------------------------------------------------------------------------- #
+@router.get("/download")
+async def download_app(request: Request):
+    """Redirect an Android / iOS visitor to its store listing; everyone else
+    lands on the homepage that shows both store badges."""
+    seo = _seo()
+    ua = str(request.headers.get("user-agent", "")).lower()
+    if "iphone" in ua or "ipad" in ua or "ipod" in ua:
+        if seo["store_ios_url"]:
+            return RedirectResponse(seo["store_ios_url"], status_code=303)
+    else:
+        if seo["store_android_url"]:
+            return RedirectResponse(seo["store_android_url"], status_code=303)
+    return RedirectResponse("/", status_code=303)
+
+
 @router.get("/set-language/{lang}")
 async def set_language(
     lang: str, request: Request, user_id: int | None = Depends(optional_auth_token)
@@ -1342,6 +1360,8 @@ async def admin_seo_submit(
         "company_name": str(form.get("company_name", "")).strip(),
         "company_email": str(form.get("company_email", "")).strip(),
         "company_address": str(form.get("company_address", "")).strip(),
+        "store_android_url": str(form.get("store_android_url", "")).strip(),
+        "store_ios_url": str(form.get("store_ios_url", "")).strip(),
     })
     _save_placeholder_rows(form)
     return _admin_render(request, user_id, message=_t("admin_saved"))

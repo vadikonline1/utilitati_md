@@ -61,6 +61,8 @@ SETTING_KEYS = {
     "company_name",             # platform operator name (GDPR)
     "company_email",            # official email / GDPR requests
     "company_address",          # registered / juridical address
+    "store_android_url",        # Google Play listing URL (footer badge + /download)
+    "store_ios_url",            # App Store listing URL (footer badge + /download)
     # AdMob / Google Ads (managed from /admin?tab=ads; consumed by the app).
     "admob_enabled",                # '1'/'0' master switch for the mobile app
     "admob_app_id_android",         # AdMob App ID (Android)

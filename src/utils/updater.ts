@@ -186,9 +186,19 @@ export async function installUpdate(apkUrl: string): Promise<void> {
   }
   // ActivityAction.VIEW doesn't exist in this expo-intent-launcher version,
   // so we pass the raw Android action string. See expo/expo#20949.
-  await startActivityAsync('android.intent.action.VIEW', {
-    data: contentUri,
-    type: 'application/vnd.android.package-archive',
-    flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-  });
+  try {
+    await startActivityAsync('android.intent.action.VIEW', {
+      data: contentUri,
+      type: 'application/vnd.android.package-archive',
+      flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+    });
+  } catch (err) {
+    if (err instanceof TypeError && /activityAction/.test(err.message || '')) {
+      throw new Error(
+        'Build-ul instalat este prea vechi pentru instalarea automată. ' +
+        'Instalează manual noul APK din pagina de GitHub Releases.',
+      );
+    }
+    throw err;
+  }
 }
