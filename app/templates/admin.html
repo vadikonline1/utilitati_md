@@ -132,7 +132,9 @@
                   <span class="field-hint">{{ t('admin_push_provider_env_hint') }}</span>
                 {% endif %}
                 <span class="field-hint">
-                  {% if eff_push_provider == 'fcm' %}{{ t('admin_fcm_eff_fcm') }}{% else %}{{ t('admin_fcm_eff_expo') }}{% endif %}
+                  {% if eff_push_provider == 'fcm' %}
+                    {% if fcm_configured %}{{ t('admin_fcm_eff_fcm') }}{% else %}{{ t('admin_fcm_missing') }}{% endif %}
+                  {% else %}{{ t('admin_fcm_eff_expo') }}{% endif %}
                 </span>
               </label>
               <label>{{ t('admin_fcm_service_account') }}
