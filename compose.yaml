@@ -1,11 +1,13 @@
 services:
   web:
-    build:
-      context: .
-      args:
-        GIT_SHA: ${GIT_SHA:-unknown}
-    image: utilitati-md:latest
+    # Imaginea este construita SI publicata de GitHub Actions
+    # (.github/workflows/build-docker.yml) pe ghcr.io — aici NU mai compilam
+    # nimic local. IMAGE_TAG selecteaza build-ul dorit: "deploy" / "main" /
+    # "<sha8>"; implicit folosim build-ul ramurii deploy (ultimul publicat).
+    image: ghcr.io/vadikonline1/utilitati_md:${IMAGE_TAG:-deploy}
     container_name: utilitati-md
+    # Trage mereu cea mai noua imagine publicata la `docker compose up`.
+    pull_policy: always
     restart: unless-stopped
     ports:
       - "8000:8000"
