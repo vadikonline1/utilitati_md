@@ -23,9 +23,27 @@ before deploying them.
 
 ## Run with Docker
 
+Imaginea NU se mai compilează local — GitHub Actions o construiește și o
+publică automat pe GHCR (`.github/workflows/build-docker.yml`). `compose.yaml`
+trage mereu build-ul publicat (`pull_policy: always`):
+
 ```bash
 cp .env.example .env      # then edit secrets
-docker compose up -d --build
+docker compose up -d
+```
+
+Build-ul folosit este cel al ramurii `deploy` (`ghcr.io/vadikonline1/utilitati_md:deploy`).
+Pentru a alege alt build (ex. `main`, un SHA):
+
+```bash
+IMAGE_TAG=main docker compose up -d
+```
+
+Pachetele GHCR sunt **private** implicit — pe server autentifică-te o dată cu un
+PAT cu scope `read:packages`:
+
+```bash
+echo "$PAT" | docker login ghcr.io -u vadikonline1 --password-stdin
 ```
 
 Open http://localhost:8000 — the default login is `admin` / `admin` (from
