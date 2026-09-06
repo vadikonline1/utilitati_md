@@ -15,18 +15,16 @@ import {
 import Input from '../components/Input';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { ApiError, changePassword, clearDeviceToken, deactivateAccount, ReleaseChannel, sendTestNotification, updateNotificationsEnabled, updateReleaseChannel, updateSelf } from '../api/client';
+import { ApiError, changePassword, clearDeviceToken, deactivateAccount, sendTestNotification, updateNotificationsEnabled, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
 import { useContent } from '../content/useContent';
 import { registerPushTokenResult } from '../utils/notify';
-import { checkForUpdate, getLocalVersion, installUpdate, openReleasesUrl } from '../utils/updater';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 const NOTIF_KEY = 'utilitati.notifications';
-const CHANNEL_KEY = 'utilitati.release_channel';
 const LANGUAGES = [
   { code: 'ro', label: 'Română' },
   { code: 'ru', label: 'Русский' },
@@ -68,8 +66,6 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
   const [editName, setEditName] = useState(user?.full_name || '');
   const [notifOn, setNotifOn] = useState(false);
-  const [channel, setChannel] = useState<ReleaseChannel>('stable');
-  const [checking, setChecking] = useState(false);
   const p = (key: string, vars?: Record<string, string | number>) =>
     t('profile', key, vars);
 
@@ -77,18 +73,8 @@ export default function ProfileScreen() {
     (async () => {
       const n = await AsyncStorage.getItem(NOTIF_KEY);
       setNotifOn(n === '1');
-      const serverChannel = user?.release_channel as ReleaseChannel | undefined;
-      const stored = (await AsyncStorage.getItem(CHANNEL_KEY)) as ReleaseChannel | null;
-      const effective: ReleaseChannel = stored || serverChannel || 'stable';
-      setChannel(effective);
-      if (stored !== effective) {
-        await AsyncStorage.setItem(CHANNEL_KEY, effective);
-      }
-      if (serverChannel !== effective) {
-        updateReleaseChannel(effective).catch(() => undefined);
-      }
     })();
-  }, [user?.release_channel]);
+  }, []);
 
   const toggleNotifications = async (value: boolean) => {
     setNotifOn(value);
@@ -203,82 +189,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const toggleChannel = async (value: boolean) => {
-    const id: ReleaseChannel = value ? 'beta' : 'stable';
-    const previous = channel;
-    setChannel(id);
-    await AsyncStorage.setItem(CHANNEL_KEY, id);
-    try {
-      const updated = await updateReleaseChannel(id);
-      if (updated) setUser(updated);
-    } catch (e) {
-      setChannel(previous);
-      Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Nu am putut salva canalul.');
-    }
-  };
-
-  const checkUpdates = async () => {
-    if (channel !== 'beta') {
-      Alert.alert(p('section_channel'), p('channel_off'));
-      return;
-    }
-    setChecking(true);
-    try {
-      if (Platform.OS === 'ios') {
-        Alert.alert(
-          'iOS',
-          'Pe iOS actualizarea se face din App Store / TestFlight — aici poți doar verifica canalul Beta.',
-        );
-        return;
-      }
-      const info = await checkForUpdate();
-      if (!info.apkUrl) {
-        Alert.alert(p('up_to_date'), `Canalul Beta nu are încă un build publicat.`);
-        return;
-      }
-      const localVersion = info.localVersion;
-      const parts: string[] = [];
-      if (info.remoteSha) parts.push(`Build/deploy: ${info.remoteSha.slice(0, 7)}`);
-      if (info.remoteVersion && info.remoteVersion !== localVersion) {
-        parts.push(`Versiune: v${info.remoteVersion} (ai v${localVersion})`);
-      }
-      if (!info.available) {
-        Alert.alert(
-          p('up_to_date'),
-          `Ai instalat ultimul build Beta${parts.length ? ` (${parts.join(', ')})` : ''}.`,
-        );
-        return;
-      }
-      Alert.alert(
-        'Build nou disponibil',
-        `Pe canalul Beta este un build mai nou${parts.length ? `: ${parts.join(', ')}` : ''}.\n\nDescarc APK-ul și îl deschid pentru instalare?`,
-        [
-          { text: t('common', 'cancel'), style: 'cancel' },
-          {
-            text: 'Descarcă și instalează',
-            style: 'default',
-            onPress: async () => {
-              try {
-                await installUpdate(info.apkUrl!);
-              } catch (err) {
-                const message =
-                  err instanceof Error && err.message
-                    ? err.message
-                    : 'Nu am putut descărca/instala APK-ul automat. Deschide pagina de GitHub Releases și descarcă build-ul de acolo.';
-                Alert.alert('Eroare', message, [
-                  { text: t('common', 'cancel'), style: 'cancel' },
-                  { text: 'Deschide GitHub Releases', onPress: () => openReleasesUrl() },
-                ]);
-              }
-            },
-          },
-        ],
-      );
-    } finally {
-      setChecking(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
       <AppHeader />
@@ -331,33 +241,6 @@ export default function ProfileScreen() {
           icon="person-remove-outline"
           title={p('deactivate')}
           onPress={deactivate}
-        />
-
-        <View style={styles.row}>
-          <Ionicons name="flask-outline" size={22} color={colors.primary} />
-          <View style={styles.rowBody}>
-            <Text style={styles.rowTitle}>{p('section_channel')}</Text>
-            <Text style={styles.muted}>
-              {channel === 'beta'
-                ? p('beta_desc')
-                : p('channel_off')}
-            </Text>
-          </View>
-          <Switch
-            value={channel === 'beta'}
-            onValueChange={toggleChannel}
-            trackColor={{ false: colors.border, true: colors.primary }}
-          />
-        </View>
-        <Text style={[styles.muted, styles.versionText]}>
-          {p('version', { value: getLocalVersion() })}
-        </Text>
-        <Button
-          title={p('check_updates')}
-          onPress={checkUpdates}
-          loading={checking}
-          disabled={checking}
-          style={styles.updateBtn}
         />
 
         <Text style={styles.section}>{p('section_account')}</Text>
@@ -454,8 +337,6 @@ const styles = StyleSheet.create({
   },
   rowBody: { flex: 1, marginLeft: spacing.md },
   rowTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
-  versionText: { marginTop: spacing.md },
-  updateBtn: { marginTop: spacing.sm },
   logout: { marginTop: spacing.md },
   modalWrap: {
     flex: 1,

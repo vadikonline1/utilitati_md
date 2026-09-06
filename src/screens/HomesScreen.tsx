@@ -66,7 +66,7 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
               {(item.unpaid_invoices ?? 0) > 0 ? (
                 <View style={[styles.chip, styles.chipWarn]}>
                   <Text style={[styles.chipText, styles.chipTextWarn]}>
-                    {t('homes', 'unpaid_chip', { count: item.unpaid_invoices })}
+                    {t('homes', 'unpaid_chip', { count: item.unpaid_invoices ?? 0 })}
                   </Text>
                 </View>
               ) : null}
