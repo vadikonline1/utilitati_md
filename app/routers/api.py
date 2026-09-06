@@ -173,23 +173,20 @@ async def device_token_clear(user_id: int = Depends(get_auth_token)):
 @router.post("/devices/test")
 async def device_test_push(user_id: int = Depends(get_auth_token)):
     """Send a test push notification to the current user's devices."""
+    feedback: list[str] = []
     sent = await push_svc.send_push(
         user_id,
         "Utilități.MD ✓",
         "Notificare de test — notificările sunt active.",
         type_="test",
+        feedback=feedback,
     )
     if sent == 0:
         has_tokens = bool(push_svc.user_device_tokens(user_id))
+        parts = feedback or []
         if not has_tokens:
-            raise HTTPException(status_code=400, detail="Niciun token de notificare înregistrat.")
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Token-ul există, dar livrarea notificării a eșuat "
-                "(verifică configurarea push pe server)."
-            ),
-        )
+            parts.append("Niciun token de notificare înregistrat.")
+        raise HTTPException(status_code=400, detail=" ".join(parts) or "Livrarea notificării a eșuat.")
     return {"sent": sent}
 
 
@@ -222,8 +219,18 @@ async def read_notification(notif_id: int, user_id: int = Depends(get_auth_token
 @router.get("/config")
 async def app_config(user_id: int = Depends(get_auth_token)):
     """Server-driven runtime config for the mobile app (e.g. AdMob)."""
+    from ..services.push import _load_service_account
     from ..services.settings import get_push_provider
-    return {"admob": admob_config(), "push": {"provider": get_push_provider()}}
+    fcm_configured = _load_service_account() is not None
+    provider = get_push_provider()
+    push_config: dict = {
+        "provider": provider,
+        # TRUE when FCM credentials exist; FALSE when PUSH_PROVIDER=fcm was
+        # selected but FCM_SERVICE_ACCOUNT is missing -> delivery cannot work.
+        "fcm_configured": fcm_configured,
+        "ok": not (provider == "fcm" and not fcm_configured),
+    }
+    return {"admob": admob_config(), "push": push_config}
 
 
 @router.get("/content")

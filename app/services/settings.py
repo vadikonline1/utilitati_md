@@ -129,9 +129,24 @@ def get_stored_setting(key: str, default: str = "") -> str:
 
 
 def get_push_provider() -> str:
-    """Return the current push provider mode ('expo' or 'fcm', default 'fcm')."""
+    """Return the current push provider mode ('expo' or 'fcm', default 'fcm').
+
+    Self-healing: when the configured mode is ``fcm`` but no FCM service
+    account is available anywhere (env or /admin), delivery can never succeed,
+    so the server silently falls back to the Expo relay. This keeps push
+    working across deploys / volume wipes even if the credential setting was
+    lost; the app reads this value from ``GET /api/config`` and mints a
+    matching token.
+    """
     mode = get_setting("push_provider", "fcm").strip().lower()
-    return mode if mode in ("expo", "fcm") else "fcm"
+    if mode not in ("expo", "fcm"):
+        mode = "fcm"
+    if mode == "fcm":
+        # Deferred import: push.py imports this module, avoid a cycle.
+        from .push import _load_service_account
+        if _load_service_account() is None:
+            return "expo"
+    return mode
 
 
 def set_setting(key: str, value: str) -> None:

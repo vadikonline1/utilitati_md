@@ -329,7 +329,7 @@ export interface AdmobConfig {
 
 export interface AppConfig {
   admob: AdmobConfig;
-  push: { provider: 'fcm' | 'expo' };
+  push: { provider: 'fcm' | 'expo'; fcm_configured?: boolean; ok?: boolean };
 }
 
 export function getConfig(): Promise<AppConfig> {

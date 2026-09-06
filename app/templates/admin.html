@@ -131,6 +131,9 @@
                   <span class="env-badge">{{ t('admin_from_env') }}</span>
                   <span class="field-hint">{{ t('admin_push_provider_env_hint') }}</span>
                 {% endif %}
+                <span class="field-hint">
+                  {% if eff_push_provider == 'fcm' %}{{ t('admin_fcm_eff_fcm') }}{% else %}{{ t('admin_fcm_eff_expo') }}{% endif %}
+                </span>
               </label>
               <label>{{ t('admin_fcm_service_account') }}
                 <textarea name="fcm_service_account" rows="6" placeholder='{ "type": "service_account", ... }'>{{ settings.get('fcm_service_account', '') }}</textarea>

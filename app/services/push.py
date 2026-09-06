@@ -301,20 +301,25 @@ async def _fcm_access_token() -> str | None:
 
 
 async def _fcm_send(
-    token: str, title: str, body: str, data: dict | None = None
+    token: str, title: str, body: str, data: dict | None = None, *, feedback: list[str] | None = None
 ) -> tuple[bool, bool]:
     """Send one push via FCM HTTP v1.
 
     Returns ``(delivered, dead)``. ``delivered`` is True when FCM accepted the
     message (HTTP 200). ``dead`` is True when the token itself is no longer
     registered (UNREGISTERED / NOT_FOUND) and should be pruned from the DB.
+    ``feedback`` (optional) collects a human-readable failure reason per token.
     """
     sa = _load_service_account()
     if not sa:
         _LOGGER.warning("FCM_SERVICE_ACCOUNT not configured; cannot send FCM push")
+        if feedback is not None:
+            feedback.append("FCM_SERVICE_ACCOUNT nu este configurat pe server.")
         return False, False
     access = await _fcm_access_token()
     if not access:
+        if feedback is not None:
+            feedback.append("Emiterea tokenului OAuth FCM a eșuat.")
         return False, False
     message: dict = {
         "message": {
@@ -344,19 +349,25 @@ async def _fcm_send(
                     _LOGGER.warning("FCM token unregistered: %s", detail)
                 else:
                     _LOGGER.warning("FCM push HTTP %s: %s", resp.status, detail)
+                if feedback is not None:
+                    feedback.append(f"FCM: HTTP {resp.status} — {detail[:160]}")
                 return False, dead
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         _LOGGER.exception("FCM push send error")
+        if feedback is not None:
+            feedback.append(f"FCM: eroare de rețea — {exc.__class__.__name__}")
         return False, False
 
 
-async def _expo_send(token: str, title: str, body: str, data: dict | None) -> tuple[bool, bool]:
+async def _expo_send(
+    token: str, title: str, body: str, data: dict | None, *, feedback: list[str] | None = None
+) -> tuple[bool, bool]:
     """Send one push via the Expo relay.
 
     Returns ``(delivered, dead)``. ``delivered`` is True when Expo accepted the
     message (receipt ticket reads ok). ``dead`` is True when the ticket reports
     the token as no longer registered (DeviceNotRegistered) and it should be
-    pruned from the DB.
+    pruned from the DB. ``feedback`` (optional) collects a failure reason.
     """
     message = {
         "to": token,
@@ -373,6 +384,9 @@ async def _expo_send(token: str, title: str, body: str, data: dict | None) -> tu
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 if resp.status not in (200, 201):
+                    body = (await resp.text())[:300]
+                    if feedback is not None:
+                        feedback.append(f"Expo: HTTP {resp.status} — {body[:160]}")
                     return False, False
                 payload = await resp.json()
                 tickets = payload.get("data") or []
@@ -380,42 +394,65 @@ async def _expo_send(token: str, title: str, body: str, data: dict | None) -> tu
                 if ticket.get("status") == "ok":
                     return True, False
                 details = str(ticket.get("details") or "")
+                message_text = str(ticket.get("message") or ticket.get("error") or "")
                 dead = "DeviceNotRegistered" in details
                 if dead:
                     _LOGGER.warning("Expo token not registered: %s", details)
+                if feedback is not None:
+                    feedback.append(
+                        f"Expo: {message_text.strip() or details.strip() or 'ticket error'}"
+                    )
                 return False, dead
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         _LOGGER.exception("Expo push send failed")
+        if feedback is not None:
+            feedback.append(f"Expo: eroare de rețea — {exc.__class__.__name__}")
         return False, False
 
 
 async def _send_one(
-    provider: str, token: str, title: str, body: str, data: dict | None
+    provider: str,
+    token: str,
+    title: str,
+    body: str,
+    data: dict | None,
+    feedback: list[str] | None = None,
 ) -> tuple[bool, bool]:
     if provider == "fcm":
-        return await _fcm_send(token, title, body, data)
-    return await _expo_send(token, title, body, data)
+        return await _fcm_send(token, title, body, data, feedback=feedback)
+    return await _expo_send(token, title, body, data, feedback=feedback)
 
 
 async def send_push(
-    user_id: int, title: str, body: str, type_: str = "general", *, record: bool = True
+    user_id: int,
+    title: str,
+    body: str,
+    type_: str = "general",
+    *,
+    record: bool = True,
+    feedback: list[str] | None = None,
 ) -> int:
     """Send a push to all of a user's devices. Returns tokens attempted.
 
     When ``record`` is True (default) a delivered push is also appended to the
     user's in-app notification feed (the bell). Callers that already wrote the
     feed row themselves pass ``record=False`` to avoid duplicates.
+    ``feedback`` (optional) collects per-token failure reasons for diagnostics.
     """
     if not _notifications_enabled(user_id):
+        if feedback is not None:
+            feedback.append("Notificările sunt oprite pentru acest cont.")
         return 0
     tokens = _user_tokens(user_id)
     if not tokens:
+        if feedback is not None:
+            feedback.append("Niciun token de notificare înregistrat.")
         return 0
     data = {"type": type_}
     sent = 0
     dead_tokens: list[str] = []
     for provider, token in tokens:
-        delivered, dead = await _send_one(provider, token, title, body, data)
+        delivered, dead = await _send_one(provider, token, title, body, data, feedback)
         if delivered:
             sent += 1
         if dead:

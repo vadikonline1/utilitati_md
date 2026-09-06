@@ -95,6 +95,15 @@ export async function registerPushTokenResult(): Promise<PushActivationResult> {
     if (cfg?.push?.provider === 'expo' || cfg?.push?.provider === 'fcm') {
       mode = cfg.push.provider;
     }
+    // Server says FCM mode but has NO FCM credentials configured — registration
+    // can never deliver, so fail fast with the real reason instead of a generic one.
+    if (mode === 'fcm' && cfg?.push?.ok === false) {
+      return {
+        ok: false,
+        reason: 'registration-failed',
+        detail: 'Serverul e în mod FCM, dar FCM_SERVICE_ACCOUNT nu e configurat. Cere administratorului să seteze PUSH_PROVIDER=expo (recomandat) sau codul de service FCM.',
+      };
+    }
   } catch {
     // Config fetch failed: use the platform default (Android=FCM, iOS=Expo).
   }

@@ -68,6 +68,7 @@ from ..services.settings import (
     get_setting,
     get_stored_setting,
     get_sync_interval_hours,
+    get_push_provider,
     inactive_months,
     invoice_months,
     msg_templates,
@@ -973,6 +974,7 @@ def _admin_base_ctx() -> dict:
             get_setting("fcm_service_account", "").strip()
             or os.getenv("FCM_SERVICE_ACCOUNT", "").strip()
         ),
+        "eff_push_provider": get_push_provider(),
         "default_push_title": "Notificare administrativă - UTILITĂȚI.MD",
         "retention_enabled": retention_enabled(),
         "inactive_months": inactive_months(),
