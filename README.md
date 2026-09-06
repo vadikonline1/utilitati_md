@@ -34,6 +34,20 @@ Open http://localhost:8000 — the default login is `admin` / `admin` (from
 The SQLite database persists in the `utilitati-data` volume (`/app/data` inside
 the container).
 
+### Docker image (GitHub Actions)
+
+Workflow-ul `.github/workflows/build-docker.yml` construiește imaginea și o
+publică, la fiecare push pe `main` / `deploy`, în GitHub Container Registry:
+`ghcr.io/vadikonline1/utilitati_md:<ramură>`, `:<sha>` și `:latest`. Pentru a
+rula instructiunea publicată în loc de build local:
+
+```bash
+docker pull ghcr.io/vadikonline1/utilitati_md:latest
+docker compose up -d
+```
+
+Imaginea expune același `GIT_SHA` (build arg) pe care îl afișează admin-panel-ul.
+
 ## Configuration (environment variables)
 
 | Variable                  | Default                 | Description                    |
