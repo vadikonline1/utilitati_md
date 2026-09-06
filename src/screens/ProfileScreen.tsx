@@ -98,18 +98,24 @@ export default function ProfileScreen() {
       const res = await registerPushTokenResult();
       if (!res.ok) activationDetail = res.detail || '';
       if (res.ok) {
+        // Flip the server-side 'oprire notificări' flag first — the test push
+        // is rejected while it's off, so a previous toggle-off would otherwise
+        // make re-enabling notifications impossible.
+        await updateNotificationsEnabled(true).catch(() => undefined);
         try {
           await sendTestNotification();
-        } catch {
-          activationDetail = 'Autentificarea a mers, dar trimiterea notificării de test a eșuat.';
+        } catch (e) {
+          activationDetail = e instanceof ApiError
+            ? `Autentificarea a mers, dar trimiterea notificării de test a eșuat.\n${e.message}`
+            : 'Autentificarea a mers, dar trimiterea notificării de test a eșuat.';
         }
       }
       if (res.ok && !activationDetail) {
         Alert.alert('Gata', p('notif_activated'));
         await AsyncStorage.setItem(NOTIF_KEY, '1');
-        await updateNotificationsEnabled(true).catch(() => undefined);
       } else {
         setNotifOn(false);
+        await updateNotificationsEnabled(false).catch(() => undefined);
         const detail = activationDetail ? `\n\n${activationDetail}` : '';
         Alert.alert(
           'Atenție',

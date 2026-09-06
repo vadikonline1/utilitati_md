@@ -180,7 +180,16 @@ async def device_test_push(user_id: int = Depends(get_auth_token)):
         type_="test",
     )
     if sent == 0:
-        raise HTTPException(status_code=400, detail="Niciun token de notificare înregistrat")
+        has_tokens = bool(push_svc.user_device_tokens(user_id))
+        if not has_tokens:
+            raise HTTPException(status_code=400, detail="Niciun token de notificare înregistrat.")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Token-ul există, dar livrarea notificării a eșuat "
+                "(verifică configurarea push pe server)."
+            ),
+        )
     return {"sent": sent}
 
 
