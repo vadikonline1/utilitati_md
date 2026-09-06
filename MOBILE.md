@@ -123,6 +123,29 @@ Fiecare utilizator are un flag `notifications_enabled` (implicit pornit):
   programată) apar întotdeauna în lista/clopotelul de notificări, chiar și când
   push-urile sunt oprite sau nu există niciun dispozitiv înregistrat.
 
+### Verificarea automată a credențialelor Expo push (CI)
+
+Job-ul `check-push-credentials` din `.github/workflows/build-apk.yml` rulează
+`node scripts/ensure-expo-push-credentials.mjs --android` înainte de build și
+eșuează build-ul (`needs:`) cu un mesaj clar dacă blocul nu poate livra push:
+
+- citește identifierii (package/bundle) din `app.json`;
+- verifică pe contul EAS că există `androidAppCredentials` cu package-ul corect
+  și un `googleServiceAccountKeyForFcmV1` atașat;
+- dacă lipsesc și secretul `FCM_SERVICE_ACCOUNT_JSON` e setat, creează automat
+  credentialele prin API-ul GraphQL al EAS;
+- cu `--ios` / `--all` verifică și credențialele iOS (APNs key), altfel doar Android.
+
+Secrets necesare în repo (Settings → Secrets → Actions):
+
+- `EXPO_TOKEN` — token de acces Expo (https://expo.dev/access-tokens);
+- `FCM_SERVICE_ACCOUNT_JSON` — JSON-ul service account Firebase
+  (`utilitati-md` → Project settings → Service accounts → Generate new private
+  key), pentru crearea automată a cheii FCM V1 pe Android când lipsește.
+
+Dacă credențialele există deja în contul EAS, scriptul doar le verifică și nu
+necesită secretul FCM (job-ul merge fără `FCM_SERVICE_ACCOUNT_JSON`).
+
 ### Prima configurare iOS (o singură dată, interactivă)
 
 Construcția iOS pentru **dispozitiv fizic / App Store** (profilele `preview` și
