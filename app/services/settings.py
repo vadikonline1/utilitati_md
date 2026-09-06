@@ -66,8 +66,6 @@ SETTING_KEYS = {
     "store_ios_url",            # App Store listing URL (footer badge + /download)
     # AdMob / Google Ads (managed from /admin?tab=ads; consumed by the app).
     "admob_enabled",                # '1'/'0' master switch for the mobile app
-    "admob_app_id_android",         # AdMob App ID (Android)
-    "admob_app_id_ios",             # AdMob App ID (iOS)
     "admob_banner_enabled",         # '1'/'0'
     "admob_banner_unit",            # banner ad unit id (shared, ADMOB_ID_BANNER)
     "admob_interstitial_enabled",   # '1'/'0'
@@ -336,6 +334,11 @@ def admob_config() -> dict:
     banner_unit = get_setting("admob_banner_unit", "").strip()
     banner_unit_android = banner_unit or get_setting("admob_banner_unit_android", "").strip()
     banner_unit_ios = banner_unit or get_setting("admob_banner_unit_ios", "").strip()
+    # The AdMob App ID (per-platform) is derived from the shared banner unit id.
+    # The banner unit is of the form <app_id>/<ad_unit>; the App ID is the part
+    # before the slash. There is no longer a dedicated App ID setting.
+    def _app_id_from_unit(unit: str) -> str:
+        return unit.split("/", 1)[0] if unit else ""
     # All three ad formats (Banner, Interstitial, Rewarded) share the SAME unit
     # id, taken from admob_banner_unit / ADMOB_ID_BANNER. Legacy per-format ids
     # are kept as a fallback so existing installations keep working.
@@ -345,8 +348,8 @@ def admob_config() -> dict:
     rewarded_unit_ios = banner_unit_ios or get_setting("admob_rewarded_unit_ios", "").strip()
     return {
         "enabled": _flag(get_setting("admob_enabled", "0")),
-        "app_id_android": get_setting("admob_app_id_android", "").strip(),
-        "app_id_ios": get_setting("admob_app_id_ios", "").strip(),
+        "app_id_android": _app_id_from_unit(banner_unit_android),
+        "app_id_ios": _app_id_from_unit(banner_unit_ios),
         "banner": {
             "enabled": _flag(get_setting("admob_banner_enabled", "0")),
             "unit_android": banner_unit_android,

@@ -1392,8 +1392,6 @@ async def admin_ads_submit(
     )
     set_settings({
         "admob_enabled": "1" if form.get("admob_enabled") else "0",
-        "admob_app_id_android": str(form.get("admob_app_id_android", "")).strip(),
-        "admob_app_id_ios": str(form.get("admob_app_id_ios", "")).strip(),
         "admob_banner_enabled": "1" if form.get("admob_banner_enabled") else "0",
         "admob_banner_unit": str(form.get("admob_banner_unit", "")).strip(),
         "admob_interstitial_enabled": "1" if form.get("admob_interstitial_enabled") else "0",
