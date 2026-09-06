@@ -1,11 +1,11 @@
 name: Build Android APK
 
-# Rulează la fiecare push pe `deploy` (beta) și `main` (stable), și manual.
-# Tag-ul release-ului include ramura: apk-deploy-<sha> / apk-main-<sha> —
+# Rulează la fiecare push pe `main` (stable) și manual.
+# Tag-ul release-ului include ramura: apk-main-<sha> —
 # aplicația folosește acest prefix ca feed pentru actualizările in-app.
 on:
   push:
-    branches: [deploy, main]
+    branches: [main]
     paths:
       - 'src/**'
       - 'App.tsx'

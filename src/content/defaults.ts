@@ -144,16 +144,7 @@ export const DEFAULT_SCREENS: Record<string, ScreenContent> = {
     deactivate_confirm: 'Sigur vrei să dezactivezi contul? Vei fi deconectat.',
     deactivate_btn: 'Dezactivează',
     logout_btn: 'Deconectează-te',
-    section_channel: 'Canal de actualizare',
-    beta_desc:
-      'Build din ramura deploy — actualizare directă, detectată după SHA-ul noului build',
-    channel_off: 'Dezactivat — actualizări din magazinul oficial',
-    version: 'Versiune instalată: v{value}',
-    check_updates: 'Verifică actualizări',
     section_account: 'Cont',
     logout: 'Deconectare',
-    up_to_date: 'La zi',
-    update_manual_open:
-      'Nu am putut descărca/instala APK-ul. Deschide fișierul apk-ului din GitHub release.',
   },
 };
