@@ -382,6 +382,25 @@ textarea {
 .form-row > label { flex: 1; }
 .checkbox { flex-direction: row !important; align-items: center; gap: 8px !important; }
 
+/* Toggle switch (used for ad-type activation) */
+.adb-switch { position: relative; }
+.form-stack .adb-switch {
+  flex-direction: row; align-items: center; justify-content: space-between;
+  gap: 12px; cursor: pointer;
+}
+.adb-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.adb-switch .adb-track {
+  position: relative; width: 44px; height: 24px; min-width: 44px;
+  background: var(--border); border-radius: 12px; transition: background 0.2s;
+}
+.adb-switch .adb-track::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+  background: var(--panel); border-radius: 50%; transition: transform 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+.adb-switch input:checked ~ .adb-track { background: var(--accent); }
+.adb-switch input:checked ~ .adb-track::after { transform: translateX(20px); }
+
 .contact-form { max-width: 560px; margin-top: 12px; }
 .captcha-question {
   display: inline-block; background: var(--panel-2); border: 1px solid var(--border);
@@ -584,6 +603,10 @@ button { font-family: inherit; }
 .footer-nav a:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
 .footer-desc { color: var(--muted); margin: 0; max-width: 720px; line-height: 1.5; font-size: 0.9rem; }
 .footer-copy { color: var(--muted); }
+.store-badges { display: flex; gap: 12px; flex-wrap: wrap; }
+.store-badge { display: inline-block; line-height: 0; border-radius: 6px; opacity: 0.96; }
+.store-badge:hover { opacity: 1; transform: translateY(-1px); }
+.store-badge svg { display: block; }
 
 @media (max-width: 640px) {
   .footer-row { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -591,14 +614,33 @@ button { font-family: inherit; }
 }
 
 /* Admin tabs */
-.admin-tabs { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+.admin-tabs {
+  display: flex; gap: 8px; margin: 16px 0;
+  overflow-x: auto; flex-wrap: nowrap; padding-bottom: 6px;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-tabs::-webkit-scrollbar { height: 6px; }
+.admin-tabs::-webkit-scrollbar-track { background: transparent; }
+.admin-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .tab-btn {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
   padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+  white-space: nowrap; flex: 0 0 auto;
 }
 .tab-btn:hover { border-color: var(--accent-2); }
 .tab-btn.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
 .admin-tab-panel { margin-top: 8px; }
+
+.deploy-commit {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.78rem; color: var(--muted);
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 1px 8px; white-space: nowrap;
+}
+.subtitle .deploy-commit { display: inline-block; margin-left: 2px; }
+.deploy-commit a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.deploy-commit a:hover { text-decoration: underline; }
 
 /* Message management modals */
 .modal-wide { max-width: 720px; }
@@ -693,6 +735,134 @@ button { font-family: inherit; }
 }
 .msg-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: auto; }
 .msg-actions form { margin: 0; }
+
+/* App content editor (admin "App" tab, per-screen modals) */
+.modal-tall { display: flex; flex-direction: column; max-height: 84vh; overflow-y: auto; }
+.app-modal-wide { max-width: 960px; }
+/* Modal head + hint + toolbar scroll together as one sticky header so nothing
+   overlaps the fields beneath. */
+.app-modal-sticky {
+  position: sticky; top: 0; z-index: 5;
+  margin: -24px -24px 14px; padding: 20px 24px 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.app-modal-sticky .modal-head {
+  position: static; margin: 0 0 8px; padding: 0;
+  border-bottom: none; background: transparent;
+}
+.app-modal-toolbar {
+  position: static; z-index: auto;
+  margin: 0 -24px 0; padding: 10px 24px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+/* Bottom "Cancel / Save" bar stays pinned while scrolling, but scrolls away
+   once the last field is reached so it never covers the content. */
+.modal-tall .form-actions {
+  position: sticky; bottom: 0; z-index: 4;
+  margin: 16px -24px -24px; padding: 12px 24px 20px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+.app-panel-head .field-hint { margin-top: 6px; }
+.app-head-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.app-search {
+  min-width: 260px; padding: 9px 12px 9px 36px; border: 1px solid var(--border); border-radius: 8px;
+  background-color: var(--panel-2); color: var(--text); font-size: 0.9rem; margin-left: auto;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 12px center; background-size: 15px 15px;
+}
+.app-search::placeholder { color: var(--muted); }
+.app-search:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2);
+  background-color: var(--panel);
+}
+.app-search::-webkit-search-cancel-button { -webkit-appearance: none; height: 14px; width: 14px; cursor: pointer; }
+@media (max-width: 640px) {
+  .app-search { min-width: 0; width: 100%; margin-left: 0; }
+}
+.app-group-title {
+  margin: 24px 0 10px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--muted);
+}
+.app-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.app-card-head h2 { margin-bottom: 0; }
+.app-card-hint { min-height: 2.5em; }
+.app-card-actions { margin-top: auto; }
+.app-chip {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+  border-radius: 999px; padding: 3px 10px; color: var(--muted);
+  background: var(--badge-mut-bg); white-space: nowrap;
+}
+.app-chip-mod { color: var(--amber); background: var(--badge-warn-bg); }
+.app-empty-search { text-align: center; color: var(--muted); margin: 24px 0; }
+.app-modal-hint { margin: 0 0 12px; }
+.app-modal-note { margin-bottom: 14px; }
+.app-modal-note .field-hint { margin: 0; }
+.app-field-input { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.app-field-input input[type="text"], .app-field-input textarea { width: 100%; }
+.app-field-default { font-size: 0.75rem; color: var(--muted); line-height: 1.35; }
+.app-field { gap: 6px; }
+.app-field textarea { min-height: 0; }
+.app-field-cols {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start;
+}
+.app-field-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.app-field-col .msg-default-lang { flex: 0 0 auto; }
+.app-field-col input[type="text"],
+.app-field-col textarea { width: 100%; }
+.app-field-col input[type="color"] {
+  width: 68px; height: 34px; padding: 2px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: #fff; cursor: pointer;
+}
+.app-field-col textarea { resize: vertical; min-height: 64px; }
+.app-check-field {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  border: 1px dashed var(--border); border-radius: var(--radius); padding: 10px 12px;
+  background: var(--panel-2);
+}
+@media (max-width: 760px) {
+  .app-field-cols { grid-template-columns: 1fr; }
+}
+
+/* App modal toolbar: language tabs + section jump-links. The toolbar scrolls
+   together with the modal head + hint as ONE sticky header (see
+   .app-modal-sticky). It must stay static here; making it sticky again makes it
+   float over the fields. */
+.app-modal-toolbar .app-lang-tabs { display: flex; gap: 6px; }
+.app-lang-tab {
+  background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+  padding: 7px 16px; border-radius: 999px; cursor: pointer; font-size: 0.82rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.app-lang-tab:hover { border-color: var(--accent-2); color: var(--text); }
+.app-lang-tab.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.app-section-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.app-section-nav-link {
+  font-size: 0.78rem; color: var(--muted); text-decoration: none;
+  border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px;
+}
+.app-section-nav-link:hover { color: var(--accent); border-color: var(--accent-2); }
+.app-section-title {
+  margin: 26px 0 10px; padding-top: 14px; border-top: 1px dashed var(--border);
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--accent);
+}
+.app-section-title:first-of-type { margin-top: 0; }
+.app-field-label { margin-right: 8px; }
+.app-field-reset {
+  margin-left: auto; background: none; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 6px; font-size: 0.72rem; padding: 2px 8px; cursor: pointer;
+}
+.app-field-reset:hover { color: var(--accent); border-color: var(--accent-2); }
+@media (max-width: 640px) {
+  .app-modal-toolbar { flex-direction: column; align-items: flex-start; }
+}
 
 /* Print */
 @media print {

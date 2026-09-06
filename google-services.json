@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:900688744142:android:fecd7f0c041db4391bca9f",
+        "mobilesdk_app_id": "1:900688744142:android:f92cc9d931364cfb1bca9f",
         "android_client_info": {
-          "package_name": "md.utilitati.app"
+          "package_name": "md.vadikonline1.utilitati"
         }
       },
       "oauth_client": [],

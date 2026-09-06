@@ -1,6 +1,9 @@
 services:
   web:
-    build: .
+    build:
+      context: .
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
     image: utilitati-md:latest
     container_name: utilitati-md
     restart: unless-stopped

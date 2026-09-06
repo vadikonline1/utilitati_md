@@ -123,6 +123,29 @@ Fiecare utilizator are un flag `notifications_enabled` (implicit pornit):
   programată) apar întotdeauna în lista/clopotelul de notificări, chiar și când
   push-urile sunt oprite sau nu există niciun dispozitiv înregistrat.
 
+### Verificarea automată a credențialelor Expo push (CI)
+
+Job-ul `check-push-credentials` din `.github/workflows/build-apk.yml` rulează
+`node scripts/ensure-expo-push-credentials.mjs --android` înainte de build și
+eșuează build-ul (`needs:`) cu un mesaj clar dacă blocul nu poate livra push:
+
+- citește identifierii (package/bundle) din `app.json`;
+- verifică pe contul EAS că există `androidAppCredentials` cu package-ul corect
+  și un `googleServiceAccountKeyForFcmV1` atașat;
+- dacă lipsesc și secretul `FCM_SERVICE_ACCOUNT_JSON` e setat, creează automat
+  credentialele prin API-ul GraphQL al EAS;
+- cu `--ios` / `--all` verifică și credențialele iOS (APNs key), altfel doar Android.
+
+Secrets necesare în repo (Settings → Secrets → Actions):
+
+- `EXPO_TOKEN` — token de acces Expo (https://expo.dev/access-tokens);
+- `FCM_SERVICE_ACCOUNT_JSON` — JSON-ul service account Firebase
+  (`utilitati-md` → Project settings → Service accounts → Generate new private
+  key), pentru crearea automată a cheii FCM V1 pe Android când lipsește.
+
+Dacă credențialele există deja în contul EAS, scriptul doar le verifică și nu
+necesită secretul FCM (job-ul merge fără `FCM_SERVICE_ACCOUNT_JSON`).
+
 ### Prima configurare iOS (o singură dată, interactivă)
 
 Construcția iOS pentru **dispozitiv fizic / App Store** (profilele `preview` și
@@ -163,7 +186,7 @@ după acest pas, build-urile iOS din GitHub Actions / EAS Workflows merg automat
 URL-ul de API nu mai este „cimentat" în build. La fiecare pornire aplicația își
 **rezolvă dinamic DNS-ul** din sursa versionată
 [`hosts_app_dns`](https://raw.githubusercontent.com/vadikonline1/pi.hole/refs/heads/main/hosts_app_dns):
-caută linia `md.utilitati.app=<host>` și folosește `https://<host>/api` ca bază
+caută linia `md.vadikonline1.utilitati=<host>` și folosește `https://<host>/api` ca bază
 pentru toate cererile. Astfel, când DNS-ul curent expiră, e suficient să
 actualizezi **fișierul din repo** (nu trebuie un build nou).
 
@@ -174,6 +197,33 @@ Ordinea de precedență:
 - `src/api/dns.ts` — preluarea + parsarea sursei (`resolveApiBase`), cu timeout
   de 5s și fallback la cache; `src/api/client.ts` folosește rezultatul în
   `request()`.
+
+## Identitate aplicație + Firebase
+
+- **App ID:** `md.vadikonline1.utilitati` (Android `android.package` + iOS
+  `ios.bundleIdentifier` din `app.json`). Cheia de DNS din `hosts_app_dns`
+  (vezi secțiunea de mai sus) folosește exact acest ID.
+- **Firebase** (proiectul `utilitati-md`): aplicația folosește FCM doar pe
+  Android pentru token-uri bruta exacte (`getDevicePushTokenAsync`); pe iOS
+  push-ul merge prin **relay-ul Expo (APNs)**, fără SDK Firebase.
+
+Fișiere de config (referițe în `app.json`, consumate de EAS prebuild):
+
+- `google-services.json` (rootul repo-ului) — Android. `expo-notifications` îl
+  folosește la build pentru FCM; `package_name` trebuie să corespundă cu
+  `android.package`. **Dacă schimbi applicationId-ul**, regenerează fișierul din
+  Firebase Console → *Add app → Android* (pachetul nou) și commit.
+- `GoogleService-Info.plist` (rootul repo-ului) — iOS. Se include în build via
+  `ios.googleServicesFile`; pentru push e redundant (iOS folosește Expo), dar
+  vă e folositor dacă adaugi ulterior Analytics/Messaging nativ.
+- **Instrucțiunile „Add Firebase to your iOS app"** (SPM / Add Packages din
+  Xcode) **NU se aplică** la un proiect Expo: nu adăuga manual SDK-ul iOS în
+  Xcode — build-ul se face în cloud (EAS). Dacă vrei să folosești Firebase nativ
+  pe iOS, setezi `@react-native-firebase/app` & `messaging` în `package.json`
+  (cu `bundleIdentifier` deja setat, EAS injectează plist-ul automat).
+- **Web:** site-ul/admin-ul folosește Firebase Web prin **„Cod personalizat" →
+  „Cod în `<head>`"** din `/admin?tab=seo` (SDK + `initializeApp`), aplicat de
+  admin deja.
 
 Pentru testare locală, schimbă fallback-ul la
 `http://<IP-masina>:<port>/api` (backend-ul rulează cu CORS activat).
@@ -242,6 +292,42 @@ nevoie de build nou. Formatările:
 
 Unitățile (`ca-app-pub-...`) se setează în admin pe platformă (Android/iOS);
 dacă lipsesc, aplicația folosește id-urile de test oferite de Google.
+
+## Conținut server-driven (texte & config din admin)
+
+Toate textele și etichetele din aplicație (ecrane: Dashboard, Locuințe, Facturi,
+Notificări, Detalii locuință/cont, formulare, Profil) sunt rezolvate din
+`GET /api/content?lang=...` — un obiect `{lang, screens: {...}}` construit
+server-side din valorile implicite + supra-scrierile din admin
+(`/admin` → tabul **Aplicație**, chei `app_<ecran>_<camp>_<lang>`). Modificarea
+textelor **nu necesită rebuild**: aplicația reîncarcă conținutul la pornire și
+la schimbarea limbii.
+
+- Limbile: `ro` / `ru` / `en` (selectate în Profil; cheia
+  `utilitati.language` din AsyncStorage).
+- Aplicația ține un mirror al valorilor implicite în `src/content/defaults.ts`
+  (afișare imediată, offline) și surprapune peste el răspunsul serverului prin
+  `ContentProvider` (`src/content/useContent.tsx`). Componentele citesc
+  strings prin `useContent().t(ecran, cheie, variabile)`.
+- Placeholder-e: `{value}`, `{count}`, `{home}`, `{utility}`, `{amount}`,
+  `{total}`, `{icon}` etc., completate de consumator.
+
+### Notificarea „Factură nouă" (semafor/badge din aplicație + push)
+
+Când se găsesc facturi noi (conectare, refresh manual, sync programat),
+notificarea din aplicație și push-ul includ **detaliile fiecărei facturi**:
+locuința, utilitatea și suma — o linie per factură, template-uri editate din
+admin (Aplicație → Notificări):
+
+```
+S-a găsit factură nouă:
+• Ap. 12 · Str. X 1 · Gaze — 500.00 MDL
+• Ap. 12 · Str. X 1 · Gaze — 250.50 MDL
+Total: 750.50 MDL
+```
+
+Peste 8 facturi: se afișează primele 8 + `+N facturi în plus`. Facturile sunt
+ordonate de la cea mai nouă.
 
 ## Autentificare
 

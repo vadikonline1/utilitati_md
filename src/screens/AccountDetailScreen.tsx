@@ -19,6 +19,7 @@ import {
 } from '../api/client';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
 import { notifyNewInvoice } from '../utils/notify';
 
@@ -35,6 +36,7 @@ interface Props {
 }
 
 export default function AccountDetailScreen({ navigation, route }: Props) {
+  const { t, content } = useContent();
   const accountId = route.params.id;
   const [account, setAccount] = useState<Account | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -52,12 +54,12 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
         const data = await accountInvoices(accountId);
         setInvoices(data.invoices);
       } catch {
-        Alert.alert('Eroare', 'Nu s-au putut încărca datele contului.');
+        Alert.alert('Eroare', t('account_detail', 'error_load'));
       } finally {
         setRefreshing(false);
       }
     },
-    [accountId],
+    [accountId, t],
   );
 
   useFocusEffect(
@@ -71,20 +73,26 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
     try {
       const res = await refreshAccount(accountId);
       if (!res.is_connected) {
-        Alert.alert('Nu s-a putut conecta', res.error_message || 'Conectare eșuată la furnizor.');
+        Alert.alert(
+          t('account_detail', 'connect_error_title'),
+          res.error_message || t('account_detail', 'connect_error_body'),
+        );
       } else {
-        Alert.alert('Gata', `Facturile au fost actualizate. Sold neplătit: ${res.unpaid_balance_mdl} MDL.`);
+        Alert.alert(
+          'Gata',
+          t('account_detail', 'refresh_done', { unpaid: res.unpaid_balance_mdl }),
+        );
         const hasNew = (res.created_count ?? 0) > 0 || Boolean(res.balance_increased);
         if (hasNew) {
           notifyNewInvoice(
-            'Factură nouă 🔔',
-            `A apărut o factură nouă la ${account?.label ?? 'utilități'} (${res.unpaid_balance_mdl} MDL).`,
+            content.notifications?.new_invoice_title || 'Factură nouă 🔔',
+            t('account_detail', 'refresh_done', { unpaid: res.unpaid_balance_mdl }),
           );
         }
       }
       await load();
     } catch (e) {
-      Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Actualizarea a eșuat.');
+      Alert.alert('Eroare', e instanceof ApiError ? e.message : t('account_detail', 'error_save'));
     } finally {
       setBusy(false);
     }
@@ -95,17 +103,25 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
       <View style={styles.row}>
         <View style={styles.flex}>
           <Text style={styles.invTitle}>
-            {item.invoice_number || item.period || 'Factură'}
+            {item.invoice_number || item.period || t('invoices', 'default_title')}
           </Text>
-          {item.period ? <Text style={styles.muted}>Perioada {item.period}</Text> : null}
-          {item.due_date ? <Text style={styles.muted}>Scadență {item.due_date}</Text> : null}
+          {item.period ? (
+            <Text style={styles.muted}>{t('invoices', 'period', { value: item.period })}</Text>
+          ) : null}
+          {item.due_date ? (
+            <Text style={styles.muted}>{t('invoices', 'due', { value: item.due_date })}</Text>
+          ) : null}
         </View>
         <View style={styles.invRight}>
           <Text style={styles.amount}>
             {Number(item.amount_mdl).toFixed(2)} {item.currency}
           </Text>
           <Text style={[styles.status, item.is_paid ? styles.paid : styles.unpaid]}>
-            {item.is_paid ? 'Plătită' : item.pay_status === 'UNKNOWN' ? 'Necunoscută' : 'Neplătită'}
+            {item.is_paid
+              ? t('account_detail', 'status_paid')
+              : item.pay_status === 'UNKNOWN'
+              ? t('account_detail', 'status_unknown')
+              : t('account_detail', 'status_unpaid')}
           </Text>
         </View>
       </View>
@@ -128,19 +144,23 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
               <Card>
                 <Text style={styles.title}>{account.label}</Text>
                 <Text style={styles.muted}>{account.provider}</Text>
-                <Text style={styles.muted}>Contract: {account.contract_number}</Text>
+                <Text style={styles.muted}>
+                  {t('account_detail', 'contract', { value: account.contract_number })}
+                </Text>
                 {account.place_of_consumption ? (
-                  <Text style={styles.muted}>Loc: {account.place_of_consumption}</Text>
+                  <Text style={styles.muted}>
+                    {t('account_detail', 'location', { value: account.place_of_consumption })}
+                  </Text>
                 ) : null}
                 <View style={styles.actions}>
                   <Button
-                    title="Actualizează facturi"
+                    title={t('account_detail', 'refresh')}
                     onPress={doRefresh}
                     loading={busy}
                     style={styles.smallBtn}
                   />
                   <Button
-                    title="Editează"
+                    title={t('account_detail', 'edit')}
                     variant="ghost"
                     onPress={() => navigation.navigate('AccountForm', { id: accountId })}
                     style={styles.smallBtn}
@@ -148,10 +168,12 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
                 </View>
               </Card>
             ) : null}
-            <Text style={styles.listTitle}>Facturi</Text>
+            <Text style={styles.listTitle}>{t('account_detail', 'invoices_title')}</Text>
           </>
         }
-        ListEmptyComponent={<Text style={styles.empty}>Nicio factură. Apasă „Actualizează facturi”.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.empty}>{t('account_detail', 'empty')}</Text>
+        }
       />
     </View>
   );

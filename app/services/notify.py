@@ -15,6 +15,7 @@ from . import email as email_svc
 from . import push as push_svc
 from . import telegram as telegram_svc
 from .settings import parse_csv_list
+from .app_content import localized_string
 from .utilities import get_home, get_notification_prefs, list_invoices
 
 DEFAULT_LANG = "ro"
@@ -127,6 +128,11 @@ async def send_push_new_invoices(user_id: int, new_ids: list[int]) -> None:
     notifications or has no registered device — the notification list must
     reflect every new invoice found on connect/refresh/sync. When a push is
     actually delivered it does not write a second row (record=False).
+
+    The body lists each new invoice with the dwelling (locuința), the utility
+    (utilitatea) and the amount (suma). The templates are editable from the
+    website admin — /admin "Aplicație" → Notificări ({home}, {utility},
+    {amount}, {count}, {total} placeholders).
     """
     if not new_ids:
         return
@@ -136,22 +142,49 @@ async def send_push_new_invoices(user_id: int, new_ids: list[int]) -> None:
         for acc in list_user_invoices(user_id)
         for inv in [inv for inv in acc if inv["id"] in new_ids_set]
     ]
+    if not rows:
+        return
+    rows.sort(key=lambda r: r.get("id") or 0, reverse=True)
     total = sum(float(r.get("amount_mdl", 0) or 0) for r in rows)
     count = len(rows)
-    if count == 0:
-        return
-    title = "Factură nouă 🔔"
-    body = f"Ai {count} factură(e) nouă(e), total {_fmt(total)} MDL."
+
+    lang = get_user_lang(user_id) or DEFAULT_LANG
+    title = localized_string("notifications", "new_invoice_title", lang)
+    intro = localized_string("notifications", "new_invoice_intro", lang)
+    line_tpl = localized_string("notifications", "new_invoice_line", lang)
+    more_tpl = localized_string("notifications", "new_invoice_more", lang)
+    total_tpl = localized_string("notifications", "new_invoice_total", lang)
+
+    cap = 8
+    lines = []
+    for row in rows[:cap]:
+        home = _home_label({
+            "name": row.get("home_name"),
+            "address": row.get("home_address"),
+        })
+        utility = row.get("account_label") or row.get("provider") or ""
+        amount = _fmt(row.get("amount_mdl", 0))
+        lines.append(line_tpl.format(home=home, utility=utility, amount=amount))
+    parts = [intro, *lines]
+    if count > cap:
+        parts.append(more_tpl.format(count=count - cap))
+    parts.append(total_tpl.format(total=_fmt(total)))
+
+    body = "\n".join(parts)
     push_svc.record_notification(user_id, title, body, "invoice")
     await push_svc.send_push(user_id, title, body, type_="invoice", record=False)
 
 
 def list_user_invoices(user_id: int) -> list[list[dict]]:
-    """All invoices across the user's accounts (grouped by account)."""
+    """All invoices across the user's accounts (grouped by account), enriched
+    with the account label/provider and the home label/address."""
     with _conn() as conn:
         rows = conn.execute(
-            """SELECT inv.* FROM invoices inv
+            """SELECT inv.*, a.label AS account_label, a.provider,
+                      h.name AS home_name, h.address AS home_address
+               FROM invoices inv
                JOIN accounts a ON a.id = inv.account_id
+               LEFT JOIN homes h ON h.id = a.home_id
                WHERE a.user_id = ? ORDER BY inv.id""",
             (user_id,),
         ).fetchall()

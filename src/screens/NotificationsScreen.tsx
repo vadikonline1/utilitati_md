@@ -17,22 +17,14 @@ import {
 } from '../api/client';
 import AppHeader from '../components/AppHeader';
 import AdBanner from '../components/AdBanner';
+import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
-
-const TYPE_STYLE: Record<string, { color: string; label: string }> = {
-  invoice: { color: colors.success, label: 'Factură' },
-  unpaid: { color: colors.warning, label: 'Neachitat' },
-  admin: { color: colors.danger, label: 'Administrație' },
-  general: { color: colors.primary, label: 'General' },
-};
-
-function typeStyle(type: string) {
-  return TYPE_STYLE[type] || { color: colors.primary, label: 'Altele' };
-}
 
 type Row =
   | { kind: 'notif'; key: string; item: AppNotification }
   | { kind: 'banner'; key: string };
+
+const KNOWN_TYPES = ['invoice', 'unpaid', 'admin', 'general', 'other'];
 
 function buildRows(items: AppNotification[]): Row[] {
   const rows: Row[] = [];
@@ -51,9 +43,19 @@ function buildRows(items: AppNotification[]): Row[] {
 }
 
 export default function NotificationsScreen() {
+  const { t, content } = useContent();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const badgeOf = (type: string) => {
+    const key = KNOWN_TYPES.includes(type) ? type : 'other';
+    const badge = content.notifications?.badge?.[key] || {};
+    return {
+      color: badge.color || colors.primary,
+      label: badge.label || t('notifications', `badge.${key}.label`),
+    };
+  };
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -62,12 +64,12 @@ export default function NotificationsScreen() {
       const data = await getNotifications();
       setItems(data.notifications);
     } catch {
-      Alert.alert('Eroare', 'Nu s-au putut încărca notificările.');
+      Alert.alert('Eroare', t('notifications', 'error_load'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -100,7 +102,7 @@ export default function NotificationsScreen() {
         onRefresh={() => load(true)}
         ListHeaderComponent={
           <View style={styles.headRow}>
-            <Text style={styles.pageTitle}>Notificări</Text>
+            <Text style={styles.pageTitle}>{t('notifications', 'title')}</Text>
             {total > 0 ? (
               <View style={styles.countPill}>
                 <Text style={styles.countPillText}>{total}</Text>
@@ -108,25 +110,25 @@ export default function NotificationsScreen() {
             ) : null}
             {hasUnread ? (
               <TouchableOpacity onPress={markAllRead} style={styles.readAllWrap}>
-                <Text style={styles.readAll}>Marchează toate ca citite</Text>
+                <Text style={styles.readAll}>{t('notifications', 'read_all')}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
         }
         ListEmptyComponent={
           loading ? (
-            <Text style={styles.empty}>Se încarcă…</Text>
+            <Text style={styles.empty}>{t('common', 'loading')}</Text>
           ) : (
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyIcon}>🔔</Text>
-              <Text style={styles.empty}>Nicio notificare încă.</Text>
+              <Text style={styles.empty}>{t('notifications', 'empty')}</Text>
             </View>
           )
         }
         renderItem={({ item }) => {
           if (item.kind === 'banner') return <AdBanner placement="notificari" />;
           const notif = item.item;
-          const ts = typeStyle(notif.type);
+          const ts = badgeOf(notif.type);
           return (
             <TouchableOpacity activeOpacity={0.7} onPress={() => markRead(notif)}>
               <View
@@ -148,7 +150,7 @@ export default function NotificationsScreen() {
                 <Text
                   style={[styles.cardTitle, notif.read ? styles.cardTitleRead : null]}
                 >
-                  {notif.title || 'Notificare'}
+                  {notif.title || t('notifications', 'default_title')}
                 </Text>
                 {notif.body ? <Text style={styles.body}>{notif.body}</Text> : null}
               </View>

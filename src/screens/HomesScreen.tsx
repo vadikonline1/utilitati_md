@@ -14,6 +14,7 @@ import { Home, listHomes } from '../api/client';
 import AppHeader from '../components/AppHeader';
 import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
+import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -22,6 +23,7 @@ type Nav = {
 };
 
 export default function HomesScreen({ navigation }: { navigation: Nav }) {
+  const { t } = useContent();
   const [homes, setHomes] = useState<Home[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,12 +35,12 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
     try {
       setHomes(await listHomes());
     } catch {
-      Alert.alert('Eroare', 'Nu s-au putut încărca locuințele.');
+      Alert.alert('Eroare', t('homes', 'error_load'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -57,12 +59,14 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
             {item.address ? <Text style={styles.muted}>{item.address}</Text> : null}
             <View style={styles.chips}>
               <View style={styles.chip}>
-                <Text style={styles.chipText}>{item.utilities_count ?? 0} conturi</Text>
+                <Text style={styles.chipText}>
+                  {t('homes', 'accounts_chip', { count: item.utilities_count ?? 0 })}
+                </Text>
               </View>
               {(item.unpaid_invoices ?? 0) > 0 ? (
                 <View style={[styles.chip, styles.chipWarn]}>
                   <Text style={[styles.chipText, styles.chipTextWarn]}>
-                    {item.unpaid_invoices} neplătite
+                    {t('homes', 'unpaid_chip', { count: item.unpaid_invoices })}
                   </Text>
                 </View>
               ) : null}
@@ -86,9 +90,9 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
         }
         ListEmptyComponent={
           loading ? (
-            <Text style={styles.empty}>Se încarcă…</Text>
+            <Text style={styles.empty}>{t('common', 'loading')}</Text>
           ) : (
-            <Text style={styles.empty}>Nu ai nicio locuință încă.</Text>
+            <Text style={styles.empty}>{t('homes', 'empty')}</Text>
           )
         }
         ListFooterComponent={<AdBanner placement="homes" />}
@@ -103,7 +107,7 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
             }}
           >
             <Ionicons name="home-outline" size={20} color={colors.primary} />
-            <Text style={styles.menuText}>Locuință</Text>
+            <Text style={styles.menuText}>{t('homes', 'fab_home')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.menuItem}
@@ -113,7 +117,7 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
             }}
           >
             <Ionicons name="flash-outline" size={20} color={colors.primary} />
-            <Text style={styles.menuText}>Utilitate</Text>
+            <Text style={styles.menuText}>{t('homes', 'fab_utility')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}

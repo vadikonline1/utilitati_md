@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import base64
+import functools
 import hashlib
 import hmac
 import os
 import re
 import secrets
+import subprocess
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
@@ -46,7 +48,7 @@ from ..auth import (
     user_state,
     verify_password,
 )
-from ..config import SECRET_KEY, is_admin_username, SITE_URL, TEMPLATES_DIR
+from ..config import BASE_DIR, SECRET_KEY, is_admin_username, SITE_URL, TEMPLATES_DIR
 from ..deps import optional_auth_token
 from ..i18n import LANG_NAMES, LANGS, get_lang, make_translator
 from ..services import contact as contact_svc
@@ -66,6 +68,7 @@ from ..services.settings import (
     get_setting,
     get_stored_setting,
     get_sync_interval_hours,
+    get_push_provider,
     inactive_months,
     invoice_months,
     msg_templates,
@@ -77,6 +80,7 @@ from ..services.settings import (
     unconfirmed_hours,
     warn_days,
 )
+from ..services import app_content as app_content_svc
 from ..services.sync import (
     dashboard_stats,
     enqueue_invoice_job,
@@ -214,6 +218,35 @@ def _job_wait_response(request: Request, url: str, attempt: int, message: str):
 # --------------------------------------------------------------------------- #
 # SEO / company info exposed to every template (metas + custom head/footer HTML)
 # --------------------------------------------------------------------------- #
+_DEPLOY_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
+
+
+@functools.lru_cache(maxsize=1)
+def deployed_commit() -> str:
+    """Short SHA of the commit currently deployed on this server.
+
+    Uses the ``GIT_SHA`` build arg (Docker) when set to a real SHA; Docker
+    builds that never passed ``--build-arg GIT_SHA=...`` receive the placeholder
+    "unknown", which is treated as invalid. Falls back to reading the local git
+    HEAD for bare-hosted deployments. Returns "" when neither is available so
+    the admin subtitle hides the deploy badge instead of showing "unknown".
+    """
+    sha = os.getenv("GIT_SHA", "").strip()
+    if _DEPLOY_SHA_RE.match(sha):
+        return sha
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(BASE_DIR), "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        sha = result.stdout.strip()
+    except Exception:
+        sha = ""
+    return sha if _DEPLOY_SHA_RE.match(sha) else ""
+
+
 def _seo() -> dict:
     """Site-wide SEO values from /admin?tab=seo, included in every page context."""
     return {
@@ -227,6 +260,8 @@ def _seo() -> dict:
         "company_name": get_setting("company_name", "").strip() or "UTILITĂȚI.MD",
         "company_email": get_setting("company_email", "").strip(),
         "company_address": get_setting("company_address", "").strip(),
+        "store_android_url": get_setting("store_android_url", "").strip(),
+        "store_ios_url": get_setting("store_ios_url", "").strip(),
     }
 
 
@@ -332,8 +367,24 @@ async def home(request: Request, user_id: int | None = Depends(optional_auth_tok
 
 
 # --------------------------------------------------------------------------- #
-# Language switch
+# App download links (store badges in the footer redirects per device type;
+# /download is the shared destination when only one badge is shown).
 # --------------------------------------------------------------------------- #
+@router.get("/download")
+async def download_app(request: Request):
+    """Redirect an Android / iOS visitor to its store listing; everyone else
+    lands on the homepage that shows both store badges."""
+    seo = _seo()
+    ua = str(request.headers.get("user-agent", "")).lower()
+    if "iphone" in ua or "ipad" in ua or "ipod" in ua:
+        if seo["store_ios_url"]:
+            return RedirectResponse(seo["store_ios_url"], status_code=303)
+    else:
+        if seo["store_android_url"]:
+            return RedirectResponse(seo["store_android_url"], status_code=303)
+    return RedirectResponse("/", status_code=303)
+
+
 @router.get("/set-language/{lang}")
 async def set_language(
     lang: str, request: Request, user_id: int | None = Depends(optional_auth_token)
@@ -923,6 +974,7 @@ def _admin_base_ctx() -> dict:
             get_setting("fcm_service_account", "").strip()
             or os.getenv("FCM_SERVICE_ACCOUNT", "").strip()
         ),
+        "eff_push_provider": get_push_provider(),
         "default_push_title": "Notificare administrativă - UTILITĂȚI.MD",
         "retention_enabled": retention_enabled(),
         "inactive_months": inactive_months(),
@@ -940,6 +992,8 @@ def _admin_base_ctx() -> dict:
         "placeholder_rows": _page_placeholder_rows(),
         "invoice_jobs": list_invoice_jobs(),
         "system_jobs": system_jobs_status(),
+        "app_editor": app_content_svc.admin_editor(),
+        "deploy_commit": deployed_commit(),
         "current_uid": None,
     }
 
@@ -1314,6 +1368,8 @@ async def admin_seo_submit(
         "company_name": str(form.get("company_name", "")).strip(),
         "company_email": str(form.get("company_email", "")).strip(),
         "company_address": str(form.get("company_address", "")).strip(),
+        "store_android_url": str(form.get("store_android_url", "")).strip(),
+        "store_ios_url": str(form.get("store_ios_url", "")).strip(),
     })
     _save_placeholder_rows(form)
     return _admin_render(request, user_id, message=_t("admin_saved"))
@@ -1338,18 +1394,11 @@ async def admin_ads_submit(
     )
     set_settings({
         "admob_enabled": "1" if form.get("admob_enabled") else "0",
-        "admob_app_id_android": str(form.get("admob_app_id_android", "")).strip(),
-        "admob_app_id_ios": str(form.get("admob_app_id_ios", "")).strip(),
         "admob_banner_enabled": "1" if form.get("admob_banner_enabled") else "0",
-        "admob_banner_unit_android": str(form.get("admob_banner_unit_android", "")).strip(),
-        "admob_banner_unit_ios": str(form.get("admob_banner_unit_ios", "")).strip(),
+        "admob_banner_unit": str(form.get("admob_banner_unit", "")).strip(),
         "admob_interstitial_enabled": "1" if form.get("admob_interstitial_enabled") else "0",
-        "admob_interstitial_unit_android": str(form.get("admob_interstitial_unit_android", "")).strip(),
-        "admob_interstitial_unit_ios": str(form.get("admob_interstitial_unit_ios", "")).strip(),
         "admob_interstitial_interval": str(form.get("admob_interstitial_interval", "5")).strip(),
         "admob_rewarded_enabled": "1" if form.get("admob_rewarded_enabled") else "0",
-        "admob_rewarded_unit_android": str(form.get("admob_rewarded_unit_android", "")).strip(),
-        "admob_rewarded_unit_ios": str(form.get("admob_rewarded_unit_ios", "")).strip(),
         "admob_placements": placements,
     })
     return _admin_render(request, user_id, message=_t("admin_saved"))
@@ -1395,6 +1444,35 @@ async def admin_jobs_cleanup_submit(
     return _admin_render(
         request, user_id,
         message=_t("admin_jobs_cleanup_done").format(count=cleaned),
+    )
+
+
+@router.post("/admin/app/{screen}")
+async def admin_app_submit(
+    screen: str, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=app", status_code=303)
+    if screen not in app_content_svc.SCREENS:
+        return RedirectResponse("/admin?tab=app", status_code=303)
+    form = await request.form()
+    app_content_svc.save_screen(screen, {str(k): str(v) for k, v in form.items()})
+    return RedirectResponse(f"/admin?tab=app&saved={screen}", status_code=303)
+
+
+@router.post("/admin/app/{screen}/reset")
+async def admin_app_reset(
+    screen: str, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=app", status_code=303)
+    if screen not in app_content_svc.SCREENS:
+        return RedirectResponse("/admin?tab=app", status_code=303)
+    app_content_svc.reset_screen(screen)
+    return RedirectResponse(
+        f"/admin?tab=app&saved={screen}&reset=1", status_code=303
     )
 
 

@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>md.utilitati.app</string>
+	<string>md.vadikonline1.utilitati</string>
 	<key>PROJECT_ID</key>
 	<string>utilitati-md</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:900688744142:ios:2afb48a7ba1658dc1bca9f</string>
+	<string>1:900688744142:ios:ca8445c1ea604bde1bca9f</string>
 </dict>
 </plist>

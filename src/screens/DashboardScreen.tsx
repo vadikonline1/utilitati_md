@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -14,9 +14,10 @@ import { Home, Invoice, listHomes, listInvoices } from '../api/client';
 import AppHeader from '../components/AppHeader';
 import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
+import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
-import { loadAdConfig, showInterstitialOnce, showRewardedOnce } from '../utils/ads';
+import { showInterstitialOnce, showRewardedOnce } from '../utils/ads';
 
 type Nav = {
   navigate: (name: string, params?: object) => void;
@@ -75,28 +76,13 @@ function StatCard({
 }
 
 export default function DashboardScreen({ navigation }: { navigation: Nav }) {
+  const { t } = useContent();
   const [homes, setHomes] = useState<Home[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [supportAds, setSupportAds] = useState(false);
   const [supportBusy, setSupportBusy] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const cfg = await loadAdConfig();
-      if (mounted) {
-        setSupportAds(
-          !!cfg && cfg.enabled && cfg.interstitial.enabled && cfg.rewarded.enabled,
-        );
-      }
-    })().catch(() => undefined);
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -110,12 +96,12 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
       setHomes(h);
       setInvoices(inv.invoices);
     } catch {
-      Alert.alert('Eroare', 'Nu s-au putut încărca datele.');
+      Alert.alert('Eroare', t('dashboard', 'error_load'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -125,6 +111,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
 
   const stats: Stats = { homeCount: homes.length, ...computeStats(invoices) };
   const grid: (keyof Stats)[] = ['unpaidBalance', 'openInvoices', 'paidInvoices', 'arrears'];
+  const supportEnabled = t('dashboard', 'support_enabled') === '1';
 
   const onShowSupport = useCallback(async () => {
     if (supportBusy) return;
@@ -155,7 +142,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
                   <Text style={styles.homeName}>{item.name}</Text>
                   {item.address ? <Text style={styles.muted}>{item.address}</Text> : null}
                 </View>
-                <Text style={styles.vezi}>vezi</Text>
+                <Text style={styles.vezi}>{t('dashboard', 'vezi')}</Text>
               </View>
             </Card>
           </TouchableOpacity>
@@ -167,27 +154,30 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
         ListHeaderComponent={
           <View>
             <View style={styles.grid}>
-              <StatCard label="Sold total neachitat" value={`${stats.unpaidBalance.toFixed(2)} MDL`} accent={colors.danger} />
-              <StatCard label="Facturi deschise" value={String(stats.openInvoices)} />
-              <StatCard label="Facturi achitate" value={String(stats.paidInvoices)} accent={colors.success} />
-              <StatCard label="Restanțe" value={`${stats.arrears.toFixed(2)} MDL`} accent={colors.warning} />
-              <StatCard label="Locuințe" value={String(stats.homeCount)} />
+              <StatCard label={t('dashboard', 'stat_unpaid_balance')} value={`${stats.unpaidBalance.toFixed(2)} MDL`} accent={colors.danger} />
+              <StatCard label={t('dashboard', 'stat_open_invoices')} value={String(stats.openInvoices)} />
+              <StatCard label={t('dashboard', 'stat_paid_invoices')} value={String(stats.paidInvoices)} accent={colors.success} />
+              <StatCard label={t('dashboard', 'stat_arrears')} value={`${stats.arrears.toFixed(2)} MDL`} accent={colors.warning} />
+              <StatCard label={t('dashboard', 'stat_homes')} value={String(stats.homeCount)} />
             </View>
-            {supportAds ? (
+            {supportEnabled ? (
               <TouchableOpacity
                 style={[styles.supportBtn, supportBusy ? styles.supportBtnBusy : null]}
                 onPress={onShowSupport}
                 disabled={supportBusy}
               >
-                <Ionicons name="heart-outline" size={20} color="#fff" />
-                <Text style={styles.supportText}>Susține proiectul nostru</Text>
+                <View style={styles.supportTitleRow}>
+                  <Ionicons name="heart-outline" size={20} color="#fff" />
+                  <Text style={styles.supportTitle}>{t('dashboard', 'support_title')}</Text>
+                </View>
+                <Text style={styles.supportText}>{t('dashboard', 'support_text')}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
         }
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {loading ? 'Se încarcă…' : 'Nu ai nicio locuință încă.'}
+            {loading ? t('common', 'loading') : t('dashboard', 'empty')}
           </Text>
         }
         ListFooterComponent={<AdBanner placement="dashboard" />}
@@ -202,7 +192,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
             }}
           >
             <Ionicons name="home-outline" size={20} color={colors.primary} />
-            <Text style={styles.menuText}>Locuință</Text>
+            <Text style={styles.menuText}>{t('dashboard', 'fab_home')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.menuItem}
@@ -212,7 +202,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
             }}
           >
             <Ionicons name="flash-outline" size={20} color={colors.primary} />
-            <Text style={styles.menuText}>Utilitate</Text>
+            <Text style={styles.menuText}>{t('dashboard', 'fab_utility')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -259,16 +249,23 @@ const styles = StyleSheet.create({
   },
   menuText: { color: colors.text, fontSize: 15, fontWeight: '600', marginLeft: spacing.sm },
   supportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: spacing.lg,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     backgroundColor: colors.primary,
     borderRadius: 12,
+    alignItems: 'center',
   },
   supportBtnBusy: { opacity: 0.6 },
-  supportText: { color: '#fff', fontSize: 15, fontWeight: '700', marginLeft: spacing.sm },
+  supportTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  supportTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginLeft: spacing.sm },
+  supportText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
   fab: {
     position: 'absolute',
     right: spacing.xl,

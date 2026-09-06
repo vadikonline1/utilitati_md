@@ -6,7 +6,7 @@
   {% if denied %}
     <p class="notice">{{ message }}</p>
   {% else %}
-    <p class="subtitle">{{ t('admin_subtitle') }}</p>
+    <p class="subtitle">{{ t('admin_subtitle') }}{% if deploy_commit %} <span class="deploy-commit">{{ t('admin_deploy_commit') }}: <a href="https://github.com/vadikonline1/utilitati_md/commit/{{ deploy_commit }}" target="_blank" rel="noopener" title="{{ t('admin_deploy_commit_open') }}">{{ deploy_commit }}</a></span>{% endif %}</p>
     {% if message %}<p class="notice">{{ message }}</p>{% endif %}
 
     <div class="admin-tabs">
@@ -20,6 +20,7 @@
       <button type="button" class="tab-btn" data-tab="tab-ads">{{ t('admin_tab_ads') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-push">{{ t('admin_tab_push') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-jobs">{{ t('admin_tab_jobs') }}</button>
+      <button type="button" class="tab-btn" data-tab="tab-app">{{ t('admin_tab_app') }}</button>
     </div>
     {% if request.query_params.get('tab') == 'messages' or request.query_params.get('saved') %}
       <p class="notice">{{ t('admin_msg_saved') }}</p>
@@ -130,6 +131,11 @@
                   <span class="env-badge">{{ t('admin_from_env') }}</span>
                   <span class="field-hint">{{ t('admin_push_provider_env_hint') }}</span>
                 {% endif %}
+                <span class="field-hint">
+                  {% if eff_push_provider == 'fcm' %}
+                    {% if fcm_configured %}{{ t('admin_fcm_eff_fcm') }}{% else %}{{ t('admin_fcm_missing') }}{% endif %}
+                  {% else %}{{ t('admin_fcm_eff_expo') }}{% endif %}
+                </span>
               </label>
               <label>{{ t('admin_fcm_service_account') }}
                 <textarea name="fcm_service_account" rows="6" placeholder='{ "type": "service_account", ... }'>{{ settings.get('fcm_service_account', '') }}</textarea>
@@ -429,6 +435,12 @@
               <label>{{ t('admin_company_address') }}
                 <input type="text" name="company_address" value="{{ settings.get('company_address', '') }}" placeholder="{{ t('admin_company_address_ph') }}">
               </label>
+              <label>{{ t('admin_store_android') }}
+                <input type="url" name="store_android_url" value="{{ settings.get('store_android_url', '') }}" placeholder="https://play.google.com/store/apps/details?id=…">
+              </label>
+              <label>{{ t('admin_store_ios') }}
+                <input type="url" name="store_ios_url" value="{{ settings.get('store_ios_url', '') }}" placeholder="https://apps.apple.com/app/id…">
+              </label>
             </div>
           </div>
 
@@ -495,96 +507,72 @@
           <div class="card">
             <h2>{{ t('admin_ads_master') }}</h2>
             <div class="form-stack">
-              <label class="check">
+              <label class="adb-switch">
                 <input type="checkbox" name="admob_enabled"
-                       {% if admob.enabled %}checked{% endif %}> {{ t('admin_ads_master_toggle') }}
+                       {% if admob.enabled %}checked{% endif %}>
+                <span>{{ t('admin_ads_master_toggle') }}</span>
+                <span class="adb-track"></span>
               </label>
-              <label>{{ t('admin_ads_app_id_android') }}
-                <input type="text" name="admob_app_id_android" value="{{ settings.get('admob_app_id_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
-              <label>{{ t('admin_ads_app_id_ios') }}
-                <input type="text" name="admob_app_id_ios" value="{{ settings.get('admob_app_id_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              <label>{{ t('admin_ads_banner_unit') }}
+                <input type="text" name="admob_banner_unit" value="{{ settings.get('admob_banner_unit', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false" {{ 'readonly' if settings.get('_env_admob_banner_unit') }}>
+                {% if settings.get('_env_admob_banner_unit') %}<span class="env-badge">{{ t('admin_from_env') }}</span>
+                <span class="field-hint">{{ t('admin_ads_banner_unit_env_hint') }}</span>{% endif %}
               </label>
             </div>
           </div>
 
           <div class="card">
-            <h2>{{ t('admin_ads_banner') }}</h2>
+            <h2>{{ t('admin_ads_types') }}</h2>
+            <p class="field-hint">{{ t('admin_ads_types_hint') }}</p>
             <div class="form-stack">
-              <label class="check">
+              <label class="adb-switch">
                 <input type="checkbox" name="admob_banner_enabled"
-                       {% if admob.banner.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
+                       {% if admob.banner.enabled %}checked{% endif %}>
+                <span>{{ t('admin_ads_banner') }}</span>
+                <span class="adb-track"></span>
               </label>
-              <label>{{ t('admin_ads_banner_unit_android') }}
-                <input type="text" name="admob_banner_unit_android" value="{{ settings.get('admob_banner_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+              <div class="ads-screens">
+                <p class="field-hint">{{ t('admin_ads_placements_hint') }}</p>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_dashboard"
+                         {% if 'dashboard' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_dashboard') }}
+                </label>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_homes"
+                         {% if 'homes' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_homes') }}
+                </label>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_facturi"
+                         {% if 'facturi' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_facturi') }}
+                </label>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_home_detail"
+                         {% if 'home_detail' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_home_detail') }}
+                </label>
+                <label class="check">
+                  <input type="checkbox" name="php_placement_notificari"
+                         {% if 'notificari' in admob.placements %}checked{% endif %}> {{ t('admin_ads_screen_notificari') }}
+                </label>
+                <input type="hidden" name="admob_placements" id="admobPlacements"
+                       value="{{ admob.placements|join(',') }}">
+              </div>
+              <label class="adb-switch">
+                <input type="checkbox" name="admob_rewarded_enabled"
+                       {% if admob.rewarded.enabled %}checked{% endif %}>
+                <span>{{ t('admin_ads_rewarded') }}</span>
+                <span class="adb-track"></span>
               </label>
-              <label>{{ t('admin_ads_banner_unit_ios') }}
-                <input type="text" name="admob_banner_unit_ios" value="{{ settings.get('admob_banner_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
-            </div>
-          </div>
-
-          <div class="card">
-            <h2>{{ t('admin_ads_interstitial') }}</h2>
-            <div class="form-stack">
-              <label class="check">
+              <label class="adb-switch">
                 <input type="checkbox" name="admob_interstitial_enabled"
-                       {% if admob.interstitial.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
-              </label>
-              <label>{{ t('admin_ads_interstitial_unit_android') }}
-                <input type="text" name="admob_interstitial_unit_android" value="{{ settings.get('admob_interstitial_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
-              <label>{{ t('admin_ads_interstitial_unit_ios') }}
-                <input type="text" name="admob_interstitial_unit_ios" value="{{ settings.get('admob_interstitial_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
+                       {% if admob.interstitial.enabled %}checked{% endif %}>
+                <span>{{ t('admin_ads_interstitial') }}</span>
+                <span class="adb-track"></span>
               </label>
               <label>{{ t('admin_ads_interstitial_interval') }}
                 <input type="number" name="admob_interstitial_interval" min="1" max="720"
                        value="{{ settings.get('admob_interstitial_interval', '5') }}">
               </label>
             </div>
-          </div>
-
-          <div class="card">
-            <h2>{{ t('admin_ads_rewarded') }}</h2>
-            <div class="form-stack">
-              <label class="check">
-                <input type="checkbox" name="admob_rewarded_enabled"
-                       {% if admob.rewarded.enabled %}checked{% endif %}> {{ t('admin_ads_format_enabled') }}
-              </label>
-              <label>{{ t('admin_ads_rewarded_unit_android') }}
-                <input type="text" name="admob_rewarded_unit_android" value="{{ settings.get('admob_rewarded_unit_android', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
-              <label>{{ t('admin_ads_rewarded_unit_ios') }}
-                <input type="text" name="admob_rewarded_unit_ios" value="{{ settings.get('admob_rewarded_unit_ios', '') }}" placeholder="ca-app-pub-XXXXXXXX/YYYYYYYYYY" spellcheck="false">
-              </label>
-            </div>
-          </div>
-
-          <div class="card" style="grid-column: 1 / -1;">
-            <h2>{{ t('admin_ads_placements') }}</h2>
-            <p class="field-hint">{{ t('admin_ads_placements_hint') }}</p>
-            <label class="check">
-              <input type="checkbox" name="php_placement_dashboard"
-                     {% if 'dashboard' in admob.placements %}checked{% endif %}> dashboard
-            </label>
-            <label class="check">
-              <input type="checkbox" name="php_placement_homes"
-                     {% if 'homes' in admob.placements %}checked{% endif %}> homes
-            </label>
-            <label class="check">
-              <input type="checkbox" name="php_placement_facturi"
-                     {% if 'facturi' in admob.placements %}checked{% endif %}> facturi
-            </label>
-            <label class="check">
-              <input type="checkbox" name="php_placement_home_detail"
-                     {% if 'home_detail' in admob.placements %}checked{% endif %}> home_detail
-            </label>
-            <label class="check">
-              <input type="checkbox" name="php_placement_notificari"
-                     {% if 'notificari' in admob.placements %}checked{% endif %}> notificari
-            </label>
-            <input type="hidden" name="admob_placements" id="admobPlacements"
-                   value="{{ admob.placements|join(',') }}">
           </div>
         </div>
         <div class="form-actions">
@@ -717,6 +705,152 @@
         {% endif %}
       </div>
     </section>
+
+    {# ---------------- App content (mobile screens) ---------------- #}
+    <section id="tab-app" class="admin-tab-panel" hidden>
+      <div class="card app-panel-head">
+        <div class="app-head-row">
+          <div>
+            <h2>{{ t('admin_tab_app') }}</h2>
+            <p class="field-hint">{{ t('admin_app_how') }}</p>
+            <p class="field-hint">{{ t('admin_app_langs_note') }}</p>
+          </div>
+          <input type="search" id="app-search" class="app-search"
+                 placeholder="{{ t('admin_app_search') }}">
+        </div>
+      </div>
+      {% set ns = namespace(current='') %}
+      {% for scr in app_editor %}
+        {% if scr.group != ns.current %}
+          {% if ns.current %}</div>{% endif %}
+          {% set ns.current = scr.group %}
+          <h3 class="app-group-title">{{ scr.group }}</h3>
+          <div class="config-grid app-grid">
+        {% endif %}
+        <div class="card msg-card app-card"
+             data-filter="{{ (scr.title ~ ' ' ~ scr.hint ~ ' ' ~ scr.screen)|lower }}">
+          <div class="app-card-head">
+            <h2>{{ scr.title }}</h2>
+            {% if scr.modified %}
+              <span class="app-chip app-chip-mod">{{ t('admin_app_modified') }}</span>
+            {% else %}
+              <span class="app-chip">{{ t('admin_app_default') }}</span>
+            {% endif %}
+          </div>
+          <p class="field-hint app-card-hint">{{ scr.hint }}</p>
+          <div class="row-actions msg-actions app-card-actions">
+            <button type="button" class="btn"
+                    onclick="openModal('modal-app-{{ scr.screen }}')">{{ t('admin_app_edit') }}</button>
+            {% if scr.modified %}
+              <form method="post" action="/admin/app/{{ scr.screen }}/reset"
+                    onsubmit="return confirm('{{ t('admin_app_reset_confirm') }}');">
+                <button type="submit" class="btn ghost small">{{ t('admin_app_reset') }}</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+      <p class="app-empty-search" id="app-empty-search" hidden>{{ t('admin_app_no_results') }}</p>
+    </section>
+    {% for scr in app_editor %}
+      <div class="modal-overlay" id="modal-app-{{ scr.screen }}" hidden>
+        <div class="modal app-modal-wide modal-tall">
+          <div class="app-modal-sticky">
+            <div class="modal-head">
+              <h2>{{ scr.title }}</h2>
+              <button type="button" class="modal-close"
+                      onclick="closeModal('modal-app-{{ scr.screen }}')">×</button>
+            </div>
+            <p class="field-hint app-modal-hint">{{ scr.hint }}</p>
+            <div class="app-modal-toolbar">
+            <div class="app-lang-tabs" role="tablist">
+              {% for code in ['ro', 'ru', 'en'] %}
+                <button type="button" class="app-lang-tab{{ ' active' if code == lang }}"
+                        data-app-lang="{{ code }}"
+                        onclick="appLangTab(this)">{{ t('msg_lang_' ~ code) }}</button>
+              {% endfor %}
+            </div>
+            {% if scr.sections|length > 1 %}
+              <nav class="app-section-nav">
+                {% for section in scr.sections %}
+                  <a class="app-section-nav-link"
+                     href="#app-{{ scr.screen }}-sec-{{ loop.index }}">{{ section.title }}</a>
+                {% endfor %}
+              </nav>
+            {% endif %}
+          </div>
+          </div>
+          <form method="post" action="/admin/app/{{ scr.screen }}" class="form-stack app-form">
+            <div class="home-info-block app-modal-note">
+              <span class="field-hint">{{ t('admin_app_field_empty_note') }}</span>
+            </div>
+            {% for section in scr.sections %}
+              {% if scr.sections|length > 1 %}
+                <h3 class="app-section-title" id="app-{{ scr.screen }}-sec-{{ loop.index }}">{{ section.title }}</h3>
+              {% endif %}
+              {% for f in section.fields %}
+                <fieldset class="msg-lang app-field">
+                  <legend>
+                    <span class="app-field-label">{{ f.label }}</span>
+                    {% if f.control != 'checkbox' %}
+                      <button type="button" class="app-field-reset" data-field-reset
+                              title="{{ t('admin_app_reset_field') }}">{{ t('admin_app_reset_field') }}</button>
+                    {% endif %}
+                  </legend>
+                  {% if f.control == 'checkbox' %}
+                    <div class="app-check-field">
+                      <input type="checkbox"
+                             onchange="appCheckboxSync(this)"
+                             {% if f['values']['ro'] == '1' %}checked{% endif %}>
+                      <span>{{ t('admin_app_active') }}</span>
+                      <span class="app-field-default">{{ t('admin_app_checkbox_note') }}</span>
+                      {% for code in ['ro', 'ru', 'en'] %}
+                        <input type="hidden"
+                               name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                               value="{% if f['values'][code] == '1' %}1{% else %}0{% endif %}">
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <div class="app-field-cols">
+                      {% for code in ['ro', 'ru', 'en'] %}
+                        <div class="app-field-col" data-app-lang-col="{{ code }}"
+                             {% if code != lang %}hidden{% endif %}>
+                          <span class="msg-default-lang">{{ t('msg_lang_' ~ code) }}</span>
+                          <div class="app-field-input">
+                            {% if f.control == 'color' %}
+                              <input type="color"
+                                     name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                                     value="{{ f['values'][code] }}">
+                            {% elif f.control == 'textarea' %}
+                              <textarea rows="3"
+                                        name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}">{{ f['values'][code] }}</textarea>
+                            {% else %}
+                              <input type="text"
+                                     name="app_{{ scr.screen }}_{{ f.path|replace('.', '_') }}_{{ code }}"
+                                     value="{{ f['values'][code] }}">
+                            {% endif %}
+                            <span class="app-field-default" data-app-default="{{ f['defaults'][code] }}"
+                                  {% if not f['overridden'][code] %}hidden{% endif %}>
+                              {{ t('admin_app_default_value') }} {{ f['defaults'][code] }}
+                            </span>
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </fieldset>
+              {% endfor %}
+            {% endfor %}
+            <div class="form-actions">
+              <button type="button" class="btn ghost"
+                      onclick="closeModal('modal-app-{{ scr.screen }}')">{{ t('admin_cancel') }}</button>
+              <button type="submit" class="btn">{{ t('admin_app_save') }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
     <div class="modal-overlay" id="modal-faq-add" hidden>
       <div class="modal modal-wide">
         <div class="modal-head">
@@ -913,18 +1047,67 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=push");
       } else if (target === "tab-jobs") {
         history.replaceState(null, "", "/admin?tab=jobs");
+      } else if (target === "tab-app") {
+        history.replaceState(null, "", "/admin?tab=app");
       } else {
         history.replaceState(null, "", "/admin");
       }
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push", "jobs"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push", "jobs", "app"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
-    var tabKey = params.get("saved") ? "messages" : params.get("tab");
+    var tabKey = params.get("tab") || (params.get("saved") ? "messages" : "");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
     if (msgBtn) msgBtn.click();
   }
+
+  var appSearch = document.getElementById('app-search');
+  if (appSearch) {
+    appSearch.addEventListener('input', function () {
+      var q = appSearch.value.trim().toLowerCase();
+      var visible = 0;
+      document.querySelectorAll('.app-card').forEach(function (card) {
+        var match = !q || card.dataset.filter.indexOf(q) !== -1;
+        card.style.display = match ? '' : 'none';
+        if (match) visible += 1;
+      });
+      document.querySelectorAll('#tab-app .app-group-title').forEach(function (h) {
+        var grid = h.nextElementSibling;
+        var any = grid && Array.from(grid.querySelectorAll('.app-card'))
+          .some(function (c) { return c.style.display !== 'none'; });
+        h.style.display = any ? '' : 'none';
+        if (grid) grid.style.display = any ? '' : 'none';
+      });
+      var empty = document.getElementById('app-empty-search');
+      if (empty) empty.hidden = visible !== 0;
+    });
+  }
+
+  // App checkbox fields: one checkbox mirrors the 1/0 state into the three
+  // per-language hidden inputs (ro/ru/en) of the same app_* setting key.
+  window.appCheckboxSync = function (cb) {
+    var scope = cb.closest('.app-check-field');
+    if (!scope) return;
+    var v = cb.checked ? '1' : '0';
+    scope.querySelectorAll('input[type="hidden"]').forEach(function (h) {
+      h.value = v;
+    });
+  };
+
+  // App modal language tabs: show only the inputs of the selected language so
+  // the editor is shorter and easier to read.
+  window.appLangTab = function (btn) {
+    var modal = btn.closest('.modal');
+    if (!modal) return;
+    var lang = btn.getAttribute('data-app-lang');
+    modal.querySelectorAll('.app-lang-tab').forEach(function (b) {
+      b.classList.toggle('active', b === btn);
+    });
+    modal.querySelectorAll('[data-app-lang-col]').forEach(function (col) {
+      col.hidden = col.getAttribute('data-app-lang-col') !== lang;
+    });
+  };
 
   var RESET_LBL = '{{ t('admin_placeholder_reset') }}';
   function phRow(name, value) {
@@ -953,6 +1136,15 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (t.classList.contains('ph-remove')) {
       var tr = t.closest('tr');
       if (tr) tr.remove();
+    } else if (t.classList.contains('app-field-reset')) {
+      var fs = t.closest('.app-field');
+      if (!fs) return;
+      fs.querySelectorAll('.app-field-col').forEach(function (col) {
+        var input = col.querySelector('input[type="text"], textarea, input[type="color"]');
+        var defEl = col.querySelector('[data-app-default]');
+        if (input) input.value = defEl ? defEl.getAttribute('data-app-default') : '';
+        if (defEl) defEl.hidden = true;
+      });
     }
   });
 

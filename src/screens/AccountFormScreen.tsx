@@ -24,6 +24,7 @@ import {
 } from '../api/client';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
 
 type ParamList = {
@@ -36,6 +37,7 @@ interface Props {
 }
 
 export default function AccountFormScreen({ navigation, route }: Props) {
+  const { t } = useContent();
   const accountId = route.params?.id;
   const isEdit = accountId != null;
   const fixedHomeId = route.params?.homeId;
@@ -60,7 +62,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
         const provs = await listProviders();
         setProviders(provs);
       } catch {
-        Alert.alert('Eroare', 'Datele de formular nu au putut fi încărcate.');
+        Alert.alert('Eroare', t('account_form', 'error_load'));
       } finally {
         setLoading(false);
       }
@@ -79,7 +81,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
         }
       }
     })();
-  }, [isEdit, accountId, fixedHomeId]);
+  }, [isEdit, accountId, fixedHomeId, t]);
 
   const selectedProvider = providers.find((p) => p.id === provider);
 
@@ -90,15 +92,15 @@ export default function AccountFormScreen({ navigation, route }: Props) {
 
   const save = async () => {
     if (!provider.trim()) {
-      Alert.alert('Atenție', 'Selectează un furnizor.');
+      Alert.alert('Atenție', t('account_form', 'warn_provider'));
       return;
     }
     if (!contractNumber.trim()) {
-      Alert.alert('Atenție', 'Completează numărul de contract / identificatorul.');
+      Alert.alert('Atenție', t('account_form', 'warn_contract'));
       return;
     }
     if (!homeId.trim()) {
-      Alert.alert('Atenție', 'Selectează locuința.');
+      Alert.alert('Atenție', t('account_form', 'warn_home'));
       return;
     }
     setSaving(true);
@@ -118,7 +120,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
       }
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Salvarea a eșuat.');
+      Alert.alert('Eroare', e instanceof ApiError ? e.message : t('account_form', 'error_save'));
     } finally {
       setSaving(false);
     }
@@ -130,9 +132,11 @@ export default function AccountFormScreen({ navigation, route }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>{isEdit ? 'Editează contul' : 'Utilitate nouă'}</Text>
+        <Text style={styles.title}>
+          {isEdit ? t('account_form', 'title_edit') : t('account_form', 'title_new')}
+        </Text>
 
-        <Text style={styles.section}>Locuință *</Text>
+        <Text style={styles.section}>{t('account_form', 'section_home')}</Text>
         {homes.length > 0 ? (
           <View style={styles.chipWrap}>
             {homes.map((h) => (
@@ -145,35 +149,40 @@ export default function AccountFormScreen({ navigation, route }: Props) {
             ))}
           </View>
         ) : (
-          <Text style={styles.mutedInline}>Nu ai nicio locuință. Creează întâi o locuință.</Text>
+          <Text style={styles.mutedInline}>{t('account_form', 'empty_homes')}</Text>
         )}
 
-        <Text style={styles.section}>Furnizor *</Text>
+        <Text style={styles.section}>{t('account_form', 'section_provider')}</Text>
         <TouchableOpacity style={styles.picker} onPress={() => setProviderModal(true)}>
           <Text style={provider ? styles.pickerValue : styles.pickerPlaceholder}>
-            {selectedProvider ? `${selectedProvider.icon || ''}  ${selectedProvider.name || 'Furnizor'}` : 'Selectează furnizorul'}
+            {selectedProvider
+              ? t('account_form', 'provider_label', {
+                  icon: selectedProvider.icon || '',
+                  name: selectedProvider.name || selectedProvider.id,
+                })
+              : t('account_form', 'picker_provider')}
           </Text>
           <Text style={styles.pickerCaret}>▾</Text>
         </TouchableOpacity>
         {isEdit ? (
-          <Text style={styles.readonlyNote}>Furnizorul nu poate fi schimbat după creare.</Text>
+          <Text style={styles.readonlyNote}>{t('account_form', 'provider_readonly')}</Text>
         ) : null}
 
         <Input
-          label="Număr contract / identificator *"
+          label={t('account_form', 'label_contract')}
           value={contractNumber}
           onChangeText={setContractNumber}
           placeholder={selectedProvider?.placeholder}
         />
 
-        <Button title="Salvează" onPress={save} loading={saving} />
-        {loading ? <Text style={styles.muted}>Se încarcă…</Text> : null}
+        <Button title={t('common', 'save')} onPress={save} loading={saving} />
+        {loading ? <Text style={styles.muted}>{t('common', 'loading')}</Text> : null}
       </ScrollView>
 
       <Modal visible={providerModal} transparent animationType="slide">
         <View style={styles.modalWrap}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Furnizor</Text>
+            <Text style={styles.modalTitle}>{t('account_form', 'modal_title')}</Text>
             <ScrollView style={styles.modalScroll}>
               {providers
                 .map((p) => ({ id: p.id, name: p.name || p.label || p.id, icon: p.icon }))
@@ -192,7 +201,7 @@ export default function AccountFormScreen({ navigation, route }: Props) {
                   </TouchableOpacity>
                 ))}
             </ScrollView>
-            <Button title="Anulează" variant="ghost" onPress={() => setProviderModal(false)} />
+            <Button title={t('common', 'cancel')} variant="ghost" onPress={() => setProviderModal(false)} />
           </View>
         </View>
       </Modal>

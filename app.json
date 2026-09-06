@@ -25,7 +25,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "md.utilitati.app",
+      "bundleIdentifier": "md.vadikonline1.utilitati",
       "icon": "./assets/icon.png",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -33,7 +33,7 @@
       }
     },
     "android": {
-      "package": "md.utilitati.app",
+      "package": "md.vadikonline1.utilitati",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -42,7 +42,7 @@
     },
     "extra": {
       "build_sha": "",
-      "apiUrl": "https://utilitati.nistorlazar.md/api",
+      "apiUrl": "https://sub.aalto.md/api",
       "eas": {
         "projectId": "a6825545-6d60-4504-aafd-0f8d7c1e9f56"
       },

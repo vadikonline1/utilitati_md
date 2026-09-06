@@ -95,6 +95,15 @@ export async function registerPushTokenResult(): Promise<PushActivationResult> {
     if (cfg?.push?.provider === 'expo' || cfg?.push?.provider === 'fcm') {
       mode = cfg.push.provider;
     }
+    // Server says FCM mode but has NO FCM credentials configured — registration
+    // can never deliver, so fail fast with the real reason instead of a generic one.
+    if (mode === 'fcm' && cfg?.push?.ok === false) {
+      return {
+        ok: false,
+        reason: 'registration-failed',
+        detail: 'Serverul e în mod FCM, dar FCM_SERVICE_ACCOUNT nu e configurat. Cere administratorului să seteze PUSH_PROVIDER=expo (recomandat) sau codul de service FCM.',
+      };
+    }
   } catch {
     // Config fetch failed: use the platform default (Android=FCM, iOS=Expo).
   }
@@ -214,6 +223,24 @@ export async function registerPushTokenResult(): Promise<PushActivationResult> {
 
 export async function registerPushToken(): Promise<boolean> {
   return (await registerPushTokenResult()).ok;
+}
+
+/**
+ * Subscribe to push-token rotations. Fired whenever the OS issues a new token
+ * (after an app reinstall, a provider switch, or an APK redeploy that changes
+ * the Firebase/Expo identity). The callback should re-run the registration so
+ * the backend DB always holds the *current* token — stale rows are then pruned
+ * server-side on the next send. Returns an unsubscribe function.
+ */
+export function watchPushTokenRefresh(onRefresh: () => void): () => void {
+  if (Platform.OS === 'web') return () => {};
+  try {
+    const subscription = Notifications.addPushTokenListener(() => onRefresh());
+    return () => subscription.remove();
+  } catch {
+    // listener setup is best-effort
+    return () => {};
+  }
 }
 
 export async function notifyNewInvoice(title: string, body: string): Promise<void> {

@@ -17,23 +17,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ApiError, changePassword, clearDeviceToken, deactivateAccount, ReleaseChannel, sendTestNotification, updateNotificationsEnabled, updateReleaseChannel, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
+import { useContent } from '../content/useContent';
 import { registerPushTokenResult } from '../utils/notify';
-import { checkForUpdate, getLocalVersion, installUpdate } from '../utils/updater';
+import { checkForUpdate, getLocalVersion, installUpdate, openReleasesUrl } from '../utils/updater';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
-const LANG_KEY = 'utilitati.language';
 const NOTIF_KEY = 'utilitati.notifications';
 const CHANNEL_KEY = 'utilitati.release_channel';
 const LANGUAGES = [
   { code: 'ro', label: 'Română' },
   { code: 'ru', label: 'Русский' },
   { code: 'en', label: 'English' },
-];
-const CHANNELS: { id: ReleaseChannel; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'beta', label: 'Beta', desc: 'Build din ramura deploy — actualizare directă din GitHub, detectată după SHA-ul noului build', icon: 'flask-outline' },
 ];
 
 function SettingsRow({
@@ -61,7 +58,7 @@ function SettingsRow({
 
 export default function ProfileScreen() {
   const { user, signOut, setUser } = useAuth();
-  const [lang, setLang] = useState('ro');
+  const { t, lang, setLang } = useContent();
   const [langModal, setLangModal] = useState(false);
   const [passModal, setPassModal] = useState(false);
   const [currentPass, setCurrentPass] = useState('');
@@ -71,18 +68,18 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
   const [editName, setEditName] = useState(user?.full_name || '');
   const [notifOn, setNotifOn] = useState(false);
-  const [channel, setChannel] = useState<ReleaseChannel>('beta');
+  const [channel, setChannel] = useState<ReleaseChannel>('stable');
   const [checking, setChecking] = useState(false);
+  const p = (key: string, vars?: Record<string, string | number>) =>
+    t('profile', key, vars);
 
   useEffect(() => {
     (async () => {
-      const saved = await AsyncStorage.getItem(LANG_KEY);
-      if (saved) setLang(saved);
       const n = await AsyncStorage.getItem(NOTIF_KEY);
       setNotifOn(n === '1');
       const serverChannel = user?.release_channel as ReleaseChannel | undefined;
       const stored = (await AsyncStorage.getItem(CHANNEL_KEY)) as ReleaseChannel | null;
-      const effective: ReleaseChannel = 'beta';
+      const effective: ReleaseChannel = stored || serverChannel || 'stable';
       setChannel(effective);
       if (stored !== effective) {
         await AsyncStorage.setItem(CHANNEL_KEY, effective);
@@ -101,18 +98,24 @@ export default function ProfileScreen() {
       const res = await registerPushTokenResult();
       if (!res.ok) activationDetail = res.detail || '';
       if (res.ok) {
+        // Flip the server-side 'oprire notificări' flag first — the test push
+        // is rejected while it's off, so a previous toggle-off would otherwise
+        // make re-enabling notifications impossible.
+        await updateNotificationsEnabled(true).catch(() => undefined);
         try {
           await sendTestNotification();
-        } catch {
-          activationDetail = 'Autentificarea a mers, dar trimiterea notificării de test a eșuat.';
+        } catch (e) {
+          activationDetail = e instanceof ApiError
+            ? `Autentificarea a mers, dar trimiterea notificării de test a eșuat.\n${e.message}`
+            : 'Autentificarea a mers, dar trimiterea notificării de test a eșuat.';
         }
       }
       if (res.ok && !activationDetail) {
-        Alert.alert('Gata', 'Ai activat notificările. Notificarea de test a fost trimisă.');
+        Alert.alert('Gata', p('notif_activated'));
         await AsyncStorage.setItem(NOTIF_KEY, '1');
-        await updateNotificationsEnabled(true).catch(() => undefined);
       } else {
         setNotifOn(false);
+        await updateNotificationsEnabled(false).catch(() => undefined);
         const detail = activationDetail ? `\n\n${activationDetail}` : '';
         Alert.alert(
           'Atenție',
@@ -128,23 +131,22 @@ export default function ProfileScreen() {
   };
 
   const saveLang = async (code: string) => {
-    setLang(code);
     setLangModal(false);
-    await AsyncStorage.setItem(LANG_KEY, code);
+    await setLang(code);
   };
 
   const submitPassword = async () => {
     setError('');
     if (!currentPass || !newPass) {
-      setError('Completează parola curentă și cea nouă.');
+      setError(p('password_warn_complete'));
       return;
     }
     if (newPass.length < 6) {
-      setError('Parola nouă trebuie să aibă minim 6 caractere.');
+      setError(p('password_warn_length'));
       return;
     }
     if (newPass !== confirmPass) {
-      setError('Parolele nu coincid.');
+      setError(p('password_warn_mismatch'));
       return;
     }
     setBusy(true);
@@ -154,7 +156,7 @@ export default function ProfileScreen() {
       setCurrentPass('');
       setNewPass('');
       setConfirmPass('');
-      Alert.alert('Gata', 'Parola a fost schimbată.');
+      Alert.alert('Gata', p('password_changed'));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Schimbarea parolei a eșuat.');
     } finally {
@@ -163,31 +165,27 @@ export default function ProfileScreen() {
   };
 
   const deactivate = () => {
-    Alert.alert(
-      'Dezactivare cont',
-      'Sigur vrei să dezactivezi contul? Vei fi deconectat.',
-      [
-        { text: 'Anulează', style: 'cancel' },
-        {
-          text: 'Dezactivează',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deactivateAccount();
-              await signOut();
-            } catch (e) {
-              Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Dezactivarea a eșuat.');
-            }
-          },
+    Alert.alert(p('deactivate_title'), p('deactivate_confirm'), [
+      { text: t('common', 'cancel'), style: 'cancel' },
+      {
+        text: p('deactivate_btn'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deactivateAccount();
+            await signOut();
+          } catch (e) {
+            Alert.alert('Eroare', e instanceof ApiError ? e.message : 'Dezactivarea a eșuat.');
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const logout = () => {
     Alert.alert('Deconectare', 'Sigur vrei să te deconectezi?', [
-      { text: 'Anulează', style: 'cancel' },
-      { text: 'Deconectează-te', style: 'destructive', onPress: signOut },
+      { text: t('common', 'cancel'), style: 'cancel' },
+      { text: p('logout_btn'), style: 'destructive', onPress: signOut },
     ]);
   };
 
@@ -197,7 +195,7 @@ export default function ProfileScreen() {
     try {
       const updated = await updateSelf(editName.trim());
       if (updated) setUser(updated);
-      Alert.alert('Gata', 'Numele a fost salvat.');
+      Alert.alert('Gata', p('name_saved'));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Salvarea numelui a eșuat.');
     } finally {
@@ -205,7 +203,8 @@ export default function ProfileScreen() {
     }
   };
 
-  const selectChannel = async (id: ReleaseChannel) => {
+  const toggleChannel = async (value: boolean) => {
+    const id: ReleaseChannel = value ? 'beta' : 'stable';
     const previous = channel;
     setChannel(id);
     await AsyncStorage.setItem(CHANNEL_KEY, id);
@@ -219,8 +218,11 @@ export default function ProfileScreen() {
   };
 
   const checkUpdates = async () => {
+    if (channel !== 'beta') {
+      Alert.alert(p('section_channel'), p('channel_off'));
+      return;
+    }
     setChecking(true);
-    const label = CHANNELS.find((c) => c.id === channel)?.label || 'Beta';
     try {
       if (Platform.OS === 'ios') {
         Alert.alert(
@@ -231,7 +233,7 @@ export default function ProfileScreen() {
       }
       const info = await checkForUpdate();
       if (!info.apkUrl) {
-        Alert.alert('La zi', `Canalul ${label} nu are încă un build publicat.`);
+        Alert.alert(p('up_to_date'), `Canalul Beta nu are încă un build publicat.`);
         return;
       }
       const localVersion = info.localVersion;
@@ -241,14 +243,17 @@ export default function ProfileScreen() {
         parts.push(`Versiune: v${info.remoteVersion} (ai v${localVersion})`);
       }
       if (!info.available) {
-        Alert.alert('La zi', `Ai instalat ultimul build Beta${parts.length ? ` (${parts.join(', ')})` : ''}.`);
+        Alert.alert(
+          p('up_to_date'),
+          `Ai instalat ultimul build Beta${parts.length ? ` (${parts.join(', ')})` : ''}.`,
+        );
         return;
       }
       Alert.alert(
         'Build nou disponibil',
-        `Pe canalul ${label} este un build mai nou${parts.length ? `: ${parts.join(', ')}` : ''}.\n\nDescarc APK-ul și îl deschid pentru instalare?`,
+        `Pe canalul Beta este un build mai nou${parts.length ? `: ${parts.join(', ')}` : ''}.\n\nDescarc APK-ul și îl deschid pentru instalare?`,
         [
-          { text: 'Anulează', style: 'cancel' },
+          { text: t('common', 'cancel'), style: 'cancel' },
           {
             text: 'Descarcă și instalează',
             style: 'default',
@@ -256,12 +261,14 @@ export default function ProfileScreen() {
               try {
                 await installUpdate(info.apkUrl!);
               } catch (err) {
-                Alert.alert(
-                  'Eroare',
+                const message =
                   err instanceof Error && err.message
                     ? err.message
-                    : 'Nu am putut descărca/instala APK-ul. Deschide fișierul apk-ului din GitHub release.',
-                );
+                    : 'Nu am putut descărca/instala APK-ul automat. Deschide pagina de GitHub Releases și descarcă build-ul de acolo.';
+                Alert.alert('Eroare', message, [
+                  { text: t('common', 'cancel'), style: 'cancel' },
+                  { text: 'Deschide GitHub Releases', onPress: () => openReleasesUrl() },
+                ]);
               }
             },
           },
@@ -280,13 +287,13 @@ export default function ProfileScreen() {
           <Ionicons name="person-circle-outline" size={64} color={colors.primary} />
           <View style={styles.nameInput}>
             <Input
-              label="Nume, Prenume"
+              label={p('name_label')}
               value={editName}
               onChangeText={setEditName}
             />
           </View>
           <Button
-            title="Salvează numele"
+            title={p('save_name')}
             onPress={saveName}
             loading={busy}
           />
@@ -294,26 +301,24 @@ export default function ProfileScreen() {
           <Text style={styles.email}>{user?.email}</Text>
         </View>
 
-        <Text style={styles.section}>Setări</Text>
+        <Text style={styles.section}>{p('settings')}</Text>
         <SettingsRow
           icon="lock-closed-outline"
-          title="Schimbă parola"
+          title={p('change_password')}
           onPress={() => setPassModal(true)}
         />
         <SettingsRow
           icon="language-outline"
-          title="Limba platformei"
+          title={p('language')}
           subtitle={LANGUAGES.find((l) => l.code === lang)?.label}
           onPress={() => setLangModal(true)}
         />
         <View style={styles.row}>
           <Ionicons name="notifications-outline" size={22} color={colors.primary} />
           <View style={styles.rowBody}>
-            <Text style={styles.rowTitle}>Notificări</Text>
+            <Text style={styles.rowTitle}>{p('notifications')}</Text>
             <Text style={styles.muted}>
-              {notifOn
-                ? 'Activat — primești notificări pentru facturi noi'
-                : 'Dezactivat — fără notificări push'}
+              {notifOn ? p('notif_on') : p('notif_off')}
             </Text>
           </View>
           <Switch
@@ -324,46 +329,45 @@ export default function ProfileScreen() {
         </View>
         <SettingsRow
           icon="person-remove-outline"
-          title="Dezactivarea contului"
+          title={p('deactivate')}
           onPress={deactivate}
         />
 
-        <Text style={styles.section}>Canal de actualizare</Text>
-        {CHANNELS.map((c) => (
-          <TouchableOpacity
-            key={c.id}
-            style={[styles.row, channel === c.id && styles.rowActive]}
-            onPress={() => selectChannel(c.id)}
-          >
-            <Ionicons name={c.icon} size={22} color={colors.primary} />
-            <View style={styles.rowBody}>
-              <Text style={styles.rowTitle}>{c.label}</Text>
-              <Text style={styles.muted}>{c.desc}</Text>
-            </View>
-            {channel === c.id ? (
-              <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-            ) : null}
-          </TouchableOpacity>
-        ))}
+        <View style={styles.row}>
+          <Ionicons name="flask-outline" size={22} color={colors.primary} />
+          <View style={styles.rowBody}>
+            <Text style={styles.rowTitle}>{p('section_channel')}</Text>
+            <Text style={styles.muted}>
+              {channel === 'beta'
+                ? p('beta_desc')
+                : p('channel_off')}
+            </Text>
+          </View>
+          <Switch
+            value={channel === 'beta'}
+            onValueChange={toggleChannel}
+            trackColor={{ false: colors.border, true: colors.primary }}
+          />
+        </View>
         <Text style={[styles.muted, styles.versionText]}>
-          Versiune instalată: v{getLocalVersion()}
+          {p('version', { value: getLocalVersion() })}
         </Text>
         <Button
-          title="Verifică actualizări"
+          title={p('check_updates')}
           onPress={checkUpdates}
           loading={checking}
           disabled={checking}
           style={styles.updateBtn}
         />
 
-        <Text style={styles.section}>Cont</Text>
-        <Button title="Deconectare" variant="danger" onPress={logout} style={styles.logout} />
+        <Text style={styles.section}>{p('section_account')}</Text>
+        <Button title={p('logout')} variant="danger" onPress={logout} style={styles.logout} />
       </ScrollView>
 
       <Modal visible={langModal} transparent animationType="slide">
         <View style={styles.modalWrap}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Limba</Text>
+            <Text style={styles.modalTitle}>{p('language_title')}</Text>
             {LANGUAGES.map((l) => (
               <TouchableOpacity
                 key={l.code}
@@ -376,7 +380,7 @@ export default function ProfileScreen() {
                 ) : null}
               </TouchableOpacity>
             ))}
-            <Button title="Anulează" variant="ghost" onPress={() => setLangModal(false)} />
+            <Button title={t('common', 'cancel')} variant="ghost" onPress={() => setLangModal(false)} />
           </View>
         </View>
       </Modal>
@@ -387,13 +391,13 @@ export default function ProfileScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Schimbă parola</Text>
+            <Text style={styles.modalTitle}>{p('password_title')}</Text>
             <TextInput
               style={styles.input}
               value={currentPass}
               onChangeText={setCurrentPass}
               secureTextEntry
-              placeholder="Parola curentă"
+              placeholder={p('password_current')}
               placeholderTextColor={colors.muted}
             />
             <TextInput
@@ -401,7 +405,7 @@ export default function ProfileScreen() {
               value={newPass}
               onChangeText={setNewPass}
               secureTextEntry
-              placeholder="Parola nouă (min 6 caractere)"
+              placeholder={p('password_new')}
               placeholderTextColor={colors.muted}
             />
             <TextInput
@@ -409,12 +413,12 @@ export default function ProfileScreen() {
               value={confirmPass}
               onChangeText={setConfirmPass}
               secureTextEntry
-              placeholder="Confirmă parola"
+              placeholder={p('password_confirm')}
               placeholderTextColor={colors.muted}
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Button title="Salvează" onPress={submitPassword} loading={busy} />
-            <Button title="Anulează" variant="ghost" onPress={() => setPassModal(false)} />
+            <Button title={t('common', 'save')} onPress={submitPassword} loading={busy} />
+            <Button title={t('common', 'cancel')} variant="ghost" onPress={() => setPassModal(false)} />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -447,10 +451,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.lg,
     marginVertical: spacing.xs,
-  },
-  rowActive: {
-    borderColor: colors.primary,
-    backgroundColor: '#f0fdfa',
   },
   rowBody: { flex: 1, marginLeft: spacing.md },
   rowTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
