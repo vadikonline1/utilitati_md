@@ -494,8 +494,6 @@ button.badge:hover { filter: brightness(0.95); }
 .cols-10 .dl-head, .cols-10 .dl-row { grid-template-columns: 1.7fr 1.2fr 1fr 1fr 1fr 1fr 1.1fr 1.1fr 1fr 2.2fr; }
 .cols-11 .dl-head, .cols-11 .dl-row { grid-template-columns: 0.9fr 1.2fr 1.3fr 1.1fr 0.7fr 0.7fr 0.9fr 0.9fr 1fr 1fr 2.2fr; }
 .cols-3 .dl-head, .cols-3 .dl-row { grid-template-columns: 1fr 1fr 1.4fr; }
-.cols-5 .dl-head, .cols-5 .dl-row { grid-template-columns: 1.5fr 1.9fr 150px 150px 118px; }
-.cols-5 .dl-cell.nowrap { white-space: nowrap; }
 .cols-4 .dl-head, .cols-4 .dl-row { grid-template-columns: 1.8fr 1.6fr 1fr 2.2fr; }
 .dl-cell.row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
