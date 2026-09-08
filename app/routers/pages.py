@@ -152,7 +152,7 @@ PROVIDER_META = {
     "eco_mereni": {"icon": "🌿", "name": "Eco-Mereni", "fields": ["contract"], "account_label": "Cod LUC", "placeholder": "4 cifre (ex: 1234)"},
     "antar_salubrizare": {"icon": "🗑️", "name": "ANTAR SALUBRIZARE", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
     "anintercom": {"icon": "🏢", "name": "Anintercom", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "7 cifre (ex: 1234567)"},
-    "sagaidac_service": {"icon": "🏠", "name": "Sagaidac Service", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "7-9 cifre (ex: 1234567)"},
+    "sagaidac_service": {"icon": "🏠", "name": "Sagaidac Service", "fields": ["contract"], "account_label": "ID_platitor", "placeholder": "6 cifre (ex: 123456)"},
     "vipinterfon": {"icon": "🚪", "name": "VIP Interfon", "fields": ["contract"], "account_label": "Numar contract", "placeholder": "4-5 cifre (ex: 1234)"},
     "econdominiu": {"icon": "🏢", "name": "E-Condominiu", "fields": ["contract"], "account_label": "Cod Consumator", "placeholder": "max 11 caractere (ex: 12345678901)"},
     "salubeco": {"icon": "🗑️", "name": "SALUBECO", "fields": ["contract"], "account_label": "Numarul contractului", "placeholder": "max 9 cifre (ex: 123456789)"},

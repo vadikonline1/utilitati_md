@@ -47,12 +47,19 @@
 
     <nav class="main-nav" id="mainNav">
       {% block nav %}
+      {% if logged_in %}
       <a href="/dashboard">{{ t('nav_dashboard') }}</a>
       <a href="/homes">{{ t('nav_homes') }}</a>
       <a href="/invoices">{{ t('nav_invoices') }}</a>
       <a href="/profile">{{ t('nav_profile') }}</a>
       {% if is_admin %}<a href="/admin">{{ t('nav_admin') }}</a>{% endif %}
       <a href="/logout">{{ t('nav_logout') }}</a>
+      {% else %}
+      <a href="/">{{ t('nav_home') }}</a>
+      <a href="/about">{{ t('nav_about') }}</a>
+      <a href="/login">{{ t('nav_login') }}</a>
+      <a href="/register">{{ t('nav_register') }}</a>
+      {% endif %}
       {% endblock %}
     </nav>
 
