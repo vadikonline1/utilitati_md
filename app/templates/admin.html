@@ -617,23 +617,23 @@
           </div>
           {% for j in system_jobs %}
             <div class="dl-row">
-              <div class="dl-cell"><b>{{ j.name }}</b></div>
-              <div class="dl-cell"><span class="muted">{{ j.schedule }}</span></div>
-              <div class="dl-cell">
+              <div class="dl-cell" data-label="{{ t('admin_jobs_col_system_job') }}"><b>{{ j.name }}</b></div>
+              <div class="dl-cell" data-label="{{ t('admin_jobs_col_schedule') }}"><span class="muted">{{ j.schedule }}</span></div>
+              <div class="dl-cell nowrap" data-label="{{ t('admin_jobs_col_last_run') }}">
                 {% if j.last_run %}
                   <span class="muted">{{ j.last_run }}</span>
                 {% else %}
                   <span class="badge warn">—</span>
                 {% endif %}
               </div>
-              <div class="dl-cell">
+              <div class="dl-cell nowrap" data-label="{{ t('admin_jobs_col_next_run') }}">
                 {% if j.next_run %}
                   <span class="muted">{{ j.next_run }}</span>
                 {% else %}
                   <span class="badge warn">—</span>
                 {% endif %}
               </div>
-              <div class="dl-cell">
+              <div class="dl-cell row-actions" data-label="{{ t('admin_jobs_col_actions') }}">
                 {% if j.runnable %}
                   <form method="post" action="/admin/jobs/system/{{ j.key }}/run">
                     <button type="submit" class="btn ghost small">{{ t('admin_jobs_run_now') }}</button>
