@@ -2,9 +2,13 @@ import React, { useCallback, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Modal,
+  Platform,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -13,9 +17,11 @@ import {
   Account,
   ApiError,
   accountInvoices,
+  invoiceHistory,
+  Invoice,
+  InvoiceHistoryEntry,
   listAccounts,
   refreshAccount,
-  Invoice,
 } from '../api/client';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -42,6 +48,10 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [historyInv, setHistoryInv] = useState<Invoice | null>(null);
+  const [history, setHistory] = useState<InvoiceHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -98,34 +108,65 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
     }
   };
 
+  const openHistory = async (inv: Invoice) => {
+    setHistoryInv(inv);
+    setHistory([]);
+    setHistoryError('');
+    setHistoryLoading(true);
+    try {
+      const res = await invoiceHistory(inv.id);
+      setHistory(res.history || []);
+    } catch {
+      setHistoryError(t('account_detail', 'error_history'));
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const historyLabel = (status: string) => {
+    const s = status || '';
+    if (s === 'PAID' || s === 'OVERPAID' || s === 'PARTIALLY_PAID') {
+      return t('account_detail', 'history_paid');
+    }
+    if (s === 'UNKNOWN') return t('account_detail', 'history_unknown');
+    return t('account_detail', 'history_unpaid');
+  };
+
   const renderInvoice = ({ item }: { item: Invoice }) => (
-    <Card style={styles.invoice}>
-      <View style={styles.row}>
-        <View style={styles.flex}>
-          <Text style={styles.invTitle}>
-            {item.invoice_number || item.period || t('invoices', 'default_title')}
-          </Text>
-          {item.period ? (
-            <Text style={styles.muted}>{t('invoices', 'period', { value: item.period })}</Text>
-          ) : null}
-          {item.due_date ? (
-            <Text style={styles.muted}>{t('invoices', 'due', { value: item.due_date })}</Text>
-          ) : null}
+    <TouchableOpacity onPress={() => openHistory(item)}>
+      <Card style={styles.invoice}>
+        <View style={styles.row}>
+          <View style={styles.flex}>
+            <Text style={styles.invTitle}>
+              {item.invoice_number || item.period || t('invoices', 'default_title')}
+            </Text>
+            {item.period ? (
+              <Text style={styles.muted}>{t('invoices', 'period', { value: item.period })}</Text>
+            ) : null}
+            {item.due_date ? (
+              <Text style={styles.muted}>{t('invoices', 'due', { value: item.due_date })}</Text>
+            ) : null}
+            {item.checked_at ? (
+              <Text style={styles.muted}>
+                {t('account_detail', 'checked_at', { date: item.checked_at })}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.invRight}>
+            <Text style={styles.amount}>
+              {Number(item.amount_mdl).toFixed(2)} {item.currency}
+            </Text>
+            <Text style={[styles.status, item.is_paid ? styles.paid : styles.unpaid]}>
+              {item.is_paid
+                ? t('account_detail', 'status_paid')
+                : item.pay_status === 'UNKNOWN'
+                ? t('account_detail', 'status_unknown')
+                : t('account_detail', 'status_unpaid')}
+            </Text>
+          </View>
         </View>
-        <View style={styles.invRight}>
-          <Text style={styles.amount}>
-            {Number(item.amount_mdl).toFixed(2)} {item.currency}
-          </Text>
-          <Text style={[styles.status, item.is_paid ? styles.paid : styles.unpaid]}>
-            {item.is_paid
-              ? t('account_detail', 'status_paid')
-              : item.pay_status === 'UNKNOWN'
-              ? t('account_detail', 'status_unknown')
-              : t('account_detail', 'status_unpaid')}
-          </Text>
-        </View>
-      </View>
-    </Card>
+      </Card>
+    </TouchableOpacity>
   );
 
   return (
@@ -175,6 +216,44 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
           <Text style={styles.empty}>{t('account_detail', 'empty')}</Text>
         }
       />
+
+      <Modal visible={historyInv != null} transparent animationType="slide">
+        <View style={styles.modalWrap}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>{t('account_detail', 'history_title')}</Text>
+            {historyInv ? (
+              <Text style={styles.muted}>
+                {historyInv.invoice_number || t('invoices', 'default_title')}
+              </Text>
+            ) : null}
+            <ScrollView>
+              {historyLoading ? (
+                <Text style={styles.empty}>{t('common', 'loading')}</Text>
+              ) : historyError ? (
+                <Text style={styles.error}>{historyError}</Text>
+              ) : history.length === 0 ? (
+                <Text style={styles.empty}>{t('account_detail', 'history_empty')}</Text>
+              ) : (
+                history.map((h) => (
+                  <View key={String(h.id)} style={styles.historyRow}>
+                    <Text style={styles.historyStatus}>{historyLabel(h.pay_status)}</Text>
+                    <Text style={styles.historyAmount}>
+                      {Number(h.amount_mdl).toFixed(2)} MDL
+                    </Text>
+                    <Text style={styles.historyDate}>{h.checked_at}</Text>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+            <Button
+              title={t('common', 'cancel')}
+              variant="ghost"
+              onPress={() => setHistoryInv(null)}
+              style={styles.historyClose}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -197,4 +276,25 @@ const styles = StyleSheet.create({
   paid: { color: colors.success },
   unpaid: { color: colors.danger },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xl },
+  modalWrap: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  modal: { backgroundColor: colors.card, borderRadius: 16, padding: spacing.xl, maxHeight: '80%' },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingVertical: spacing.sm,
+  },
+  historyStatus: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
+  historyAmount: { fontSize: 14, color: colors.text, marginRight: spacing.md },
+  historyDate: { fontSize: 13, color: colors.muted },
+  historyClose: { marginTop: spacing.md },
+  error: { color: colors.danger, textAlign: 'center', marginVertical: spacing.sm },
 });

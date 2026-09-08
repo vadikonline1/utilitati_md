@@ -1,15 +1,5 @@
 {% extends "base.html" %}
 {% block title %}{{ t('privacy_title') }} · UTILITĂȚI.MD{% endblock %}
-{% block nav %}
-  <a href="/">{{ t('nav_home') }}</a>
-  {% if logged_in %}
-    <a href="/dashboard">{{ t('nav_dashboard') }}</a>
-    <a href="/logout">{{ t('nav_logout') }}</a>
-  {% else %}
-    <a href="/login">{{ t('nav_login') }}</a>
-    <a href="/register">{{ t('nav_register') }}</a>
-  {% endif %}
-{% endblock %}
 {% block body %}
 <main class="landing">
   <section class="legal">

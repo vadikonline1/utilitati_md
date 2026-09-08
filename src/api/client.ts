@@ -187,6 +187,15 @@ export interface Provider {
   fields?: string[];
 }
 
+export interface InvoiceHistoryEntry {
+  id: number;
+  invoice_id: number;
+  pay_status: string;
+  amount_mdl: number;
+  checked_at: string;
+  raw_response?: string | null;
+}
+
 export interface Invoice {
   id: number;
   account_id: number;
@@ -373,7 +382,7 @@ export function listInvoices(accountId?: number): Promise<{ invoices: Invoice[] 
   return request(`/invoices${qs}`);
 }
 
-export function invoiceHistory(id: number): Promise<{ history: unknown[] }> {
+export function invoiceHistory(id: number): Promise<{ history: InvoiceHistoryEntry[] }> {
   return request(`/invoices/${id}/history`);
 }
 

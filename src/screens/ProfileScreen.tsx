@@ -19,6 +19,7 @@ import { ApiError, changePassword, clearDeviceToken, deactivateAccount, sendTest
 import { useAuth } from '../api/auth-context';
 import { useContent } from '../content/useContent';
 import { registerPushTokenResult } from '../utils/notify';
+import { checkForUpdate } from '../utils/update';
 import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
@@ -241,6 +242,16 @@ export default function ProfileScreen() {
           icon="person-remove-outline"
           title={p('deactivate')}
           onPress={deactivate}
+        />
+        <SettingsRow
+          icon="cloud-download-outline"
+          title={p('check_update')}
+          subtitle={p('check_update_sub')}
+          onPress={() => {
+            checkForUpdate(false).then((available) => {
+              if (!available) Alert.alert(p('check_update'), p('check_update_none'));
+            });
+          }}
         />
 
         <Text style={styles.section}>{p('section_account')}</Text>
