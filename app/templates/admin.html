@@ -607,43 +607,49 @@
       <div class="card">
         <h2>{{ t('admin_jobs_system_title') }}</h2>
         <p class="field-hint">{{ t('admin_jobs_system_hint') }}</p>
-        <div class="data-list cols-5">
-          <div class="dl-head">
-            <div class="dl-cell">{{ t('admin_jobs_col_system_job') }}</div>
-            <div class="dl-cell">{{ t('admin_jobs_col_schedule') }}</div>
-            <div class="dl-cell">{{ t('admin_jobs_col_last_run') }}</div>
-            <div class="dl-cell">{{ t('admin_jobs_col_next_run') }}</div>
-            <div class="dl-cell">{{ t('admin_jobs_col_actions') }}</div>
-          </div>
-          {% for j in system_jobs %}
-            <div class="dl-row">
-              <div class="dl-cell" data-label="{{ t('admin_jobs_col_system_job') }}"><b>{{ j.name }}</b></div>
-              <div class="dl-cell" data-label="{{ t('admin_jobs_col_schedule') }}"><span class="muted">{{ j.schedule }}</span></div>
-              <div class="dl-cell nowrap" data-label="{{ t('admin_jobs_col_last_run') }}">
-                {% if j.last_run %}
-                  <span class="muted">{{ j.last_run }}</span>
-                {% else %}
-                  <span class="badge warn">—</span>
-                {% endif %}
-              </div>
-              <div class="dl-cell nowrap" data-label="{{ t('admin_jobs_col_next_run') }}">
-                {% if j.next_run %}
-                  <span class="muted">{{ j.next_run }}</span>
-                {% else %}
-                  <span class="badge warn">—</span>
-                {% endif %}
-              </div>
-              <div class="dl-cell row-actions" data-label="{{ t('admin_jobs_col_actions') }}">
-                {% if j.runnable %}
-                  <form method="post" action="/admin/jobs/system/{{ j.key }}/run">
-                    <button type="submit" class="btn ghost small">{{ t('admin_jobs_run_now') }}</button>
-                  </form>
-                {% else %}
-                  <span class="muted">—</span>
-                {% endif %}
-              </div>
-            </div>
-          {% endfor %}
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>{{ t('admin_jobs_col_system_job') }}</th>
+                <th>{{ t('admin_jobs_col_schedule') }}</th>
+                <th>{{ t('admin_jobs_col_last_run') }}</th>
+                <th>{{ t('admin_jobs_col_next_run') }}</th>
+                <th>{{ t('admin_jobs_col_actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for j in system_jobs %}
+                <tr>
+                  <td data-label="{{ t('admin_jobs_col_system_job') }}"><b>{{ j.name }}</b></td>
+                  <td data-label="{{ t('admin_jobs_col_schedule') }}"><span class="muted">{{ j.schedule }}</span></td>
+                  <td data-label="{{ t('admin_jobs_col_last_run') }}">
+                    {% if j.last_run %}
+                      <span class="muted">{{ j.last_run }}</span>
+                    {% else %}
+                      <span class="badge warn">—</span>
+                    {% endif %}
+                  </td>
+                  <td data-label="{{ t('admin_jobs_col_next_run') }}">
+                    {% if j.next_run %}
+                      <span class="muted">{{ j.next_run }}</span>
+                    {% else %}
+                      <span class="badge warn">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="row-actions" data-label="{{ t('admin_jobs_col_actions') }}">
+                    {% if j.runnable %}
+                      <form method="post" action="/admin/jobs/system/{{ j.key }}/run">
+                        <button type="submit" class="btn ghost small">{{ t('admin_jobs_run_now') }}</button>
+                      </form>
+                    {% else %}
+                      <span class="muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
 
