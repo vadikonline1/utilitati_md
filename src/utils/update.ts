@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 
 // Verify GitHub Releases for `apk-<branch>-<sha>` tags (our update feed) and,
 // when the embedded build sha differs from the latest published release, propose
-// downloading the new APK. Importantda: la fiecare push pe `main` workflow-ul
+// downloading the new APK. La fiecare push pe `main`, workflow-ul build-apk
 // build-apk publică un Release `apk-main-<sha>`.
 const REPO = 'vadikonline1/utilitati_md';
 
