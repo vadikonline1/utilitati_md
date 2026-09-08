@@ -91,6 +91,7 @@ from ..services.sync import (
     delete_invoice_job,
     cleanup_old_jobs,
     system_jobs_status,
+    request_manual_run,
 )
 from ..services.utilities import (
     create_home,
@@ -1431,6 +1432,16 @@ async def admin_jobs_delete_submit(
     if not _is_admin(user_id):
         return RedirectResponse("/admin?tab=jobs", status_code=303)
     delete_invoice_job(job_id)
+    return RedirectResponse("/admin?tab=jobs", status_code=303)
+
+
+@router.post("/admin/jobs/system/{job_key}/run")
+async def admin_jobs_system_run_submit(
+    job_key: str, request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    if not _is_admin(user_id):
+        return RedirectResponse("/admin?tab=jobs", status_code=303)
+    request_manual_run(job_key)
     return RedirectResponse("/admin?tab=jobs", status_code=303)
 
 
