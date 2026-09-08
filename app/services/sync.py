@@ -64,28 +64,158 @@ async def sync_all() -> dict:
     return {"checked": len(accounts), "updated": updated, "errors": errors, "notified": notified}
 
 
+_MANUAL_RUN_KEYS = ("sync", "maintenance", "monthly")
+
+_wake_event: asyncio.Event | None = None
+
+
+def _ensure_wake_event() -> asyncio.Event:
+    """Return the shared wake-up event, creating it on the running loop once.
+
+    Created lazily inside ``sync_loop`` (never at import time) so the event is
+    bound to the actual uvicorn/asyncio event loop regardless of Python version.
+    """
+    global _wake_event
+    if _wake_event is None:
+        _wake_event = asyncio.Event()
+    return _wake_event
+
+
+def request_manual_run(job_key: str) -> bool:
+    """Queue a one-off run of a system job (admin "Run now" button)."""
+    if job_key not in _MANUAL_RUN_KEYS:
+        return False
+    set_setting(f"job_manual_{job_key}", datetime.now().isoformat(timespec="seconds"))
+    ev = _wake_event
+    if ev is not None:
+        ev.set()
+    return True
+
+
+def _consume_manual_runs() -> set[str]:
+    """Return and clear any queued manual run flags (works across restarts)."""
+    pending: set[str] = set()
+    for key in _MANUAL_RUN_KEYS:
+        if get_setting(f"job_manual_{key}", ""):
+            set_setting(f"job_manual_{key}", "")
+            pending.add(key)
+    return pending
+
+
+def _midnight(dt: datetime) -> datetime:
+    return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _last_run_dt(key: str) -> datetime | None:
+    raw = get_setting(_LAST_RUN_KEYS[key], "")
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def _current_sync_slot(now: datetime) -> datetime:
+    """The most recent sync slot <= now (aligned to 00:00)."""
+    hours = max(1, get_sync_interval_hours())
+    base = _midnight(now)
+    elapsed = (now - base).total_seconds() / 3600.0
+    k = int(elapsed // hours)
+    return base + timedelta(hours=k * hours)
+
+
+def _next_sync_slot(now: datetime) -> datetime:
+    """Next sync run time, strictly after `now`, aligned to 00:00."""
+    hours = max(1, get_sync_interval_hours())
+    base = _midnight(now)
+    elapsed = (now - base).total_seconds() / 3600.0
+    k = int(elapsed // hours) + 1
+    return base + timedelta(hours=k * hours)
+
+
+def _current_slot_for(key: str, now: datetime) -> datetime | None:
+    """The most recent scheduled slot <= now (None if no slot has arrived)."""
+    if key == "sync":
+        return _current_sync_slot(now)
+    if key == "maintenance":
+        return _midnight(now)
+    # monthly: the last day of the current month at 00:00.
+    last_day = calendar.monthrange(now.year, now.month)[1]
+    slot = datetime(now.year, now.month, last_day)
+    return slot if slot <= now else None
+
+
+def _next_run_for(key: str, now: datetime) -> datetime:
+    if key == "sync":
+        return _next_sync_slot(now)
+    if key == "maintenance":
+        return _midnight(now) + timedelta(days=1)
+    # monthly: last day of current month (or next month if already past).
+    last_day = calendar.monthrange(now.year, now.month)[1]
+    nxt = datetime(now.year, now.month, last_day)
+    return nxt if nxt > now else _last_day_of_next_month(now)
+
+
+def _last_day_of_next_month(now: datetime) -> datetime:
+    if now.month == 12:
+        year, month = now.year + 1, 1
+    else:
+        year, month = now.year, now.month + 1
+    last_day = calendar.monthrange(year, month)[1]
+    return datetime(year, month, last_day)
+
+
+def _is_due(key: str, now: datetime) -> bool:
+    """True when the current slot arrived and this run hasn't happened yet."""
+    slot = _current_slot_for(key, now)
+    if slot is None:
+        return False
+    last = _last_run_dt(key)
+    return last is None or last < slot
+
+
+async def _run_system_job(key: str, force: bool = False) -> None:
+    """Execute a single scheduled job (sync / maintenance / monthly)."""
+    if key == "sync":
+        result = await sync_all()
+        _LOGGER.info("Background sync: %s", result)
+        _stamp("sync")
+    elif key == "maintenance":
+        maintenance.run_maintenance()
+        _stamp("maintenance")
+    elif key == "monthly":
+        await notify_monthly_unpaid(force=force)
+        _stamp("monthly")
+
+
 async def sync_loop() -> None:
-    """Continuously re-schedule syncs every N hours."""
+    """Scheduler aligning every system job to its 00:00 slot.
+
+    Each job runs when its current aligned slot arrives (and only once per
+    slot), supports a one-off manual run (see request_manual_run) and catches
+    up after a restart: a job whose slot passed while the app was down is
+    executed on the next loop iteration.
+    """
     while True:
+        wake_event = _ensure_wake_event()
+        now = datetime.now()
+        manual = _consume_manual_runs()
+        for key in _MANUAL_RUN_KEYS:
+            if key in manual or _is_due(key, now):
+                try:
+                    await _run_system_job(key, force=(key in manual))
+                except Exception:  # noqa: BLE001
+                    _LOGGER.exception("System job %s failed", key)
+        # Sleep until the next aligned slot (wake up early on manual runs).
+        soonest = min(_next_run_for(k, datetime.now()) for k in _MANUAL_RUN_KEYS)
+        delay = max(1.0, min(3600.0, (soonest - datetime.now()).total_seconds()))
         try:
-            result = await sync_all()
-            _LOGGER.info("Background sync: %s", result)
-            _stamp("sync")
-        except Exception:  # noqa: BLE001
-            _LOGGER.exception("Background sync failed")
-        try:
-            # Data-retention / inactivity cleanup runs on the same schedule.
-            maintenance.run_maintenance()
-            _stamp("maintenance")
-        except Exception:  # noqa: BLE001
-            _LOGGER.exception("Maintenance run failed")
-        try:
-            # Monthly unpaid-invoices summary goes out on the 1st of the month.
-            await notify_monthly_unpaid()
-            _stamp("monthly")
-        except Exception:  # noqa: BLE001
-            _LOGGER.exception("Monthly unpaid notification failed")
-        await asyncio.sleep(get_sync_interval_hours() * 3600)
+            await asyncio.wait_for(wake_event.wait(), timeout=delay)
+        except asyncio.TimeoutError:
+            pass
+        finally:
+            wake_event.clear()
 
 
 def _unpaid_rows() -> list[dict]:
@@ -110,15 +240,16 @@ def _unpaid_rows() -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def notify_monthly_unpaid() -> int:
+async def notify_monthly_unpaid(*, force: bool = False) -> int:
     """Send each user (with unpaid invoices) a month-end summary, once per period.
 
     Runs on the LAST day of the month. The email/Telegram message is the
     admin-editable 'unpaid' template and contains every open invoice; a push
-    notification is also sent with a short summary.
+    notification is also sent with a short summary. ``force=True`` (manual run)
+    bypasses the last-day check but keeps the once-per-period dedupe.
     """
     now = datetime.now()
-    if now.day != calendar.monthrange(now.year, now.month)[1]:
+    if not force and now.day != calendar.monthrange(now.year, now.month)[1]:
         return 0
     period_key = f"{now.year}-{now.month:02d}"
     if get_setting("monthly_unpaid_sent") == period_key:
@@ -243,36 +374,66 @@ def _stamp(key: str) -> None:
 def system_jobs_status() -> list[dict]:
     """Read-only overview of the background/scheduled tasks (for /admin).
 
-    ``schedule`` is a human-readable recurrence and ``last_run`` the most
-    recent successful completion (tracked via settings keys).
+    ``schedule`` is a human-readable recurrence, ``last_run`` the most recent
+    completion (tracked via settings keys) and ``next_run`` the next aligned
+    00:00 slot. ``runnable`` marks jobs that support the admin "Run now" button.
     """
     hours = get_sync_interval_hours()
-    return [
-        {
-            "key": "sync",
-            "name": "Sincronizare facturi (sync_loop)",
-            "schedule": f"la fiecare {hours} ore" if hours != 24 else "zilnic",
-            "last_run": get_setting(_LAST_RUN_KEYS["sync"], ""),
-        },
-        {
-            "key": "maintenance",
-            "name": "Curățenie / retenție date (maintenance)",
-            "schedule": "după fiecare sincronizare",
-            "last_run": get_setting(_LAST_RUN_KEYS["maintenance"], ""),
-        },
-        {
-            "key": "monthly",
-            "name": "Sumar lunar facturi neachitate",
-            "schedule": "ultima zi a lunii",
-            "last_run": get_setting(_LAST_RUN_KEYS["monthly"], ""),
-        },
-        {
-            "key": "worker",
-            "name": "Worker joburi facturi (invoice_job_worker)",
-            "schedule": "continuu (verificare la ~5s)",
-            "last_run": get_setting(_LAST_RUN_KEYS["worker"], ""),
-        },
-    ]
+    now = datetime.now()
+
+    def fmt(dt: datetime | None) -> str:
+        if dt is None:
+            return ""
+        return dt.strftime("%d.%m.%Y %H:%M")
+
+    def fmt_last(key: str) -> str:
+        raw = get_setting(_LAST_RUN_KEYS[key], "")
+        if not raw:
+            return ""
+        try:
+            return fmt(datetime.fromisoformat(raw))
+        except ValueError:
+            return raw
+
+    def job(key: str, name: str, schedule: str) -> dict:
+        return {
+            "key": key,
+            "name": name,
+            "schedule": schedule,
+            "last_run": fmt_last(key),
+            "next_run": "",
+            "runnable": key in _MANUAL_RUN_KEYS,
+        }
+
+    sync_job = job(
+        "sync",
+        "Sincronizare facturi (sync_loop)",
+        f"zilnic la 00:00" if hours >= 24 else f"la fiecare {hours} ore (prima la 00:00)",
+    )
+    sync_job["next_run"] = fmt(_next_run_for("sync", now))
+
+    maintenance_job = job(
+        "maintenance",
+        "Curățenie / retenție date (maintenance)",
+        "zilnic la 00:00",
+    )
+    maintenance_job["next_run"] = fmt(_next_run_for("maintenance", now))
+
+    monthly_job = job(
+        "monthly",
+        "Sumar lunar facturi neachitate",
+        "ultima zi a lunii la 00:00",
+    )
+    monthly_job["next_run"] = fmt(_next_run_for("monthly", now))
+
+    worker_job = job(
+        "worker",
+        "Worker joburi facturi (invoice_job_worker)",
+        "continuu (verificare la ~5s)",
+    )
+    worker_job["next_run"] = "continuu"
+
+    return [sync_job, maintenance_job, monthly_job, worker_job]
 
 
 def list_invoice_jobs(limit: int = 300) -> list[dict]:

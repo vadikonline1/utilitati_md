@@ -607,11 +607,13 @@
       <div class="card">
         <h2>{{ t('admin_jobs_system_title') }}</h2>
         <p class="field-hint">{{ t('admin_jobs_system_hint') }}</p>
-        <div class="data-list cols-3">
+        <div class="data-list cols-5">
           <div class="dl-head">
             <div class="dl-cell">{{ t('admin_jobs_col_system_job') }}</div>
             <div class="dl-cell">{{ t('admin_jobs_col_schedule') }}</div>
             <div class="dl-cell">{{ t('admin_jobs_col_last_run') }}</div>
+            <div class="dl-cell">{{ t('admin_jobs_col_next_run') }}</div>
+            <div class="dl-cell">{{ t('admin_jobs_col_actions') }}</div>
           </div>
           {% for j in system_jobs %}
             <div class="dl-row">
@@ -622,6 +624,22 @@
                   <span class="muted">{{ j.last_run }}</span>
                 {% else %}
                   <span class="badge warn">—</span>
+                {% endif %}
+              </div>
+              <div class="dl-cell">
+                {% if j.next_run %}
+                  <span class="muted">{{ j.next_run }}</span>
+                {% else %}
+                  <span class="badge warn">—</span>
+                {% endif %}
+              </div>
+              <div class="dl-cell">
+                {% if j.runnable %}
+                  <form method="post" action="/admin/jobs/system/{{ j.key }}/run">
+                    <button type="submit" class="btn ghost small">{{ t('admin_jobs_run_now') }}</button>
+                  </form>
+                {% else %}
+                  <span class="muted">—</span>
                 {% endif %}
               </div>
             </div>
