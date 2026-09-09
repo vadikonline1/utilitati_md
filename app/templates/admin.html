@@ -18,6 +18,7 @@
       <button type="button" class="tab-btn" data-tab="tab-pages">{{ t('admin_tab_pages') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-seo">{{ t('admin_tab_seo') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-ads">{{ t('admin_tab_ads') }}</button>
+<button type="button" class="tab-btn" data-tab="tab-fab">{{ t('admin_tab_fab') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-push">{{ t('admin_tab_push') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-jobs">{{ t('admin_tab_jobs') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-app">{{ t('admin_tab_app') }}</button>
@@ -583,6 +584,20 @@
       </form>
     </section>
 
+    {# ---------------- FAB quick menu (mobile floating button) ---------------- #}
+    <section id="tab-fab" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_fab_hint') }}</p>
+      <div class="card">
+        <div id="fabList"></div>
+        <p class="field-hint" id="fabEmpty" hidden>{{ t('admin_fab_empty') }}</p>
+        <div class="row-actions" style="margin-top:10px;">
+          <button type="button" class="btn small" id="fabAdd">{{ t('admin_fab_add') }}</button>
+          <button type="button" class="btn small" id="fabSave">{{ t('admin_save') }}</button>
+          <span id="fabResult" style="margin-left:10px;"></span>
+        </div>
+      </div>
+    </section>
+
     <section id="tab-push" class="admin-tab-panel" hidden>
       <div class="card">
         <h2>{{ t('admin_push_title') }}</h2>
@@ -1069,6 +1084,8 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=seo");
       } else if (target === "tab-ads") {
         history.replaceState(null, "", "/admin?tab=ads");
+      } else if (target === "tab-fab") {
+        history.replaceState(null, "", "/admin?tab=fab");
       } else if (target === "tab-push") {
         history.replaceState(null, "", "/admin?tab=push");
       } else if (target === "tab-jobs") {
@@ -1081,7 +1098,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push", "jobs", "app"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "fab", "push", "jobs", "app"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
     var tabKey = params.get("tab") || (params.get("saved") ? "messages" : "");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
@@ -1186,6 +1203,115 @@ document.addEventListener("DOMContentLoaded", function () {
       document.getElementById('admobPlacements').value = picks.join(',');
     });
   }
+
+  // FAB quick menu editor: rows are built from the server list, saved as JSON.
+  var fabItems = {{ fab_menu|tojson }};
+  var FAB_ICONS = ["home-outline", "receipt-outline", "send-outline", "add", "star-outline", "globe-outline", "call-outline", "mail-outline", "card-outline", "notifications-outline", "person-outline", "settings-outline"];
+  var FAB_ACTIONS = ["home", "utility", "telegram", "link"];
+  var FAB_TXT = {
+    label: '{{ t("admin_fab_label") }}',
+    icon: '{{ t("admin_fab_icon") }}',
+    action: '{{ t("admin_fab_action") }}',
+    url: '{{ t("admin_fab_url") }}',
+    visible: '{{ t("admin_fab_visible") }}',
+    del: '{{ t("admin_fab_delete") }}',
+    saved: '{{ t("admin_fab_saved") }}',
+    actHome: '{{ t("admin_fab_action_home") }}',
+    actUtility: '{{ t("admin_fab_action_utility") }}',
+    actTelegram: '{{ t("admin_fab_action_telegram") }}',
+    actLink: '{{ t("admin_fab_action_link") }}'
+  };
+  function fabEsc(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function fabActionLabel(a) {
+    if (a === "home") return FAB_TXT.actHome;
+    if (a === "utility") return FAB_TXT.actUtility;
+    if (a === "telegram") return FAB_TXT.actTelegram;
+    return FAB_TXT.actLink;
+  }
+  function fabRender() {
+    var list = document.getElementById("fabList");
+    if (!list) return;
+    document.getElementById("fabEmpty").hidden = fabItems.length !== 0;
+    var html = "";
+    fabItems.forEach(function (it, idx) {
+      html += '<div class="card" style="margin-bottom:10px;" data-fab-idx="' + idx + '">';
+      html += '<div class="form-stack">';
+      html += '<label>RO<input type="text" data-f="label_ro" value="' + fabEsc(it.label_ro) + '" maxlength="60"></label>';
+      html += '<label>RU<input type="text" data-f="label_ru" value="' + fabEsc(it.label_ru) + '" maxlength="60"></label>';
+      html += '<label>EN<input type="text" data-f="label_en" value="' + fabEsc(it.label_en) + '" maxlength="60"></label>';
+      html += '<label>' + fabEsc(FAB_TXT.icon) + '<select data-f="icon">' + FAB_ICONS.map(function (n) {
+        return '<option value="' + n + '"' + (it.icon === n ? " selected" : "") + '>' + n + '</option>';
+      }).join("") + '</select></label>';
+      html += '<label>' + fabEsc(FAB_TXT.action) + '<select data-f="action">' + FAB_ACTIONS.map(function (a) {
+        return '<option value="' + a + '"' + (it.action === a ? " selected" : "") + '>' + fabEsc(fabActionLabel(a)) + '</option>';
+      }).join("") + '</select></label>';
+      html += '<label data-f-urlwrap' + ((it.action === "telegram" || it.action === "link") ? "" : ' hidden') + '>' + fabEsc(FAB_TXT.url) + '<input type="text" data-f="url" value="' + fabEsc(it.url) + '" maxlength="500" placeholder="https://..."></label>';
+      html += '<label class="check"><input type="checkbox" data-f="visible"' + (it.visible ? " checked" : "") + '> ' + fabEsc(FAB_TXT.visible) + '</label>';
+      html += '</div>';
+      html += '<div class="row-actions" style="margin-top:8px;">';
+      html += '<button type="button" class="btn small" data-fab-up' + (idx === 0 ? " disabled" : "") + '>↑</button> ';
+      html += '<button type="button" class="btn small" data-fab-down' + (idx === fabItems.length - 1 ? " disabled" : "") + '>↓</button> ';
+      html += '<button type="button" class="btn small" data-fab-del>' + fabEsc(FAB_TXT.del) + '</button>';
+      html += '</div></div>';
+    });
+    list.innerHTML = html;
+  }
+  document.addEventListener("input", function (e) {
+    var card = e.target && e.target.closest ? e.target.closest("[data-fab-idx]") : null;
+    if (!card) return;
+    var idx = parseInt(card.getAttribute("data-fab-idx"), 10);
+    var f = e.target.getAttribute("data-f");
+    if (isNaN(idx) || !f || !fabItems[idx]) return;
+    if (f === "visible") { fabItems[idx].visible = e.target.checked; return; }
+    fabItems[idx][f] = e.target.value;
+    if (f === "action") fabRender();
+  });
+  document.addEventListener("click", function (e) {
+    var card = e.target && e.target.closest ? e.target.closest("[data-fab-idx]") : null;
+    if (card) {
+      var idx = parseInt(card.getAttribute("data-fab-idx"), 10);
+      if (e.target.closest("[data-fab-up]") && idx > 0) {
+        var t = fabItems[idx - 1]; fabItems[idx - 1] = fabItems[idx]; fabItems[idx] = t; fabRender();
+      } else if (e.target.closest("[data-fab-down]") && idx < fabItems.length - 1) {
+        var t2 = fabItems[idx + 1]; fabItems[idx + 1] = fabItems[idx]; fabItems[idx] = t2; fabRender();
+      } else if (e.target.closest("[data-fab-del]")) {
+        fabItems.splice(idx, 1); fabRender();
+      }
+      return;
+    }
+    if (e.target && e.target.id === "fabAdd") {
+      if (fabItems.length >= 12) return;
+      fabItems.push({id: "f" + Date.now().toString(36), label_ro: "", label_ru: "", label_en: "", icon: "star-outline", action: "link", url: "", visible: true});
+      fabRender();
+    }
+    if (e.target && e.target.id === "fabSave") {
+      var btn = e.target;
+      var res = document.getElementById("fabResult");
+      btn.disabled = true; res.textContent = "...";
+      fetch("/admin/fab-menu", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({items: fabItems})
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        btn.disabled = false;
+        if (data.error) {
+          res.innerHTML = '<span style="color:red">' + fabEsc(data.error) + '</span>';
+        } else {
+          res.innerHTML = '<span style="color:green">' + fabEsc(FAB_TXT.saved) + ' (' + data.count + ')</span>';
+        }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        res.innerHTML = '<span style="color:red">error</span>';
+      });
+    }
+  });
+  fabRender();
 
   // Push notifications: AJAX send.
   window.sendPush = function () {

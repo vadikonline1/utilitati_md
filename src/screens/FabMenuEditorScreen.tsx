@@ -94,7 +94,7 @@ export default function FabMenuEditorScreen() {
   };
 
   const confirmReset = () => {
-    Alert.alert('Resetează meniul', 'Revii la cele 3 elemente implicite (Locuință, Utilități, BOT Telegram)?', [
+    Alert.alert('Resetează meniul', 'Renunți la personalizările de pe acest dispozitiv și revii la meniul setat în /admin (tab-ul Meniu rapid)?', [
       { text: 'Anulează', style: 'cancel' },
       { text: 'Resetează', style: 'destructive', onPress: reset },
     ]);
@@ -142,7 +142,7 @@ export default function FabMenuEditorScreen() {
         ListFooterComponent={
           <View style={styles.footer}>
             <Button title="Adaugă element" onPress={openAdd} />
-            <Button title="Resetează la valorile implicite" variant="ghost" onPress={confirmReset} />
+            <Button title="Resetează la meniul de pe server" variant="ghost" onPress={confirmReset} />
           </View>
         }
       />

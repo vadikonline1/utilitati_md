@@ -329,9 +329,21 @@ export interface AdmobConfig {
   placements: string[];
 }
 
+export interface ServerFabItem {
+  id: string;
+  label_ro: string;
+  label_ru: string;
+  label_en: string;
+  icon: string;
+  action: 'home' | 'utility' | 'telegram' | 'link';
+  url: string;
+  visible: boolean;
+}
+
 export interface AppConfig {
   admob: AdmobConfig;
   push: { provider: 'fcm' | 'expo'; fcm_configured?: boolean; ok?: boolean };
+  fab_menu?: ServerFabItem[];
 }
 
 export function getConfig(): Promise<AppConfig> {

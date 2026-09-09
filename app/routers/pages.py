@@ -65,6 +65,7 @@ from ..services.settings import (
     all_settings,
     clear_msg_templates,
     delete_setting,
+    fab_menu,
     get_setting,
     get_stored_setting,
     get_sync_interval_hours,
@@ -74,6 +75,7 @@ from ..services.settings import (
     msg_templates,
     retention_enabled,
     set_msg_templates,
+    set_fab_menu,
     set_setting,
     set_settings,
     settings_with_prefix,
@@ -971,6 +973,7 @@ def _admin_base_ctx() -> dict:
         "denied": False,
         "settings": all_settings(),
         "admob": admob_config(),
+        "fab_menu": fab_menu(),
         "fcm_configured": bool(
             get_setting("fcm_service_account", "").strip()
             or os.getenv("FCM_SERVICE_ACCOUNT", "").strip()
@@ -1487,6 +1490,25 @@ async def admin_app_reset(
     return RedirectResponse(
         f"/admin?tab=app&saved={screen}&reset=1", status_code=303
     )
+
+
+@router.post("/admin/fab-menu")
+async def admin_fab_menu_save(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    """Save the mobile FAB quick menu (JSON list, admin only)."""
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return JSONResponse({"error": _t("admin_not_admin")}, status_code=403)
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON."}, status_code=400)
+    items = data.get("items") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        return JSONResponse({"error": "Items list is required."}, status_code=400)
+    clean = set_fab_menu(items)
+    return JSONResponse({"ok": True, "count": len(clean)})
 
 
 @router.post("/admin/push")
