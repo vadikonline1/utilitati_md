@@ -1,10 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import {
-  Modal,
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,12 +15,11 @@ import { getUnreadNotificationsCount } from '../api/client';
 import { colors, fontFamily, spacing } from '../theme';
 import { RootStackParamList } from '../navigation';
 
-// M3 small top app bar, 64dp, background extended behind status bar
-// (SafeArea top inset padded). Title = app name, right = more_vert.
+// Top app bar, 64dp, background extended behind status bar
+// (SafeArea top inset padded). Title = app name, right = notifications bell.
 export default function AppHeader() {
   const { user } = useAuth();
   const [unread, setUnread] = useState(0);
-  const [overflow, setOverflow] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
 
@@ -33,11 +30,6 @@ export default function AppHeader() {
         .catch(() => undefined);
     }, []),
   );
-
-  const go = (name: 'Notifications' | 'MainTabs') => {
-    setOverflow(false);
-    navigation.navigate(name as any);
-  };
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
@@ -63,30 +55,8 @@ export default function AppHeader() {
               </View>
             ) : null}
           </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            android_ripple={{ color: 'rgba(255,255,255,0.25)', borderless: true }}
-            onPress={() => setOverflow(true)}
-            accessibilityLabel="Mai multe opțiuni"
-          >
-            <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
-          </Pressable>
         </View>
       </View>
-      <Modal visible={overflow} transparent animationType="fade" onRequestClose={() => setOverflow(false)}>
-        <Pressable style={styles.overlay} onPress={() => setOverflow(false)}>
-          <View style={styles.menu}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => go('Notifications')}>
-              <Ionicons name="notifications-outline" size={20} color={colors.primary} />
-              <Text style={styles.menuText}>Notificări{unread > 0 ? ` (${unread})` : ''}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => go('MainTabs')}>
-              <Ionicons name="person-outline" size={20} color={colors.primary} />
-              <Text style={styles.menuText}>Profil</Text>
-            </TouchableOpacity>
-          </View>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -125,8 +95,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingTop: 90, paddingRight: spacing.lg },
-  menu: { backgroundColor: colors.card, borderRadius: 28, borderWidth: 1, borderColor: colors.border, minWidth: 220, elevation: 6, overflow: 'hidden' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingHorizontal: spacing.lg },
-  menuText: { color: colors.text, fontSize: 15, fontWeight: '600', marginLeft: spacing.md, fontFamily },
 });

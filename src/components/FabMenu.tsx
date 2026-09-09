@@ -12,7 +12,8 @@ interface Props {
   onTelegram?: () => void;
 }
 
-// M3 Expressive FloatingActionButtonMenu (RN adaptation):
+// Expandable FAB menu:
+// closed = normal FAB; tap reveals 3 pill items upward, FAB icon -> close.
 // closed = normal FAB; tap reveals 3 pill items upward, FAB icon -> close.
 // Each item 56dp tall, fully rounded, right-aligned icon + label.
 export default function FabMenu({ onHome, onUtility, onTelegram }: Props) {
