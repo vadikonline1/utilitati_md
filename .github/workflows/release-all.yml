@@ -88,7 +88,7 @@ jobs:
           cd ..
 
       - name: Upload APK (workflow artifact)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: utilitati-mobile-apk
           path: android/app/build/outputs/apk/release/*.apk
@@ -127,11 +127,28 @@ jobs:
             WS=$(ls -1d *.xcworkspace 2>/dev/null | head -1)
           fi
           echo "workspace=${WS:-<none>}"
-          SCHEME=$(xcodebuild -list -workspace "$WS" 2>/dev/null \
-            | sed -n '/Schemes:/,$p' | tail -n +2 \
-            | grep -v '^\s*$' | grep -iv 'pod' | head -1 | xargs)
-          echo "scheme=${SCHEME:-<none>}"
-          if [ -z "$SCHEME" ]; then echo "::error::Could not detect an Xcode scheme under ios/"; exit 1; fi
+          if [ -z "$WS" ]; then echo "::error::No .xcworkspace found under ios/"; exit 1; fi
+
+          PRODUCT_NAME=$(node -p "require('../app.json').expo.name.replace(/[^A-Za-z0-9]/g,'')" 2>/dev/null || echo "")
+          SCHEMES=$(xcodebuild -list -workspace "$WS" 2>/dev/null | sed -n '/Schemes:/,$p' | tail -n +2 | grep -o '[A-Za-z0-9_.-]*')
+          SCHEME=""
+          if [ -n "$PRODUCT_NAME" ] && printf '%s\n' "$SCHEMES" | grep -qx "$PRODUCT_NAME"; then
+            SCHEME="$PRODUCT_NAME"
+            echo "scheme=$SCHEME (app name match)"
+          fi
+          if [ -z "$SCHEME" ]; then
+            for c in $SCHEMES; do
+              case "$c" in Pods-*) continue;; esac
+              WRAPPER=$(xcodebuild -workspace "$WS" -scheme "$c" -showBuildSettings 2>/dev/null | sed -n 's/.*WRAPPER_NAME = //p' | head -1)
+              case "$WRAPPER" in
+                *.app) SCHEME="$c"; echo "scheme=$SCHEME (produces $WRAPPER)"; break;;
+              esac
+            done
+          fi
+          if [ -z "$SCHEME" ]; then
+            echo "::error::Could not detect the app Xcode scheme under ios/ (candidates: $SCHEMES)"
+            exit 1
+          fi
           xcodebuild -workspace "$WS" \
             -scheme "$SCHEME" \
             -configuration Release \
@@ -142,12 +159,17 @@ jobs:
             build
           cd ..
 
+      - name: Verify iOS app bundle
+        run: |
+          ls -d ios/build/Build/Products/Release-iphonesimulator/*.app \
+            || { echo "::error::No .app produced by the iOS build"; exit 1; }
+
       - name: Upload iOS app (workflow artifact)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: utilitati-mobile-ios-simulator
           path: ios/build/Build/Products/Release-iphonesimulator/*.app
-          if-no-files-found: warn
+          if-no-files-found: error
 
   build-docker:
     runs-on: ubuntu-latest
@@ -208,13 +230,13 @@ jobs:
           fi
 
       - name: Download APK artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: utilitati-mobile-apk
           path: dist-release
 
       - name: Download iOS artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: utilitati-mobile-ios-simulator
           path: dist-release-ios
