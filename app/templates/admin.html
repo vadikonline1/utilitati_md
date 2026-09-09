@@ -588,7 +588,7 @@
     <section id="tab-fab" class="admin-tab-panel" hidden>
       <p class="subtitle">{{ t('admin_fab_hint') }}</p>
       <div class="card">
-        <div id="fabList"></div>
+        <div class="data-list cols-5" id="fabList"></div>
         <p class="field-hint" id="fabEmpty" hidden>{{ t('admin_fab_empty') }}</p>
         <div class="row-actions" style="margin-top:10px;">
           <button type="button" class="btn small" id="fabAdd">{{ t('admin_fab_add') }}</button>
@@ -597,6 +597,28 @@
         </div>
       </div>
     </section>
+
+    <div class="modal-overlay" id="modal-fab" hidden>
+      <div class="modal">
+        <div class="modal-head">
+          <h2 id="fabModalTitle"></h2>
+          <button type="button" class="modal-close" id="fabModalX">×</button>
+        </div>
+        <div class="form-stack">
+          <label>RO<input type="text" id="fabM_ro" maxlength="60"></label>
+          <label>RU<input type="text" id="fabM_ru" maxlength="60"></label>
+          <label>EN<input type="text" id="fabM_en" maxlength="60"></label>
+          <label>{{ t('admin_fab_icon') }}<select id="fabM_icon"></select></label>
+          <label>{{ t('admin_fab_action') }}<select id="fabM_action"></select></label>
+          <label id="fabM_urlWrap">{{ t('admin_fab_url') }}<input type="text" id="fabM_url" maxlength="500" placeholder="https://..."></label>
+          <label class="check"><input type="checkbox" id="fabM_visible"> {{ t('admin_fab_visible') }}</label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn" id="fabModalSave">{{ t('admin_save') }}</button>
+          <button type="button" class="btn ghost" id="fabModalCancel">{{ t('admin_cancel') }}</button>
+        </div>
+      </div>
+    </div>
 
     <section id="tab-push" class="admin-tab-panel" hidden>
       <div class="card">
@@ -1204,18 +1226,21 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // FAB quick menu editor: rows are built from the server list, saved as JSON.
+  // FAB quick menu editor: compact div list, add/edit happens in a modal.
   var fabItems = {{ fab_menu|tojson }};
+  var fabDraftIdx = -1;
   var FAB_ICONS = ["home-outline", "receipt-outline", "send-outline", "add", "star-outline", "globe-outline", "call-outline", "mail-outline", "card-outline", "notifications-outline", "person-outline", "settings-outline"];
   var FAB_ACTIONS = ["home", "utility", "telegram", "link"];
   var FAB_TXT = {
     label: '{{ t("admin_fab_label") }}',
-    icon: '{{ t("admin_fab_icon") }}',
     action: '{{ t("admin_fab_action") }}',
-    url: '{{ t("admin_fab_url") }}',
+    colLink: '{{ t("admin_fab_col_link") }}',
     visible: '{{ t("admin_fab_visible") }}',
+    edit: '{{ t("admin_fab_edit") }}',
     del: '{{ t("admin_fab_delete") }}',
     saved: '{{ t("admin_fab_saved") }}',
+    modalAdd: '{{ t("admin_fab_modal_add") }}',
+    modalEdit: '{{ t("admin_fab_modal_edit") }}',
     actHome: '{{ t("admin_fab_action_home") }}',
     actUtility: '{{ t("admin_fab_action_utility") }}',
     actTelegram: '{{ t("admin_fab_action_telegram") }}',
@@ -1231,49 +1256,83 @@ document.addEventListener("DOMContentLoaded", function () {
     if (a === "telegram") return FAB_TXT.actTelegram;
     return FAB_TXT.actLink;
   }
+  function fabMainLabel(it) {
+    return it.label_ro || it.label_ru || it.label_en || it.id;
+  }
+  function fabShortUrl(u) {
+    u = String(u || "");
+    if (!u) return "—";
+    return u.length > 42 ? u.slice(0, 42) + "…" : u;
+  }
   function fabRender() {
     var list = document.getElementById("fabList");
     if (!list) return;
     document.getElementById("fabEmpty").hidden = fabItems.length !== 0;
-    var html = "";
+    var html = '<div class="dl-head"><div class="dl-cell">' + fabEsc(FAB_TXT.label) + '</div>'
+      + '<div class="dl-cell">' + fabEsc(FAB_TXT.action) + '</div>'
+      + '<div class="dl-cell">' + fabEsc(FAB_TXT.colLink) + '</div>'
+      + '<div class="dl-cell">' + fabEsc(FAB_TXT.visible) + '</div>'
+      + '<div class="dl-cell"></div></div>';
     fabItems.forEach(function (it, idx) {
-      html += '<div class="card" style="margin-bottom:10px;" data-fab-idx="' + idx + '">';
-      html += '<div class="form-stack">';
-      html += '<label>RO<input type="text" data-f="label_ro" value="' + fabEsc(it.label_ro) + '" maxlength="60"></label>';
-      html += '<label>RU<input type="text" data-f="label_ru" value="' + fabEsc(it.label_ru) + '" maxlength="60"></label>';
-      html += '<label>EN<input type="text" data-f="label_en" value="' + fabEsc(it.label_en) + '" maxlength="60"></label>';
-      html += '<label>' + fabEsc(FAB_TXT.icon) + '<select data-f="icon">' + FAB_ICONS.map(function (n) {
-        return '<option value="' + n + '"' + (it.icon === n ? " selected" : "") + '>' + n + '</option>';
-      }).join("") + '</select></label>';
-      html += '<label>' + fabEsc(FAB_TXT.action) + '<select data-f="action">' + FAB_ACTIONS.map(function (a) {
-        return '<option value="' + a + '"' + (it.action === a ? " selected" : "") + '>' + fabEsc(fabActionLabel(a)) + '</option>';
-      }).join("") + '</select></label>';
-      html += '<label data-f-urlwrap' + ((it.action === "telegram" || it.action === "link") ? "" : ' hidden') + '>' + fabEsc(FAB_TXT.url) + '<input type="text" data-f="url" value="' + fabEsc(it.url) + '" maxlength="500" placeholder="https://..."></label>';
-      html += '<label class="check"><input type="checkbox" data-f="visible"' + (it.visible ? " checked" : "") + '> ' + fabEsc(FAB_TXT.visible) + '</label>';
-      html += '</div>';
-      html += '<div class="row-actions" style="margin-top:8px;">';
-      html += '<button type="button" class="btn small" data-fab-up' + (idx === 0 ? " disabled" : "") + '>↑</button> ';
-      html += '<button type="button" class="btn small" data-fab-down' + (idx === fabItems.length - 1 ? " disabled" : "") + '>↓</button> ';
-      html += '<button type="button" class="btn small" data-fab-del>' + fabEsc(FAB_TXT.del) + '</button>';
-      html += '</div></div>';
+      var alts = [it.label_ru, it.label_en].filter(function (x) { return x && x !== it.label_ro; });
+      html += '<div class="dl-row' + (it.visible ? "" : " row-disabled") + '" data-fab-idx="' + idx + '">';
+      html += '<div class="dl-cell" data-label="' + fabEsc(FAB_TXT.label) + '"><div><b>' + fabEsc(fabMainLabel(it)) + '</b>'
+        + (alts.length ? '<br><span style="color:var(--muted);font-size:0.82rem;">' + fabEsc(alts.join(" • ")) + '</span>' : "")
+        + '</div></div>';
+      html += '<div class="dl-cell" data-label="' + fabEsc(FAB_TXT.action) + '">' + fabEsc(fabActionLabel(it.action)) + '</div>';
+      html += '<div class="dl-cell" data-label="' + fabEsc(FAB_TXT.colLink) + '">' + fabEsc(fabShortUrl(it.url)) + '</div>';
+      html += '<div class="dl-cell" data-label="' + fabEsc(FAB_TXT.visible) + '">' + (it.visible ? "✓" : "—") + '</div>';
+      html += '<div class="dl-cell row-actions">'
+        + '<button type="button" class="btn small" data-fab-edit>' + fabEsc(FAB_TXT.edit) + '</button> '
+        + '<button type="button" class="btn small" data-fab-up' + (idx === 0 ? " disabled" : "") + '>↑</button> '
+        + '<button type="button" class="btn small" data-fab-down' + (idx === fabItems.length - 1 ? " disabled" : "") + '>↓</button> '
+        + '<button type="button" class="btn small" data-fab-del>' + fabEsc(FAB_TXT.del) + '</button>'
+        + '</div></div>';
     });
     list.innerHTML = html;
   }
-  document.addEventListener("input", function (e) {
-    var card = e.target && e.target.closest ? e.target.closest("[data-fab-idx]") : null;
-    if (!card) return;
-    var idx = parseInt(card.getAttribute("data-fab-idx"), 10);
-    var f = e.target.getAttribute("data-f");
-    if (isNaN(idx) || !f || !fabItems[idx]) return;
-    if (f === "visible") { fabItems[idx].visible = e.target.checked; return; }
-    fabItems[idx][f] = e.target.value;
-    if (f === "action") fabRender();
-  });
+  function fabFillSelects() {
+    var iconSel = document.getElementById("fabM_icon");
+    if (!iconSel.options.length) {
+      FAB_ICONS.forEach(function (n) {
+        var o = document.createElement("option");
+        o.value = n; o.textContent = n; iconSel.appendChild(o);
+      });
+    }
+    var actSel = document.getElementById("fabM_action");
+    if (!actSel.options.length) {
+      FAB_ACTIONS.forEach(function (a) {
+        var o = document.createElement("option");
+        o.value = a; o.textContent = fabActionLabel(a); actSel.appendChild(o);
+      });
+    }
+  }
+  function fabToggleUrlWrap() {
+    var a = document.getElementById("fabM_action").value;
+    document.getElementById("fabM_urlWrap").hidden = !(a === "telegram" || a === "link");
+  }
+  function fabOpenModal(idx) {
+    fabFillSelects();
+    fabDraftIdx = idx;
+    var it = idx >= 0 ? fabItems[idx] : {label_ro: "", label_ru: "", label_en: "", icon: "star-outline", action: "link", url: "", visible: true};
+    document.getElementById("fabModalTitle").textContent = idx >= 0 ? FAB_TXT.modalEdit : FAB_TXT.modalAdd;
+    document.getElementById("fabM_ro").value = it.label_ro || "";
+    document.getElementById("fabM_ru").value = it.label_ru || "";
+    document.getElementById("fabM_en").value = it.label_en || "";
+    document.getElementById("fabM_icon").value = it.icon || "star-outline";
+    document.getElementById("fabM_action").value = it.action || "link";
+    document.getElementById("fabM_url").value = it.url || "";
+    document.getElementById("fabM_visible").checked = it.visible !== false;
+    fabToggleUrlWrap();
+    openModal("modal-fab");
+  }
   document.addEventListener("click", function (e) {
     var card = e.target && e.target.closest ? e.target.closest("[data-fab-idx]") : null;
     if (card) {
       var idx = parseInt(card.getAttribute("data-fab-idx"), 10);
-      if (e.target.closest("[data-fab-up]") && idx > 0) {
+      if (e.target.closest("[data-fab-edit]")) {
+        fabOpenModal(idx);
+      } else if (e.target.closest("[data-fab-up]") && idx > 0) {
         var t = fabItems[idx - 1]; fabItems[idx - 1] = fabItems[idx]; fabItems[idx] = t; fabRender();
       } else if (e.target.closest("[data-fab-down]") && idx < fabItems.length - 1) {
         var t2 = fabItems[idx + 1]; fabItems[idx + 1] = fabItems[idx]; fabItems[idx] = t2; fabRender();
@@ -1283,8 +1342,29 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     if (e.target && e.target.id === "fabAdd") {
-      if (fabItems.length >= 12) return;
-      fabItems.push({id: "f" + Date.now().toString(36), label_ro: "", label_ru: "", label_en: "", icon: "star-outline", action: "link", url: "", visible: true});
+      if (fabItems.length < 12) fabOpenModal(-1);
+    }
+    if (e.target && (e.target.id === "fabModalCancel" || e.target.id === "fabModalX")) {
+      closeModal("modal-fab");
+    }
+    if (e.target && e.target.id === "fabModalSave") {
+      var draft = {
+        label_ro: document.getElementById("fabM_ro").value.trim().slice(0, 60),
+        label_ru: document.getElementById("fabM_ru").value.trim().slice(0, 60),
+        label_en: document.getElementById("fabM_en").value.trim().slice(0, 60),
+        icon: document.getElementById("fabM_icon").value,
+        action: document.getElementById("fabM_action").value,
+        url: document.getElementById("fabM_url").value.trim().slice(0, 500),
+        visible: document.getElementById("fabM_visible").checked
+      };
+      if (fabDraftIdx >= 0 && fabItems[fabDraftIdx]) {
+        draft.id = fabItems[fabDraftIdx].id;
+        fabItems[fabDraftIdx] = draft;
+      } else {
+        draft.id = "f" + Date.now().toString(36);
+        fabItems.push(draft);
+      }
+      closeModal("modal-fab");
       fabRender();
     }
     if (e.target && e.target.id === "fabSave") {
@@ -1310,6 +1390,9 @@ document.addEventListener("DOMContentLoaded", function () {
         res.innerHTML = '<span style="color:red">error</span>';
       });
     }
+  });
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.id === "fabM_action") fabToggleUrlWrap();
   });
   fabRender();
 
