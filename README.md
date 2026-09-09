@@ -79,6 +79,9 @@ Imaginea expune același `GIT_SHA` (build arg) pe care îl afișează admin-pane
 | `SMTP_FROM`               | _(unset)_              | Sender address                 |
 | `TELEGRAM_TOKEN`          | _(unset)_              | Telegram bot token (hidden in UI) |
 | `TELEGRAM_BOTNAME`        | _(unset)_              | Telegram bot short name        |
+| `ADMOB_ID_BANNER`         | _(unset)_              | Banner ad unit id (read-only in UI) |
+| `ADMOB_ID_INTERSTITIAL`   | _(unset)_              | Interstitial ad unit id (read-only in UI) |
+| `ADMOB_ID_REWARDED`       | _(unset)_              | Rewarded ad unit id (read-only in UI) |
 
 > SMTP/Telegram credentials can be set either in `/admin` (stored encrypted in
 > the database) or via the environment variables above. Env takes precedence and

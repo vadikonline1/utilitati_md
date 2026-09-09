@@ -817,6 +817,8 @@ def _support_enabled_default() -> str:
     An explicit admin override (stored value) always wins over this default.
     """
     cfg = admob_config()
+    if not cfg.get("enabled"):
+        return "0"
     interstitial = cfg.get("interstitial", {})
     rewarded = cfg.get("rewarded", {})
     inter_ok = bool(

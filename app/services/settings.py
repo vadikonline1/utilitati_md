@@ -33,6 +33,8 @@ ENV_SETTING_MAP = {
     "fcm_service_account": "FCM_SERVICE_ACCOUNT",
     "push_provider": "PUSH_PROVIDER",
     "admob_banner_unit": "ADMOB_ID_BANNER",
+    "admob_interstitial_unit": "ADMOB_ID_INTERSTITIAL",
+    "admob_rewarded_unit": "ADMOB_ID_REWARDED",
 }
 
 SETTING_KEYS = {
@@ -69,10 +71,12 @@ SETTING_KEYS = {
     "admob_banner_enabled",         # '1'/'0'
     "admob_banner_unit",            # banner ad unit id (shared, ADMOB_ID_BANNER)
     "admob_interstitial_enabled",   # '1'/'0'
+    "admob_interstitial_unit",      # interstitial ad unit id (shared, ADMOB_ID_INTERSTITIAL)
     "admob_interstitial_unit_android",
     "admob_interstitial_unit_ios",
     "admob_interstitial_interval",  # min minutes between interstitials
     "admob_rewarded_enabled",       # '1'/'0'
+    "admob_rewarded_unit",          # rewarded ad unit id (shared, ADMOB_ID_REWARDED)
     "admob_rewarded_unit_android",
     "admob_rewarded_unit_ios",
     "admob_placements",             # comma-list of screens that may show ads
@@ -344,13 +348,32 @@ def admob_config() -> dict:
     # before the slash. There is no longer a dedicated App ID setting.
     def _app_id_from_unit(unit: str) -> str:
         return unit.split("/", 1)[0] if unit else ""
-    # All three ad formats (Banner, Interstitial, Rewarded) share the SAME unit
-    # id, taken from admob_banner_unit / ADMOB_ID_BANNER. Legacy per-format ids
-    # are kept as a fallback so existing installations keep working.
-    interstitial_unit_android = banner_unit_android or get_setting("admob_interstitial_unit_android", "").strip()
-    interstitial_unit_ios = banner_unit_ios or get_setting("admob_interstitial_unit_ios", "").strip()
-    rewarded_unit_android = banner_unit_android or get_setting("admob_rewarded_unit_android", "").strip()
-    rewarded_unit_ios = banner_unit_ios or get_setting("admob_rewarded_unit_ios", "").strip()
+    # Each ad format (Banner, Interstitial, Rewarded) has its own shared unit
+    # id, taken from admob_<format>_unit / ADMOB_ID_<FORMAT>. Per-platform DB
+    # overrides come next; the banner unit stays as the last legacy fallback
+    # so existing installations keep working.
+    interstitial_unit = get_setting("admob_interstitial_unit", "").strip()
+    interstitial_unit_android = (
+        interstitial_unit
+        or get_setting("admob_interstitial_unit_android", "").strip()
+        or banner_unit_android
+    )
+    interstitial_unit_ios = (
+        interstitial_unit
+        or get_setting("admob_interstitial_unit_ios", "").strip()
+        or banner_unit_ios
+    )
+    rewarded_unit = get_setting("admob_rewarded_unit", "").strip()
+    rewarded_unit_android = (
+        rewarded_unit
+        or get_setting("admob_rewarded_unit_android", "").strip()
+        or banner_unit_android
+    )
+    rewarded_unit_ios = (
+        rewarded_unit
+        or get_setting("admob_rewarded_unit_ios", "").strip()
+        or banner_unit_ios
+    )
     return {
         "enabled": _flag(get_setting("admob_enabled", "0")),
         "app_id_android": _app_id_from_unit(banner_unit_android),

@@ -1398,8 +1398,10 @@ async def admin_ads_submit(
         "admob_banner_enabled": "1" if form.get("admob_banner_enabled") else "0",
         "admob_banner_unit": str(form.get("admob_banner_unit", "")).strip(),
         "admob_interstitial_enabled": "1" if form.get("admob_interstitial_enabled") else "0",
+        "admob_interstitial_unit": str(form.get("admob_interstitial_unit", "")).strip(),
         "admob_interstitial_interval": str(form.get("admob_interstitial_interval", "5")).strip(),
         "admob_rewarded_enabled": "1" if form.get("admob_rewarded_enabled") else "0",
+        "admob_rewarded_unit": str(form.get("admob_rewarded_unit", "")).strip(),
         "admob_placements": placements,
     })
     return _admin_render(request, user_id, message=_t("admin_saved"))
