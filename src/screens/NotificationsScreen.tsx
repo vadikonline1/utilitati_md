@@ -15,7 +15,6 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../api/client';
-import AppHeader from '../components/AppHeader';
 import AdBanner from '../components/AdBanner';
 import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
@@ -93,7 +92,6 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.screen}>
-      <AppHeader />
       <FlatList
         data={buildRows(items)}
         keyExtractor={(row) => row.key}

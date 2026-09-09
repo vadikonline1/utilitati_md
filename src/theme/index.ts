@@ -1,8 +1,7 @@
 import { useColorScheme } from 'react-native';
 
-// M3 Expressive adaptation for React Native (paper: no custom drawing,
-// standard roles referenced everywhere, no hard-coded values in screens).
-// Brand stays Utilitati.MD teal (#0f766e) in both schemes.
+// Theme roles for the app (no custom drawing, no hard-coded values in
+// screens). Brand stays Utilitati.MD teal (#0f766e) in both schemes.
 
 const light = {
   primary: '#0f766e',
@@ -69,7 +68,7 @@ export const spacing = {
   xl: 24,
 };
 
-// M3 Expressive shape scale (pill max, cards 28-32dp, sheets/dialogs ~40dp).
+// Shape scale (pill max, cards 28dp, sheets/dialogs ~40dp).
 // 32dp cards break on small content, so 28dp is used as working default.
 export const radii = {
   pill: 999,
