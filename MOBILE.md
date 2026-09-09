@@ -233,10 +233,11 @@ ProjectId-ul Expo (folosit pentru push notifications) este în
 
 ## Actualizări aplicație
 
-Funcția de actualizare in-app (canal Beta) a fost **eliminată**. Build-urile
-stable se realizează din ramura `main` prin `.github/workflows/build-apk.yml`
-(tag GitHub `apk-main-<sha>`), iar distribuția oficială se face prin Google
-Play / App Store.
+Funcția de actualizare in-app (canal Beta) a fost **eliminată**. Release-urile
+combinate (**APK + iOS + Docker**) se fac manual din
+Actions → **Release all-in-one** (`.github/workflows/release-all.yml`), cu tag
+`release-<sha>` — aplicația folosește acest prefix (plus vechiul `apk-main-`)
+ca feed pentru actualizările in-app (`src/utils/update.ts`).
 
 Pe **Android**, aplicația verifică la pornire (`src/utils/update.ts`) release-ul
 GitHub `apk-main-*`: dacă `build_sha`-ul încorporat în build diferă de ultimul
