@@ -12,6 +12,9 @@ on:
         description: 'Numele versiunii (ex: 1.0)'
         required: true
         default: '1.0'
+  push:
+    tags:
+      - 'release-v*'
 
 env:
   REGISTRY: ghcr.io
@@ -195,6 +198,15 @@ jobs:
         id: version
         run: echo "app_version=$(node -p "require('./app.json').expo.version")" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve release version
+        id: ver
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "v=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "v=${GITHUB_REF_NAME#release-v}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download APK artifact
         uses: actions/download-artifact@v5
         with:
@@ -222,7 +234,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: release-${{ github.sha }}
-          name: Release ${{ inputs.version }} (${{ github.sha }})
+          name: Release ${{ steps.ver.outputs.v }} (${{ github.sha }})
           body: |
             Release combinat: **APK Android + iOS (simulator) + imagine Docker**.
 
