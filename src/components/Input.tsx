@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, TextInput, TextInputProps, View, Text } from 'react-native';
 
-import { colors, spacing } from '../theme';
+import { colors, fontFamily, radii, spacing } from '../theme';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -33,13 +33,14 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
+    borderRadius: radii.field,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     fontSize: 16,
+    fontFamily,
     color: colors.text,
     backgroundColor: colors.card,
-    minHeight: 48,
+    minHeight: 56,
   },
   inputError: { borderColor: colors.danger },
   errorText: { color: colors.danger, fontSize: 13, marginTop: spacing.xs },

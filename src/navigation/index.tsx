@@ -1,13 +1,15 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { StyleSheet, View } from 'react-native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, StyleSheet } from 'react-native';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { ActivityIndicator } from 'react-native';
 import * as Linking from 'expo-linking';
-import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../api/auth-context';
-import { colors } from '../theme';
+import { colors, fontFamily } from '../theme';
+import AppHeader from '../components/AppHeader';
+import FabMenu from '../components/FabMenu';
 import LoginScreen from '../screens/LoginScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
@@ -34,57 +36,43 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator();
+const TopTab = createMaterialTopTabNavigator();
 
-type TabIcon =
-  | 'apps'
-  | 'apps-outline'
-  | 'home'
-  | 'home-outline'
-  | 'receipt'
-  | 'receipt-outline'
-  | 'person'
-  | 'person-outline'
-  | 'pie-chart'
-  | 'pie-chart-outline';
-
-const TAB_ICONS: Record<string, { active: TabIcon; inactive: TabIcon }> = {
-  Dashboard: { active: 'pie-chart', inactive: 'pie-chart-outline' },
-  Locuințe: { active: 'home', inactive: 'home-outline' },
-  Facturi: { active: 'receipt', inactive: 'receipt-outline' },
-  Profil: { active: 'person', inactive: 'person-outline' },
-};
-
-function HomeTabs() {
+function MainTabsWithChrome() {
+  const stackNav = useNavigation<any>();
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarActiveTintColor: colors.primary,
-        headerShown: false,
-        tabBarIcon: ({ focused, color, size }) => {
-          const icons = TAB_ICONS[route.name];
-          return (
-            <Ionicons
-              name={focused ? icons.active : icons.inactive}
-              size={size}
-              color={color}
-            />
-          );
-        },
-      })}
-    >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Locuințe" component={HomesScreen} />
-      <Tab.Screen name="Facturi" component={FacturiScreen} />
-      <Tab.Screen name="Profil" component={ProfileScreen} />
-    </Tab.Navigator>
+    <View style={styles.tabsRoot}>
+      <AppHeader />
+      <TopTab.Navigator
+        screenOptions={{
+          swipeEnabled: true,
+          animationEnabled: true,
+          lazy: true,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.muted,
+          tabBarIndicatorStyle: styles.indicator,
+          tabBarStyle: styles.tabBar,
+          tabBarLabelStyle: styles.tabLabel,
+          tabBarPressColor: 'rgba(15,118,110,0.12)',
+        }}
+      >
+        <TopTab.Screen name="Dashboard" component={DashboardScreen} />
+        <TopTab.Screen name="Locuința" component={HomesScreen} />
+        <TopTab.Screen name="Facturi" component={FacturiScreen} />
+        <TopTab.Screen name="Profil" component={ProfileScreen} />
+      </TopTab.Navigator>
+      <FabMenu
+        onHome={() => stackNav.navigate('HomeForm', {})}
+        onUtility={() => stackNav.navigate('AccountForm', {})}
+      />
+    </View>
   );
 }
 
 function HomesStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="MainTabs" component={HomeTabs} options={{ headerShown: false }} />
+      <Stack.Screen name="MainTabs" component={MainTabsWithChrome} options={{ headerShown: false }} />
       <Stack.Screen name="HomeDetail" component={HomeDetailScreen} options={{ title: 'Locuință' }} />
       <Stack.Screen name="HomeForm" component={HomeFormScreen} options={{ title: 'Locuință' }} />
       <Stack.Screen name="AccountForm" component={AccountFormScreen} options={{ title: 'Cont' }} />
@@ -128,4 +116,19 @@ export default function RootNavigator() {
 
 const styles = StyleSheet.create({
   loading: { flex: 1, backgroundColor: colors.background },
+  tabsRoot: { flex: 1, backgroundColor: colors.background },
+  tabBar: {
+    backgroundColor: colors.card,
+    height: 48,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    elevation: 0,
+  },
+  tabLabel: { fontSize: 14, fontWeight: '600', fontFamily, textTransform: 'none' },
+  indicator: {
+    backgroundColor: colors.primary,
+    height: 3,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
 });
