@@ -1267,7 +1267,9 @@ document.addEventListener("DOMContentLoaded", function () {
   function fabRender() {
     var list = document.getElementById("fabList");
     if (!list) return;
-    document.getElementById("fabEmpty").hidden = fabItems.length !== 0;
+    var empty = fabItems.length === 0;
+    document.getElementById("fabEmpty").hidden = !empty;
+    list.style.display = empty ? "none" : "";
     var html = '<div class="dl-head"><div class="dl-cell">' + fabEsc(FAB_TXT.label) + '</div>'
       + '<div class="dl-cell">' + fabEsc(FAB_TXT.action) + '</div>'
       + '<div class="dl-cell">' + fabEsc(FAB_TXT.colLink) + '</div>'

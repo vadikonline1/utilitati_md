@@ -179,6 +179,7 @@ def _ctx(request, **extra):
         "request": request,
         "now": datetime.now(),
         "SITE_URL": SITE_URL,
+        "asset_v": deployed_commit() or "13",
         "providers": PROVIDER_META,
         "lang": lang,
         "t": make_translator(lang),
