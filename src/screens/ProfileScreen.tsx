@@ -224,12 +224,14 @@ export default function ProfileScreen() {
           subtitle={LANGUAGES.find((l) => l.code === lang)?.label}
           onPress={() => setLangModal(true)}
         />
-        <SettingsRow
-          icon="apps-outline"
-          title="Meniu rapid"
-          subtitle="Editează butoanele din colțul ecranului"
-          onPress={() => navigation.navigate('FabMenuEditor')}
-        />
+        {user?.is_admin ? (
+          <SettingsRow
+            icon="apps-outline"
+            title="Meniu rapid"
+            subtitle="Editează butoanele din colțul ecranului"
+            onPress={() => navigation.navigate('FabMenuEditor')}
+          />
+        ) : null}
         <View style={styles.row}>
           <Ionicons name="notifications-outline" size={22} color={colors.primary} />
           <View style={styles.rowBody}>
