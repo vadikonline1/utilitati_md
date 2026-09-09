@@ -1,73 +1,44 @@
 import React, { useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors, fontFamily, radii, spacing } from '../theme';
-
-export const TELEGRAM_BOT_URL = 'https://t.me/utilitati_md_bot';
+import { FabItem } from '../menu/fabMenu';
 
 interface Props {
-  onHome: () => void;
-  onUtility: () => void;
-  onTelegram?: () => void;
+  items: FabItem[];
+  onPressItem: (item: FabItem) => void;
 }
 
 // Expandable FAB menu:
-// closed = normal FAB; tap reveals 3 pill items upward, FAB icon -> close.
-// closed = normal FAB; tap reveals 3 pill items upward, FAB icon -> close.
-// Each item 56dp tall, fully rounded, right-aligned icon + label.
-export default function FabMenu({ onHome, onUtility, onTelegram }: Props) {
+// closed = normal FAB; tap reveals the visible items upward one after
+// another and the FAB icon becomes close.
+// Each item is 56dp tall, fully rounded, right-aligned with icon + label.
+export default function FabMenu({ items, onPressItem }: Props) {
   const [open, setOpen] = useState(false);
-
-  const openTelegram = () => {
-    setOpen(false);
-    if (onTelegram) {
-      onTelegram();
-      return;
-    }
-    Linking.openURL(TELEGRAM_BOT_URL).catch(() => undefined);
-  };
+  const visible = items.filter((i) => i.visible);
+  if (visible.length === 0) return null;
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       {open ? (
         <View style={styles.items}>
-          <Pressable
-            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-            android_ripple={{ color: 'rgba(15,118,110,0.15)' }}
-            onPress={() => {
-              setOpen(false);
-              onHome();
-            }}
-          >
-            <Text style={styles.itemLabel}>Locuință</Text>
-            <View style={styles.itemIcon}>
-              <Ionicons name="home-outline" size={22} color={colors.primary} />
-            </View>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-            android_ripple={{ color: 'rgba(15,118,110,0.15)' }}
-            onPress={() => {
-              setOpen(false);
-              onUtility();
-            }}
-          >
-            <Text style={styles.itemLabel}>Utilități</Text>
-            <View style={styles.itemIcon}>
-              <Ionicons name="receipt-outline" size={22} color={colors.primary} />
-            </View>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-            android_ripple={{ color: 'rgba(15,118,110,0.15)' }}
-            onPress={openTelegram}
-          >
-            <Text style={styles.itemLabel}>BOT Telegram</Text>
-            <View style={styles.itemIcon}>
-              <Ionicons name="send-outline" size={22} color={colors.primary} />
-            </View>
-          </Pressable>
+          {visible.map((item) => (
+            <Pressable
+              key={item.id}
+              style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+              android_ripple={{ color: 'rgba(15,118,110,0.15)' }}
+              onPress={() => {
+                setOpen(false);
+                onPressItem(item);
+              }}
+            >
+              <Text style={styles.itemLabel}>{item.label}</Text>
+              <View style={styles.itemIcon}>
+                <Ionicons name={item.icon as any} size={22} color={colors.primary} />
+              </View>
+            </Pressable>
+          ))}
         </View>
       ) : null}
       <Pressable

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import Input from '../components/Input';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 
 import { ApiError, changePassword, clearDeviceToken, deactivateAccount, sendTestNotification, updateNotificationsEnabled, updateSelf } from '../api/client';
 import { useAuth } from '../api/auth-context';
@@ -56,6 +57,7 @@ function SettingsRow({
 
 export default function ProfileScreen() {
   const { user, signOut, setUser } = useAuth();
+  const navigation = useNavigation<any>();
   const { t, lang, setLang } = useContent();
   const [langModal, setLangModal] = useState(false);
   const [passModal, setPassModal] = useState(false);
@@ -221,6 +223,12 @@ export default function ProfileScreen() {
           title={p('language')}
           subtitle={LANGUAGES.find((l) => l.code === lang)?.label}
           onPress={() => setLangModal(true)}
+        />
+        <SettingsRow
+          icon="apps-outline"
+          title="Meniu rapid"
+          subtitle="Editează butoanele din colțul ecranului"
+          onPress={() => navigation.navigate('FabMenuEditor')}
         />
         <View style={styles.row}>
           <Ionicons name="notifications-outline" size={22} color={colors.primary} />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
@@ -8,6 +8,7 @@ import * as Linking from 'expo-linking';
 
 import { useAuth } from '../api/auth-context';
 import { colors, fontFamily } from '../theme';
+import { FabItem, TELEGRAM_BOT_URL, useFabMenu } from '../menu/fabMenu';
 import AppHeader from '../components/AppHeader';
 import FabMenu from '../components/FabMenu';
 import LoginScreen from '../screens/LoginScreen';
@@ -22,6 +23,7 @@ import HomeFormScreen from '../screens/HomeFormScreen';
 import AccountFormScreen from '../screens/AccountFormScreen';
 import AccountDetailScreen from '../screens/AccountDetailScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import FabMenuEditorScreen from '../screens/FabMenuEditorScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -33,6 +35,7 @@ export type RootStackParamList = {
   AccountForm: { id?: number; homeId?: number; provider?: string; label?: string };
   AccountDetail: { id: number; label: string };
   Notifications: undefined;
+  FabMenuEditor: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -40,6 +43,19 @@ const TopTab = createMaterialTopTabNavigator();
 
 function MainTabsWithChrome() {
   const stackNav = useNavigation<any>();
+  const { items } = useFabMenu();
+
+  const onPressItem = (item: FabItem) => {
+    if (item.action === 'home') {
+      stackNav.navigate('HomeForm', {});
+    } else if (item.action === 'utility') {
+      stackNav.navigate('AccountForm', {});
+    } else {
+      const url = item.url || TELEGRAM_BOT_URL;
+      Linking.openURL(url).catch(() => Alert.alert('Eroare', 'Nu s-a putut deschide linkul.'));
+    }
+  };
+
   return (
     <View style={styles.tabsRoot}>
       <AppHeader />
@@ -61,10 +77,7 @@ function MainTabsWithChrome() {
         <TopTab.Screen name="Facturi" component={FacturiScreen} />
         <TopTab.Screen name="Profil" component={ProfileScreen} />
       </TopTab.Navigator>
-      <FabMenu
-        onHome={() => stackNav.navigate('HomeForm', {})}
-        onUtility={() => stackNav.navigate('AccountForm', {})}
-      />
+      <FabMenu items={items} onPressItem={onPressItem} />
     </View>
   );
 }
@@ -78,6 +91,7 @@ function HomesStack() {
       <Stack.Screen name="AccountForm" component={AccountFormScreen} options={{ title: 'Cont' }} />
       <Stack.Screen name="AccountDetail" component={AccountDetailScreen} options={{ title: 'Cont' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notificări' }} />
+      <Stack.Screen name="FabMenuEditor" component={FabMenuEditorScreen} options={{ title: 'Meniu rapid' }} />
     </Stack.Navigator>
   );
 }

@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/api/auth-context';
 import { ContentProvider } from './src/content/useContent';
+import { FabMenuProvider } from './src/menu/fabMenu';
 import { ensureAdmobInitialized } from './src/utils/ads';
 import { checkForUpdate } from './src/utils/update';
 import RootNavigator from './src/navigation';
@@ -24,8 +25,10 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <ContentProvider>
+          <FabMenuProvider>
           <StatusBar style="light" backgroundColor={colors.primary} />
           <RootNavigator />
+          </FabMenuProvider>
         </ContentProvider>
       </AuthProvider>
     </SafeAreaProvider>
