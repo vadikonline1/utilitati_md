@@ -1,21 +1,29 @@
 import { Alert, Linking, Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-// Verify GitHub Releases for `apk-<branch>-<sha>` tags (our update feed) and,
+// Verify GitHub Releases for combined-release tags (our update feed) and,
 // when the embedded build sha differs from the latest published release, propose
-// downloading the new APK. La fiecare push pe `main`, workflow-ul build-apk
-// build-apk publică un Release `apk-main-<sha>`.
+// downloading the new APK. Combined releases are tagged `release-<sha>`
+// (see .github/workflows/release-all.yml); `apk-main-<sha>` is the legacy
+// per-push format, still recognized for older installs.
 const REPO = 'vadikonline1/utilitati_md';
 
-async function latestPublishedSha(): Promise<string | null> {
+function shaFromTag(tag: string): string | null {
+  let m = tag.match(/^release-(.+)$/);
+  if (m) return m[1];
+  m = tag.match(/^apk-main-(.+)$/);
+  return m ? m[1] : null;
+}
+
+async function latestPublished(): Promise<{ sha: string; tag: string } | null> {
   const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=20`);
   if (!res.ok) return null;
   const releases: any[] = await res.json();
-  // Build releases are tagged apk-main-<sha> (see .github/workflows/build-apk.yml).
-  const latest = releases.find((r) => r && !r.draft && String(r.tag_name || '').startsWith('apk-main-'));
+  const latest = releases.find(
+    (r) => r && !r.draft && shaFromTag(String(r.tag_name || '')) !== null,
+  );
   if (!latest) return null;
-  const m = String(latest.tag_name).match(/^apk-main-(.+)$/);
-  return m ? m[1] : null;
+  return { sha: shaFromTag(String(latest.tag_name)) as string, tag: String(latest.tag_name) };
 }
 
 function currentBuildSha(): string | undefined {
@@ -35,13 +43,13 @@ export async function checkForUpdate(silent = true): Promise<boolean> {
   if (Platform.OS !== 'android') return false;
   try {
     const current = currentBuildSha();
-    const latest = await latestPublishedSha();
+    const latest = await latestPublished();
     // No published release yet, or this build is already the latest.
     if (!latest) return false;
-    if (current && latest === current) return false;
+    if (current && latest.sha === current) return false;
 
     if (!silent) {
-      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/tags/apk-main-${latest}`);
+      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/tags/${latest.tag}`);
       const url = res.ok
         ? ((await res.json()) as any).assets?.[0]?.browser_download_url
         : undefined;
