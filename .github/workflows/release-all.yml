@@ -211,6 +211,7 @@ jobs:
 
     permissions:
       contents: write
+      packages: read
 
     steps:
       - name: Checkout
@@ -252,23 +253,46 @@ jobs:
           zip -qr "../utilitati-md-ios-simulator-${{ github.sha }}.zip" "$APP"
           cd ..
 
+      - name: Save Docker image (release asset)
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA:0:8}"
+          docker pull "$IMAGE"
+          docker save "$IMAGE" | gzip > "utilitati-md-docker-${{ github.sha }}.tar.gz"
+          echo "image=$IMAGE"; ls -lh "utilitati-md-docker-${{ github.sha }}.tar.gz"
+
       - name: Publish combined GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: release-${{ github.sha }}
           name: Release ${{ steps.ver.outputs.v }} (${{ github.sha }})
           body: |
-            Release combinat: **APK Android + iOS (simulator) + imagine Docker**.
+            Release combinat: **APK Android + iOS (Simulator) + imagine Docker** — toate descărcabile de mai jos (Assets).
 
             **Versiune aplicație:** ${{ steps.version.outputs.app_version }}
             **Commit:** ${{ github.sha }}
             **API URL:** https://utilitati.nistorlazar.md/api
 
-            - `utilitati-md-<sha>.apk` — Android, instalabil direct (debug-signed).
+            ### Android
+            - `utilitati-md-<sha>.apk` — APK instalabil direct (debug-signed). Pentru update prin aplicație se folosește fetch-ul in-app.
+
+            ### iOS
             - `utilitati-md-ios-simulator-<sha>.zip` — aplicația iOS pentru **Simulator, nesemnată** (pe dispozitiv fizic e nevoie de certificat Apple).
-            - Imagine Docker backend: `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}` (server: `docker compose pull + up`).
+
+            ### Docker (backend)
+            - `utilitati-md-docker-<sha>.tar.gz` — imaginea backend a serverului, exportată cu `docker save`. Se încarcă local:
+              ```
+              docker load -i utilitati-md-docker-<sha>.tar.gz
+              docker tag ghcr.io/vadikonline1/utilitati_md:<sha8> utilitati-md:release
+              docker run -it --rm -p 8000:8000 -v "$(pwd)/data:/app/data" utilitati-md:release
+              ```
+            - Alternativ, cu Docker instalat, trage direct din registry:
+              ```
+              docker pull ghcr.io/vadikonline1/utilitati_md:<sha8>
+              ```
+            - Pe serverul de producție se folosește `docker compose pull && docker compose up -d` (vezi README).
           files: |
             dist-release/utilitati-md-${{ github.sha }}.apk
             utilitati-md-ios-simulator-${{ github.sha }}.zip
+            utilitati-md-docker-${{ github.sha }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
