@@ -15,6 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
 import Input from '../components/Input';
+import { ApiError, saveFabMenuToServer } from '../api/client';
+import { useAuth } from '../api/auth-context';
+import { useContent } from '../content/useContent';
 import {
   FAB_ACTIONS,
   FAB_ICONS,
@@ -22,6 +25,7 @@ import {
   FabItem,
   fabActionLabel,
   newFabItemId,
+  toServerPayload,
   useFabMenu,
 } from '../menu/fabMenu';
 import { colors, fontFamily, radii, spacing } from '../theme';
@@ -41,10 +45,40 @@ function normalizeUrl(raw: string): string {
 }
 
 export default function FabMenuEditorScreen() {
-  const { items, save, reset } = useFabMenu();
+  const { user } = useAuth();
+  const { lang } = useContent();
+  const { items, save, reset, serverRaw, refresh } = useFabMenu();
   const [modal, setModal] = useState(false);
   const [draft, setDraft] = useState<Draft>({ label: '', icon: 'star-outline', action: 'link', url: '' });
   const [error, setError] = useState('');
+  const [syncing, setSyncing] = useState(false);
+
+  if (!user?.is_admin) {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <Ionicons name="lock-closed-outline" size={48} color={colors.muted} />
+        <Text style={styles.denied}>Doar administratorul poate edita meniul rapid.</Text>
+      </View>
+    );
+  }
+
+  /** Push the current list to the server so every device shows the same menu. */
+  const pushServer = async (next: FabItem[]): Promise<boolean> => {
+    setSyncing(true);
+    try {
+      await saveFabMenuToServer(toServerPayload(next, serverRaw, lang));
+      await refresh();
+      return true;
+    } catch (e) {
+      Alert.alert(
+        'Eroare sincronizare',
+        e instanceof ApiError ? e.message : 'Meniul a fost salvat doar pe acest dispozitiv.',
+      );
+      return false;
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const openAdd = () => {
     setDraft({ label: '', icon: 'star-outline', action: 'link', url: '' });
@@ -71,15 +105,21 @@ export default function FabMenuEditorScreen() {
       return;
     }
     if (draft.id) {
-      await save(items.map((i) => (i.id === draft.id ? { ...i, label, icon: draft.icon, action: draft.action, url } : i)));
+      const next = items.map((i) => (i.id === draft.id ? { ...i, label, icon: draft.icon, action: draft.action, url } : i));
+      await save(next);
+      await pushServer(next);
     } else {
-      await save([...items, { id: newFabItemId(), label, icon: draft.icon, action: draft.action, url, visible: true }]);
+      const next = [...items, { id: newFabItemId(), label, icon: draft.icon, action: draft.action, url, visible: true }];
+      await save(next);
+      await pushServer(next);
     }
     setModal(false);
   };
 
   const toggle = async (item: FabItem, visible: boolean) => {
-    await save(items.map((i) => (i.id === item.id ? { ...i, visible } : i)));
+    const next = items.map((i) => (i.id === item.id ? { ...i, visible } : i));
+    await save(next);
+    await pushServer(next);
   };
 
   const remove = (item: FabItem) => {
@@ -88,13 +128,17 @@ export default function FabMenuEditorScreen() {
       {
         text: 'Șterge',
         style: 'destructive',
-        onPress: async () => save(items.filter((i) => i.id !== item.id)),
+        onPress: async () => {
+          const next = items.filter((i) => i.id !== item.id);
+          await save(next);
+          await pushServer(next);
+        },
       },
     ]);
   };
 
   const confirmReset = () => {
-    Alert.alert('Resetează meniul', 'Renunți la personalizările de pe acest dispozitiv și revii la meniul setat în /admin (tab-ul Meniu rapid)?', [
+    Alert.alert('Resetează meniul', 'Reîncarci meniul de pe server (/admin, tab-ul Meniu rapid)?', [
       { text: 'Anulează', style: 'cancel' },
       { text: 'Resetează', style: 'destructive', onPress: reset },
     ]);
@@ -143,6 +187,7 @@ export default function FabMenuEditorScreen() {
           <View style={styles.footer}>
             <Button title="Adaugă element" onPress={openAdd} />
             <Button title="Resetează la meniul de pe server" variant="ghost" onPress={confirmReset} />
+            {syncing ? <Text style={styles.syncing}>Se sincronizează cu serverul…</Text> : null}
           </View>
         }
       />
@@ -269,4 +314,7 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 15, fontWeight: '600', color: colors.text, fontFamily },
   flex: { flex: 1 },
   error: { color: colors.danger, textAlign: 'center', marginVertical: spacing.sm, fontFamily },
+  centered: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  denied: { textAlign: 'center', color: colors.muted, fontSize: 16, marginTop: spacing.lg, fontFamily },
+  syncing: { textAlign: 'center', color: colors.muted, fontSize: 13, marginTop: spacing.sm, fontFamily },
 });

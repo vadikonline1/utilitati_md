@@ -35,7 +35,7 @@ export default function FabMenu({ items, onPressItem }: Props) {
             >
               <Text style={styles.itemLabel}>{item.label}</Text>
               <View style={styles.itemIcon}>
-                <Ionicons name={item.icon as any} size={22} color={colors.primary} />
+                <Ionicons name={item.icon as any} size={20} color={colors.primary} />
               </View>
             </Pressable>
           ))}
@@ -55,27 +55,27 @@ export default function FabMenu({ items, onPressItem }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', right: spacing.lg, bottom: spacing.lg, alignItems: 'flex-end' },
-  items: { alignItems: 'flex-end', marginBottom: spacing.md, gap: spacing.sm },
+  items: { alignItems: 'flex-end', marginBottom: spacing.sm, gap: 6 },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 56,
+    height: 48,
     borderRadius: radii.pill,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingLeft: spacing.lg,
-    paddingRight: spacing.sm,
+    paddingLeft: spacing.md,
+    paddingRight: 6,
     elevation: 4,
-    minWidth: 190,
+    minWidth: 150,
     justifyContent: 'flex-end',
   },
   itemPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
-  itemLabel: { fontSize: 15, fontWeight: '600', color: colors.text, fontFamily, marginRight: spacing.md },
+  itemLabel: { fontSize: 14, fontWeight: '600', color: colors.text, fontFamily, marginRight: spacing.sm },
   itemIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',

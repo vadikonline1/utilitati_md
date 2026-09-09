@@ -85,6 +85,7 @@ export interface PublicUser {
   full_name: string;
   email: string;
   notifications_enabled?: boolean;
+  is_admin?: boolean;
 }
 
 export function login(username: string, password: string): Promise<{ token: string; user: PublicUser }> {
@@ -348,6 +349,59 @@ export interface AppConfig {
 
 export function getConfig(): Promise<AppConfig> {
   return request('/config');
+}
+
+export interface ServerFabMenuSave {
+  ok: boolean;
+  count: number;
+}
+
+export interface ServerFabMenuPayloadItem {
+  id: string;
+  label_ro: string;
+  label_ru: string;
+  label_en: string;
+  icon: string;
+  action: string;
+  url: string;
+  visible: boolean;
+}
+
+/**
+ * Persist the FAB menu on the server (/admin/fab-menu, admin users only).
+ * Admin routes live outside `/api`, so this posts to the site root directly.
+ */
+export async function saveFabMenuToServer(
+  items: ServerFabMenuPayloadItem[],
+): Promise<ServerFabMenuSave> {
+  const base = await resolveApiBase(fallbackApiUrl());
+  const root = base.replace(/\/api\/?$/, '');
+  const token = await getToken();
+  let res: Response;
+  try {
+    res = await fetch(`${root}/admin/fab-menu`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ items }),
+    });
+  } catch {
+    throw new ApiError(0, 'Eroare de rețea. Verifică conexiunea.');
+  }
+  if (!res.ok) {
+    let detail = 'Eroare de server';
+    try {
+      const data = await res.json();
+      if (data && (data.error || data.detail)) detail = data.error || data.detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(res.status, detail);
+  }
+  return (await res.json()) as ServerFabMenuSave;
 }
 
 // --------------------------------------------------------------------------- //

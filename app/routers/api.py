@@ -28,7 +28,7 @@ from ..auth import (
     set_user_full_name,
     user_by_email,
 )
-from ..config import SITE_URL
+from ..config import SITE_URL, is_admin_username
 from ..deps import get_auth_token
 from ..services import email as email_svc
 from ..services import notify as notify_svc
@@ -82,6 +82,7 @@ def _public_user(user_id: int) -> dict | None:
         "full_name": u.get("full_name") or "",
         "email": u.get("email") or "",
         "notifications_enabled": bool(u.get("notifications_enabled", 1)),
+        "is_admin": bool(is_admin_username(u.get("username") or "")),
     }
 
 
