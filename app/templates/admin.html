@@ -18,6 +18,7 @@
       <button type="button" class="tab-btn" data-tab="tab-pages">{{ t('admin_tab_pages') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-seo">{{ t('admin_tab_seo') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-ads">{{ t('admin_tab_ads') }}</button>
+<button type="button" class="tab-btn" data-tab="tab-fab">{{ t('admin_tab_fab') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-push">{{ t('admin_tab_push') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-jobs">{{ t('admin_tab_jobs') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-app">{{ t('admin_tab_app') }}</button>
@@ -583,6 +584,42 @@
       </form>
     </section>
 
+    {# ---------------- FAB quick menu (mobile floating button) ---------------- #}
+    <section id="tab-fab" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_fab_hint') }}</p>
+      <div class="card">
+        <div class="data-list cols-5" id="fabList"></div>
+        <p class="field-hint" id="fabEmpty" hidden>{{ t('admin_fab_empty') }}</p>
+        <div class="row-actions" style="margin-top:10px;">
+          <button type="button" class="btn small" id="fabAdd">{{ t('admin_fab_add') }}</button>
+          <button type="button" class="btn small" id="fabSave">{{ t('admin_save') }}</button>
+          <span id="fabResult" style="margin-left:10px;"></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="modal-overlay" id="modal-fab" hidden>
+      <div class="modal">
+        <div class="modal-head">
+          <h2 id="fabModalTitle"></h2>
+          <button type="button" class="modal-close" id="fabModalX">×</button>
+        </div>
+        <div class="form-stack">
+          <label>RO<input type="text" id="fabM_ro" maxlength="60"></label>
+          <label>RU<input type="text" id="fabM_ru" maxlength="60"></label>
+          <label>EN<input type="text" id="fabM_en" maxlength="60"></label>
+          <label>{{ t('admin_fab_icon') }}<select id="fabM_icon"></select></label>
+          <label>{{ t('admin_fab_action') }}<select id="fabM_action"></select></label>
+          <label id="fabM_urlWrap">{{ t('admin_fab_url') }}<input type="text" id="fabM_url" maxlength="500" placeholder="https://..."></label>
+          <label class="check"><input type="checkbox" id="fabM_visible"> {{ t('admin_fab_visible') }}</label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn" id="fabModalSave">{{ t('admin_save') }}</button>
+          <button type="button" class="btn ghost" id="fabModalCancel">{{ t('admin_cancel') }}</button>
+        </div>
+      </div>
+    </div>
+
     <section id="tab-push" class="admin-tab-panel" hidden>
       <div class="card">
         <h2>{{ t('admin_push_title') }}</h2>
@@ -1069,6 +1106,8 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=seo");
       } else if (target === "tab-ads") {
         history.replaceState(null, "", "/admin?tab=ads");
+      } else if (target === "tab-fab") {
+        history.replaceState(null, "", "/admin?tab=fab");
       } else if (target === "tab-push") {
         history.replaceState(null, "", "/admin?tab=push");
       } else if (target === "tab-jobs") {
@@ -1081,7 +1120,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "push", "jobs", "app"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "fab", "push", "jobs", "app"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
     var tabKey = params.get("tab") || (params.get("saved") ? "messages" : "");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
@@ -1186,6 +1225,176 @@ document.addEventListener("DOMContentLoaded", function () {
       document.getElementById('admobPlacements').value = picks.join(',');
     });
   }
+
+  // FAB quick menu editor: compact div list, add/edit happens in a modal.
+  var fabItems = {{ fab_menu|tojson }};
+  var fabDraftIdx = -1;
+  var FAB_ICONS = ["home-outline", "receipt-outline", "send-outline", "add", "star-outline", "globe-outline", "call-outline", "mail-outline", "card-outline", "notifications-outline", "person-outline", "settings-outline"];
+  var FAB_ACTIONS = ["home", "utility", "telegram", "link"];
+  var FAB_TXT = {
+    label: '{{ t("admin_fab_label") }}',
+    action: '{{ t("admin_fab_action") }}',
+    colLink: '{{ t("admin_fab_col_link") }}',
+    visible: '{{ t("admin_fab_visible") }}',
+    edit: '{{ t("admin_fab_edit") }}',
+    del: '{{ t("admin_fab_delete") }}',
+    saved: '{{ t("admin_fab_saved") }}',
+    modalAdd: '{{ t("admin_fab_modal_add") }}',
+    modalEdit: '{{ t("admin_fab_modal_edit") }}',
+    actHome: '{{ t("admin_fab_action_home") }}',
+    actUtility: '{{ t("admin_fab_action_utility") }}',
+    actTelegram: '{{ t("admin_fab_action_telegram") }}',
+    actLink: '{{ t("admin_fab_action_link") }}'
+  };
+  function fabEsc(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function fabActionLabel(a) {
+    if (a === "home") return FAB_TXT.actHome;
+    if (a === "utility") return FAB_TXT.actUtility;
+    if (a === "telegram") return FAB_TXT.actTelegram;
+    return FAB_TXT.actLink;
+  }
+  function fabMainLabel(it) {
+    return it.label_ro || it.label_ru || it.label_en || it.id;
+  }
+  function fabShortUrl(u) {
+    u = String(u || "");
+    if (!u) return "—";
+    return u.length > 42 ? u.slice(0, 42) + "…" : u;
+  }
+  function fabRender() {
+    var list = document.getElementById("fabList");
+    if (!list) return;
+    document.getElementById("fabEmpty").hidden = fabItems.length !== 0;
+    var html = '<div class="dl-head"><div class="dl-cell">' + fabEsc(FAB_TXT.label) + '</div>'
+      + '<div class="dl-cell">' + fabEsc(FAB_TXT.action) + '</div>'
+      + '<div class="dl-cell">' + fabEsc(FAB_TXT.colLink) + '</div>'
+      + '<div class="dl-cell">' + fabEsc(FAB_TXT.visible) + '</div>'
+      + '<div class="dl-cell"></div></div>';
+    fabItems.forEach(function (it, idx) {
+      var alts = [it.label_ru, it.label_en].filter(function (x) { return x && x !== it.label_ro; });
+      html += '<div class="dl-row' + (it.visible ? "" : " row-disabled") + '" data-fab-idx="' + idx + '">';
+      html += '<div class="dl-cell" data-label="' + fabEsc(FAB_TXT.label) + '"><div><b>' + fabEsc(fabMainLabel(it)) + '</b>'
+        + (alts.length ? '<br><span style="color:var(--muted);font-size:0.82rem;">' + fabEsc(alts.join(" • ")) + '</span>' : "")
+        + '</div></div>';
+      html += '<div class="dl-cell" data-label="' + fabEsc(FAB_TXT.action) + '">' + fabEsc(fabActionLabel(it.action)) + '</div>';
+      html += '<div class="dl-cell" data-label="' + fabEsc(FAB_TXT.colLink) + '">' + fabEsc(fabShortUrl(it.url)) + '</div>';
+      html += '<div class="dl-cell" data-label="' + fabEsc(FAB_TXT.visible) + '">' + (it.visible ? "✓" : "—") + '</div>';
+      html += '<div class="dl-cell row-actions">'
+        + '<button type="button" class="btn small" data-fab-edit>' + fabEsc(FAB_TXT.edit) + '</button> '
+        + '<button type="button" class="btn small" data-fab-up' + (idx === 0 ? " disabled" : "") + '>↑</button> '
+        + '<button type="button" class="btn small" data-fab-down' + (idx === fabItems.length - 1 ? " disabled" : "") + '>↓</button> '
+        + '<button type="button" class="btn small" data-fab-del>' + fabEsc(FAB_TXT.del) + '</button>'
+        + '</div></div>';
+    });
+    list.innerHTML = html;
+  }
+  function fabFillSelects() {
+    var iconSel = document.getElementById("fabM_icon");
+    if (!iconSel.options.length) {
+      FAB_ICONS.forEach(function (n) {
+        var o = document.createElement("option");
+        o.value = n; o.textContent = n; iconSel.appendChild(o);
+      });
+    }
+    var actSel = document.getElementById("fabM_action");
+    if (!actSel.options.length) {
+      FAB_ACTIONS.forEach(function (a) {
+        var o = document.createElement("option");
+        o.value = a; o.textContent = fabActionLabel(a); actSel.appendChild(o);
+      });
+    }
+  }
+  function fabToggleUrlWrap() {
+    var a = document.getElementById("fabM_action").value;
+    document.getElementById("fabM_urlWrap").hidden = !(a === "telegram" || a === "link");
+  }
+  function fabOpenModal(idx) {
+    fabFillSelects();
+    fabDraftIdx = idx;
+    var it = idx >= 0 ? fabItems[idx] : {label_ro: "", label_ru: "", label_en: "", icon: "star-outline", action: "link", url: "", visible: true};
+    document.getElementById("fabModalTitle").textContent = idx >= 0 ? FAB_TXT.modalEdit : FAB_TXT.modalAdd;
+    document.getElementById("fabM_ro").value = it.label_ro || "";
+    document.getElementById("fabM_ru").value = it.label_ru || "";
+    document.getElementById("fabM_en").value = it.label_en || "";
+    document.getElementById("fabM_icon").value = it.icon || "star-outline";
+    document.getElementById("fabM_action").value = it.action || "link";
+    document.getElementById("fabM_url").value = it.url || "";
+    document.getElementById("fabM_visible").checked = it.visible !== false;
+    fabToggleUrlWrap();
+    openModal("modal-fab");
+  }
+  document.addEventListener("click", function (e) {
+    var card = e.target && e.target.closest ? e.target.closest("[data-fab-idx]") : null;
+    if (card) {
+      var idx = parseInt(card.getAttribute("data-fab-idx"), 10);
+      if (e.target.closest("[data-fab-edit]")) {
+        fabOpenModal(idx);
+      } else if (e.target.closest("[data-fab-up]") && idx > 0) {
+        var t = fabItems[idx - 1]; fabItems[idx - 1] = fabItems[idx]; fabItems[idx] = t; fabRender();
+      } else if (e.target.closest("[data-fab-down]") && idx < fabItems.length - 1) {
+        var t2 = fabItems[idx + 1]; fabItems[idx + 1] = fabItems[idx]; fabItems[idx] = t2; fabRender();
+      } else if (e.target.closest("[data-fab-del]")) {
+        fabItems.splice(idx, 1); fabRender();
+      }
+      return;
+    }
+    if (e.target && e.target.id === "fabAdd") {
+      if (fabItems.length < 12) fabOpenModal(-1);
+    }
+    if (e.target && (e.target.id === "fabModalCancel" || e.target.id === "fabModalX")) {
+      closeModal("modal-fab");
+    }
+    if (e.target && e.target.id === "fabModalSave") {
+      var draft = {
+        label_ro: document.getElementById("fabM_ro").value.trim().slice(0, 60),
+        label_ru: document.getElementById("fabM_ru").value.trim().slice(0, 60),
+        label_en: document.getElementById("fabM_en").value.trim().slice(0, 60),
+        icon: document.getElementById("fabM_icon").value,
+        action: document.getElementById("fabM_action").value,
+        url: document.getElementById("fabM_url").value.trim().slice(0, 500),
+        visible: document.getElementById("fabM_visible").checked
+      };
+      if (fabDraftIdx >= 0 && fabItems[fabDraftIdx]) {
+        draft.id = fabItems[fabDraftIdx].id;
+        fabItems[fabDraftIdx] = draft;
+      } else {
+        draft.id = "f" + Date.now().toString(36);
+        fabItems.push(draft);
+      }
+      closeModal("modal-fab");
+      fabRender();
+    }
+    if (e.target && e.target.id === "fabSave") {
+      var btn = e.target;
+      var res = document.getElementById("fabResult");
+      btn.disabled = true; res.textContent = "...";
+      fetch("/admin/fab-menu", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({items: fabItems})
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        btn.disabled = false;
+        if (data.error) {
+          res.innerHTML = '<span style="color:red">' + fabEsc(data.error) + '</span>';
+        } else {
+          res.innerHTML = '<span style="color:green">' + fabEsc(FAB_TXT.saved) + ' (' + data.count + ')</span>';
+        }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        res.innerHTML = '<span style="color:red">error</span>';
+      });
+    }
+  });
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.id === "fabM_action") fabToggleUrlWrap();
+  });
+  fabRender();
 
   // Push notifications: AJAX send.
   window.sendPush = function () {

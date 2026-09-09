@@ -4,9 +4,13 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { ServerFabItem, getConfig } from '../api/client';
+import { useContent } from '../content/useContent';
 
 export const FAB_MENU_KEY = 'utilitati.fabmenu.v1';
 export const TELEGRAM_BOT_URL = 'https://t.me/utilitati_md_bot';
@@ -85,6 +89,24 @@ export function sanitizeFabItems(raw: unknown): FabItem[] {
   return out.length > 0 ? out : defaultFabItems();
 }
 
+/** Map the server menu (/admin?tab=fab) to local items in the given language. */
+export function serverToLocal(raw: unknown, lang: string): FabItem[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const l = lang === 'ru' ? 'label_ru' : lang === 'en' ? 'label_en' : 'label_ro';
+  const mapped = (raw as ServerFabItem[]).map((e) => ({
+    id: e.id,
+    label: (e[l] || e.label_ro || e.label_en || e.id) as string,
+    icon: e.icon,
+    action: e.action,
+    url: e.url || '',
+    visible: e.visible,
+  }));
+  const clean = sanitizeFabItems(mapped);
+  // sanitize falls back to hardcoded defaults when everything is invalid —
+  // distinguish "server sent garbage" (ignore it) from real items.
+  return clean.length > 0 && (raw as unknown[]).length > 0 ? clean : null;
+}
+
 export function newFabItemId(): string {
   return `f${Date.now().toString(36)}${Math.floor(Math.random() * 10000)}`;
 }
@@ -99,24 +121,60 @@ interface FabMenuContextValue {
 const FabMenuContext = createContext<FabMenuContextValue | null>(null);
 
 export function FabMenuProvider({ children }: { children: React.ReactNode }) {
+  const { lang } = useContent();
   const [items, setItems] = useState<FabItem[]>(defaultFabItems());
   const [loaded, setLoaded] = useState(false);
+  const [serverRaw, setServerRaw] = useState<ServerFabItem[] | null>(null);
+  const customized = useRef(false);
 
+  // Local menu first (instant), then the server menu unless the user
+  // personalized it on this device (their explicit edits always win).
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(FAB_MENU_KEY);
-        if (raw) setItems(sanitizeFabItems(JSON.parse(raw)));
+        if (cancelled) return;
+        if (raw) {
+          customized.current = true;
+          setItems(sanitizeFabItems(JSON.parse(raw)));
+        }
       } catch {
         /* keep defaults */
       } finally {
-        setLoaded(true);
+        if (!cancelled) setLoaded(true);
+      }
+      try {
+        const cfg = await getConfig();
+        if (cancelled) return;
+        if (cfg && Array.isArray(cfg.fab_menu) && cfg.fab_menu.length > 0) {
+          setServerRaw(cfg.fab_menu);
+          if (!customized.current) {
+            const mapped = serverToLocal(cfg.fab_menu, lang);
+            if (mapped) setItems(mapped);
+          }
+        }
+      } catch {
+        /* offline / logged out: keep local menu */
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-resolve server labels when the app language changes (server menu only).
+  useEffect(() => {
+    if (!customized.current && serverRaw) {
+      const mapped = serverToLocal(serverRaw, lang);
+      if (mapped) setItems(mapped);
+    }
+  }, [lang, serverRaw]);
 
   const save = useCallback(async (next: FabItem[]) => {
     const clean = sanitizeFabItems(next);
+    customized.current = true;
     setItems(clean);
     try {
       await AsyncStorage.setItem(FAB_MENU_KEY, JSON.stringify(clean));
@@ -126,14 +184,21 @@ export function FabMenuProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const reset = useCallback(async () => {
-    const defs = defaultFabItems();
-    setItems(defs);
+    customized.current = false;
     try {
-      await AsyncStorage.setItem(FAB_MENU_KEY, JSON.stringify(defs));
+      await AsyncStorage.removeItem(FAB_MENU_KEY);
     } catch {
       /* ignore */
     }
-  }, []);
+    if (serverRaw) {
+      const mapped = serverToLocal(serverRaw, lang);
+      if (mapped) {
+        setItems(mapped);
+        return;
+      }
+    }
+    setItems(defaultFabItems());
+  }, [lang, serverRaw]);
 
   const value = useMemo(() => ({ items, loaded, save, reset }), [items, loaded, save, reset]);
   return <FabMenuContext.Provider value={value}>{children}</FabMenuContext.Provider>;

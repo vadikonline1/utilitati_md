@@ -80,6 +80,7 @@ SETTING_KEYS = {
     "admob_rewarded_unit_android",
     "admob_rewarded_unit_ios",
     "admob_placements",             # comma-list of screens that may show ads
+    "fab_menu_items",               # JSON list for the mobile FAB menu (/admin?tab=fab)
     "fcm_service_account",          # Google FCM service-account JSON (secret)
     "push_provider",                # 'expo' or 'fcm' (mobile token mode)
 }
@@ -315,6 +316,123 @@ def msg_templates(msg_type: str) -> dict[str, dict[str, str]]:
     }
 
 
+# --------------------------------------------------------------------------- #
+# FAB quick menu (mobile floating button, managed from /admin?tab=fab)
+# --------------------------------------------------------------------------- #
+FAB_MENU_ACTIONS = ("home", "utility", "telegram", "link")
+
+FAB_MENU_ICONS = (
+    "home-outline",
+    "receipt-outline",
+    "send-outline",
+    "add",
+    "star-outline",
+    "globe-outline",
+    "call-outline",
+    "mail-outline",
+    "card-outline",
+    "notifications-outline",
+    "person-outline",
+    "settings-outline",
+)
+
+FAB_MENU_DEFAULTS = [
+    {
+        "id": "home",
+        "label_ro": "Locuință",
+        "label_ru": "Жильё",
+        "label_en": "Home",
+        "icon": "home-outline",
+        "action": "home",
+        "url": "",
+        "visible": True,
+    },
+    {
+        "id": "utility",
+        "label_ro": "Utilități",
+        "label_ru": "Услуги",
+        "label_en": "Utilities",
+        "icon": "receipt-outline",
+        "action": "utility",
+        "url": "",
+        "visible": True,
+    },
+    {
+        "id": "telegram",
+        "label_ro": "BOT Telegram",
+        "label_ru": "Telegram-бот",
+        "label_en": "Telegram BOT",
+        "icon": "send-outline",
+        "action": "telegram",
+        "url": "https://t.me/utilitati_md_bot",
+        "visible": True,
+    },
+]
+
+FAB_MENU_MAX_ITEMS = 12
+
+
+def sanitize_fab_menu(raw: object) -> list[dict]:
+    """Clean a FAB menu payload (admin UI or stored value).
+
+    Drops malformed entries, clamps lengths, keeps at most
+    FAB_MENU_MAX_ITEMS items. Returns [] when nothing valid remains.
+    """
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    seen: set[str] = set()
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        item_id = str(entry.get("id") or "").strip()[:32]
+        if not item_id or item_id in seen:
+            continue
+        action = str(entry.get("action") or "").strip()
+        if action not in FAB_MENU_ACTIONS:
+            continue
+        seen.add(item_id)
+        icon = str(entry.get("icon") or "").strip()
+        url = str(entry.get("url") or "").strip()[:500]
+        out.append(
+            {
+                "id": item_id,
+                "label_ro": str(entry.get("label_ro") or "").strip()[:60],
+                "label_ru": str(entry.get("label_ru") or "").strip()[:60],
+                "label_en": str(entry.get("label_en") or "").strip()[:60],
+                "icon": icon if icon in FAB_MENU_ICONS else "star-outline",
+                "action": action,
+                "url": url,
+                "visible": entry.get("visible") not in (False, "0", 0, "false"),
+            }
+        )
+        if len(out) >= FAB_MENU_MAX_ITEMS:
+            break
+    return out
+
+
+def fab_menu() -> list[dict]:
+    """FAB menu served to the mobile app (admin-managed, defaults fallback)."""
+    import json
+
+    raw = get_setting("fab_menu_items", "").strip()
+    if raw:
+        try:
+            items = sanitize_fab_menu(json.loads(raw))
+        except (ValueError, TypeError):
+            items = []
+        if items:
+            return items
+    return [dict(d) for d in FAB_MENU_DEFAULTS]
+
+
+def set_fab_menu(items: object) -> list[dict]:
+    """Persist a sanitized FAB menu; returns what was stored."""
+    import json
+
+    clean = sanitize_fab_menu(items)
+    set_setting("fab_menu_items", json.dumps(clean, ensure_ascii=False))
+    return clean
 # --------------------------------------------------------------------------- #
 # AdMob / Google Ads configuration (served to the mobile app via /api/config)
 # --------------------------------------------------------------------------- #
