@@ -18,7 +18,6 @@ import {
   listInvoices,
   setInvoiceStatus,
 } from '../api/client';
-import AppHeader from '../components/AppHeader';
 import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
 import { useContent } from '../content/useContent';
@@ -172,7 +171,6 @@ export default function FacturiScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
       <FlatList
         data={buildRows(sections)}
         keyExtractor={(row) => row.key}
@@ -199,7 +197,7 @@ export default function FacturiScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: spacing.lg, paddingBottom: 40 },
+  list: { padding: spacing.lg, paddingBottom: 100 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',

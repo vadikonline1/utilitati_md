@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { colors, spacing } from '../theme';
+import { colors, radii, spacing } from '../theme';
 
 interface Props {
   title?: string;
@@ -21,9 +21,9 @@ export default function Card({ title, children, style }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderRadius: radii.card,
     padding: spacing.lg,
-    marginVertical: spacing.md,
+    marginVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
   },

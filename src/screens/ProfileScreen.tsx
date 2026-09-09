@@ -20,7 +20,6 @@ import { useAuth } from '../api/auth-context';
 import { useContent } from '../content/useContent';
 import { registerPushTokenResult } from '../utils/notify';
 import { checkForUpdate } from '../utils/update';
-import AppHeader from '../components/AppHeader';
 import Button from '../components/Button';
 import { colors, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -192,7 +191,6 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profile}>
           <Ionicons name="person-circle-outline" size={64} color={colors.primary} />
@@ -322,7 +320,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.xl },
+  content: { padding: spacing.xl, paddingBottom: 110 },
   profile: { alignItems: 'center', marginTop: spacing.md },
   nameInput: { width: '100%', marginTop: spacing.sm },
   name: { fontSize: 22, fontWeight: '800', color: colors.text, marginTop: spacing.sm },

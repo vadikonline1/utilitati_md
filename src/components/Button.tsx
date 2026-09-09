@@ -7,7 +7,7 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { colors, spacing } from '../theme';
+import { colors, fontFamily, radii, spacing } from '../theme';
 
 interface Props {
   title: string;
@@ -40,11 +40,12 @@ export default function Button({
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
+      android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
       style={({ pressed }) => [
         styles.base,
         { backgroundColor: bg },
         variant === 'ghost' && { borderWidth: 1, borderColor: colors.primary },
-        pressed && { opacity: 0.8 },
+        pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
         isDisabled && { opacity: 0.5 },
         style,
       ]}
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
+    borderRadius: radii.pill,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     minHeight: 48,
@@ -71,5 +72,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily,
   },
 });
