@@ -1979,20 +1979,6 @@ async def invoices_all_page(
         generated_msg = _t(
             "invoices_generated",
         ).replace("{updated}", str(generated_updated)).replace("{errors}", str(generated_errors))
-    edit_accounts = {}
-    for acc in accounts:
-        meta = PROVIDER_META.get(acc["provider"], {})
-        edit_accounts[acc["id"]] = {
-            "account_id": acc["id"],
-            "home_id": acc["home_id"],
-            "provider": acc["provider"],
-            "provider_name": meta.get("name", acc["provider"]),
-            "fields": meta.get("fields", ["contract"]),
-            "account_label": meta.get("account_label", ""),
-            "label": acc.get("label") or "",
-            "contract_number": acc.get("contract_number") or "",
-            "username": acc.get("username") or "",
-        }
     return templates.TemplateResponse(
         request, "invoices_all.html",
         _ctx(
@@ -2001,7 +1987,6 @@ async def invoices_all_page(
             accounts=accounts,
             homes=list_homes(user_id),
             current_home=current_home,
-            edit_accounts=edit_accounts,
             page=page,
             total_pages=total_pages,
             total=total,

@@ -36,35 +36,33 @@
   {% elif homes %}<p class="muted">{{ t('connect_utility_select_home') }}</p>{% endif %}
 
   {% if invoices %}
-    <div class="data-list cols-9">
+    <div class="data-list cols-7">
       <div class="dl-head">
+        <div class="dl-cell">{{ t('invoice_number') }}</div>
         <div class="dl-cell">{{ t('invoices_column_utility') }}</div>
         <div class="dl-cell">{{ t('home_contract_number') }}</div>
-        <div class="dl-cell">{{ t('invoices_column_home') }}</div>
-        <div class="dl-cell">{{ t('invoice_number') }}</div>
         <div class="dl-cell">{{ t('invoice_amount') }}</div>
-        <div class="dl-cell">{{ t('invoice_issued') }}</div>
-        <div class="dl-cell">{{ t('invoice_due') }}</div>
         <div class="dl-cell">{{ t('homes_status') }}</div>
-        <div class="dl-cell">{{ t('homes_actions') }}</div>
+        <div class="dl-cell">{{ t('invoice_checked_at') }}</div>
+        <div class="dl-cell"></div>
       </div>
       {% for inv in invoices %}
         <div class="dl-row {{ 'row-disabled' if inv.status == 'disabled' }}">
+          <div class="dl-cell" data-label="{{ t('invoice_number') }}">{{ inv.invoice_number or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoices_column_utility') }}">{{ inv.account_icon or '' }} {{ inv.account_label or ('—') }}</div>
           <div class="dl-cell" data-label="{{ t('home_contract_number') }}">{{ inv.contract_number or '—' }}</div>
-          <div class="dl-cell" data-label="{{ t('invoices_column_home') }}">{{ inv.home_name or '—' }}</div>
-          <div class="dl-cell" data-label="{{ t('invoice_number') }}">{{ inv.invoice_number or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoice_amount') }}">{{ inv.amount_mdl }} {{ inv.currency or 'MDL' }}</div>
-          <div class="dl-cell" data-label="{{ t('invoice_issued') }}">{{ inv.issue_date or '—' }}</div>
-          <div class="dl-cell" data-label="{{ t('invoice_due') }}">{{ inv.due_date or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('homes_status') }}"><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></div>
+          <div class="dl-cell" data-label="{{ t('invoice_checked_at') }}">{{ (inv.checked_at or '')[:16] or '—' }}</div>
           <div class="dl-cell row-actions">
-            <button type="button" class="btn small ghost" onclick="openEditAccount({{ inv.account_id }})">{{ t('homes_edit') }}</button>
-            <a class="btn small" href="/accounts/{{ inv.account_id }}/invoices">{{ t('invoice_check') }}</a>
-            <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
-              <input type="hidden" name="status" value="{{ 'disabled' if inv.status == 'enabled' else 'enabled' }}">
-              <button type="submit" class="btn small">{{ t('invoice_disable') if inv.status == 'enabled' else t('invoice_enable') }}</button>
-            </form>
+            {% if inv.pay_status == 'PAID' or inv.status == 'disabled' %}
+              <form method="post" action="/invoices/{{ inv.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('invoice_delete_confirm') }}')">
+                <input type="hidden" name="back" value="/invoices">
+                <button type="submit" class="btn-danger small">{{ t('invoice_delete') }}</button>
+              </form>
+            {% else %}
+              <a class="btn small" href="/accounts/{{ inv.account_id }}/invoices">{{ t('homes_details') }}</a>
+            {% endif %}
           </div>
         </div>
       {% endfor %}
@@ -133,43 +131,9 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-edit-account" hidden>
-  <div class="modal">
-    <div class="modal-head">
-      <h2>{{ t('account_edit_title') }}</h2>
-      <button type="button" class="modal-close" onclick="closeModal('modal-edit-account')">×</button>
-    </div>
-    <form method="post" id="account-edit-form" class="form-stack">
-      <label>{{ t('home_provider') }}
-        <select name="provider" id="edit-account-provider" disabled>
-          <option id="edit-account-provider-option"></option>
-        </select>
-      </label>
-      <p class="field-hint">{{ t('account_provider_readonly') }}</p>
-      <label>{{ t('account_label_field') }}
-        <input type="text" name="label" id="f_edit_label" disabled>
-      </label>
-      <label>{{ t('home_contract_number') }}
-        <input type="text" name="contract_number" id="f_edit_contract" required>
-      </label>
-      <div class="provider-edit-username" id="edit-account-username" hidden>
-        <label>{{ t('home_username') }}
-          <input type="text" name="username" id="f_edit_username" autocomplete="off">
-        </label>
-      </div>
-      <div class="provider-edit-password" id="edit-account-password" hidden>
-        <label>{{ t('home_password') }}
-          <input type="password" name="password" id="f_edit_password" autocomplete="off" placeholder="{{ t('account_password_keep') }}">
-        </label>
-      </div>
-      <button type="submit">{{ t('account_save_changes') }}</button>
-    </form>
-  </div>
-</div>
 {% endblock %}
 {% block scripts %}
 <script>
-const editAccounts = {{ edit_accounts|tojson }};
 function openModal(id) { document.getElementById(id).hidden = false; }
 function closeModal(id) { document.getElementById(id).hidden = true; }
 function updateProviderFields() {
@@ -180,22 +144,6 @@ function updateProviderFields() {
   document.querySelector(".provider-field-password").hidden = !fields.includes("password");
   document.getElementById("contract-field-label").childNodes[0].nodeValue = opt.dataset.accountLabel + " ";
   document.getElementById("contract-field-input").placeholder = opt.dataset.placeholder;
-}
-function openEditAccount(accountId) {
-  const acc = editAccounts[accountId];
-  if (!acc) return;
-  document.getElementById("edit-account-provider-option").value = acc.provider;
-  document.getElementById("edit-account-provider-option").textContent = acc.provider_name;
-  document.getElementById("f_edit_label").value = acc.label || "";
-  document.getElementById("f_edit_contract").value = acc.contract_number || "";
-  document.getElementById("f_edit_username").value = acc.username || "";
-  document.getElementById("f_edit_password").value = "";
-  const fields = acc.fields || ["contract"];
-  document.getElementById("edit-account-username").hidden = !fields.includes("username");
-  document.getElementById("edit-account-password").hidden = !fields.includes("password");
-  document.getElementById("f_edit_contract").placeholder = acc.account_label || "{{ t('home_contract_number') }}";
-  document.getElementById("account-edit-form").action = "/homes/" + acc.home_id + "/utilities/" + acc.account_id + "/edit";
-  openModal("modal-edit-account");
 }
 document.addEventListener("DOMContentLoaded", function () {
   updateProviderFields();

@@ -489,6 +489,7 @@ button.badge:hover { filter: brightness(0.95); }
 .dl-cell { padding: 10px 12px; font-size: 0.9rem; }
 .dl-head .dl-cell { padding: 10px 12px; }
 .cols-6 .dl-head, .cols-6 .dl-row { grid-template-columns: 1.6fr 2.2fr 0.9fr 1.2fr 1fr 2.2fr; }
+.cols-7 .dl-head, .cols-7 .dl-row { grid-template-columns: 1.5fr 1.4fr 1.1fr 0.9fr 1fr 1.2fr 1.8fr; }
 .cols-8 .dl-head, .cols-8 .dl-row { grid-template-columns: 1.4fr 1fr 1fr 1.1fr 1.1fr 1fr 1.4fr 2.2fr; }
 .cols-9 .dl-head, .cols-9 .dl-row { grid-template-columns: 1.9fr 1.3fr 1fr 1fr 1fr 1.1fr 1.1fr 1fr 2.4fr; }
 .cols-10 .dl-head, .cols-10 .dl-row { grid-template-columns: 1.7fr 1.2fr 1fr 1fr 1fr 1fr 1.1fr 1.1fr 1fr 2.2fr; }
