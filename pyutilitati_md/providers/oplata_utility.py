@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 import logging
+import re
 from typing import Any
 
 from ..models import AccountData, Invoice
@@ -120,6 +121,12 @@ OPLATA_FULLNAME_SPECIAL: frozenset[str] = frozenset(
 OPLATA_PROVIDERS: frozenset[str] = frozenset(OPLATA_NAMES)
 
 
+def _stable_ref(name: str | None) -> str:
+    """Sanitize a provider bill reference for use in an invoice_number."""
+    clean = re.sub(r"[^A-Za-z0-9\-_]", "", (name or "").strip())
+    return clean[:40]
+
+
 class OplataUtilityProvider(BaseUtilityProvider):
     """Utility provider verified purely through the oplata.md API."""
 
@@ -204,12 +211,18 @@ class OplataUtilityProvider(BaseUtilityProvider):
         # invoice. Only split into separate invoices when every item carries a
         # real, billed amount; otherwise collapse them into one invoice whose
         # items become the service breakdown.
+        #
+        # Split invoices use a STABLE number derived from the provider bill
+        # reference (item.name, e.g. 7303683021) — never the positional index —
+        # so a paid bill disappears by identity on the next check and the
+        # stored row is closed as PAID instead of being overwritten.
         invoices: list[Invoice] = []
         if res.items and all(i.amount_mdl > 0 for i in res.items):
             for i, item in enumerate(res.items, start=1):
+                ref = _stable_ref(item.name) or str(i)
                 invoices.append(
                     Invoice(
-                        invoice_number=f"{self._id.upper()}-{i}",
+                        invoice_number=f"{self._id.upper()}-{ref}",
                         amount_mdl=item.amount_mdl,
                         issue_date=date.today(),
                         is_paid=False,

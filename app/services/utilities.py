@@ -368,7 +368,12 @@ def normalize_status(
 def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | None, bool]:
     """Save an Invoice returned by a provider into the local store (deduped).
     Appends a row to invoice_history on each provider check.
-    Returns (invoice_id | None, is_new) where is_new True only on first insert."""
+    Returns (invoice_id | None, is_new) where is_new True only on first insert.
+
+    Zero-amount invoices are never generated: when the provider verifies 0.00
+    the invoice is considered absent/paid — an existing unpaid row is closed
+    as PAID, otherwise nothing is stored.
+    """
     if invoice is None:
         return None, False
     invoice_number = getattr(invoice, "invoice_number", "") or ""
@@ -392,6 +397,24 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
             "SELECT id, pay_status FROM invoices WHERE account_id = ? AND invoice_number = ?",
             (account_id, invoice_number),
         ).fetchone()
+        if amount == 0:
+            # 0.00 means "no debt present": close an existing unpaid row as
+            # PAID, but never generate a new zero-amount invoice.
+            if existing and existing["pay_status"] != INVOICE_STATUS_PAID:
+                inv_id = existing["id"]
+                conn.execute(
+                    """UPDATE invoices SET is_paid = 1, pay_status = ?,
+                       checked_at = ?, updated_at = datetime('now') WHERE id = ?""",
+                    (INVOICE_STATUS_PAID, checked_at, inv_id),
+                )
+                conn.execute(
+                    """INSERT INTO invoice_history
+                       (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (inv_id, INVOICE_STATUS_PAID, 0, checked_at, raw_response),
+                )
+                return inv_id, False
+            return None, False
         if existing:
             inv_id = existing["id"]
             # Once an invoice is marked PAID it is final: do not overwrite it
@@ -452,11 +475,57 @@ def _deactivate_superseded_infosapr(account_id: int, keep_ids: list[int]) -> Non
         )
 
 
+def _mark_missing_oplata_paid(account_id: int, current_numbers: set[str]) -> int:
+    """Close unpaid invoices absent from the latest oplata.md response as PAID.
+
+    The oplata.md `/payment/check` answer is the full current debt list: an
+    invoice that was due before and no longer shows up (or verifies at 0.00)
+    is considered paid. Only enabled, non-PAID rows are touched, and every
+    closure is recorded in invoice_history. Returns the closed count.
+    """
+    marked = 0
+    checked_at = _now_str()
+    with _conn() as conn:
+        rows = conn.execute(
+            """SELECT id, invoice_number, amount_mdl FROM invoices
+               WHERE account_id = ? AND status != 'disabled'
+                 AND pay_status != 'PAID'""",
+            (account_id,),
+        ).fetchall()
+        for row in rows:
+            if (row["invoice_number"] or "") in current_numbers:
+                continue
+            conn.execute(
+                """UPDATE invoices SET is_paid = 1, pay_status = 'PAID',
+                   checked_at = ?, updated_at = datetime('now') WHERE id = ?""",
+                (checked_at, row["id"]),
+            )
+            conn.execute(
+                """INSERT INTO invoice_history
+                   (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
+                   VALUES (?, 'PAID', ?, ?, ?)""",
+                (row["id"], row["amount_mdl"], checked_at, "oplata: absent from provider response"),
+            )
+            marked += 1
+    return marked
+
+
+def _is_oplata_provider(provider_id: str) -> bool:
+    """True for generic oplata.md-backed providers (full debt list semantics)."""
+    try:
+        from pyutilitati_md.providers.oplata_utility import OPLATA_PROVIDERS
+    except ImportError:  # pragma: no cover
+        return False
+    return (provider_id or "") in OPLATA_PROVIDERS
+
+
 def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
     """Persist all invoices returned by a provider (falling back to last_invoice).
 
     Dedupes against the local store and appends invoice_history rows, so a
     single provider check may now update several historic invoices at once.
+    For oplata.md-backed providers the answer is the full current debt list,
+    so previously-unpaid invoices missing from it are closed as PAID.
     Returns (newly_created_ids, all_saved_ids).
     """
     invoices = getattr(data, "invoices", None)
@@ -465,7 +534,11 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
         invoices = [last] if last is not None else []
     saved: list[int] = []
     created: list[int] = []
+    current_numbers: set[str] = set()
     for inv in invoices:
+        number = (getattr(inv, "invoice_number", "") or "")
+        if number:
+            current_numbers.add(number)
         inv_id, is_new = upsert_invoice_from_provider(account_id, inv)
         if inv_id is not None:
             saved.append(inv_id)
@@ -482,6 +555,15 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
         ).fetchone()
     if acc is not None and (acc["provider"] or "") == "infosapr" and saved:
         _deactivate_superseded_infosapr(account_id, saved)
+
+    # Oplata providers: close stale unpaid rows missing from this (successful)
+    # verification as PAID — paid, not found, or verified at 0.00.
+    if (
+        getattr(data, "is_connected", False)
+        and acc is not None
+        and _is_oplata_provider(acc["provider"] or "")
+    ):
+        _mark_missing_oplata_paid(account_id, current_numbers)
 
     return created, saved
 
