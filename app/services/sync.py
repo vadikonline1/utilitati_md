@@ -699,7 +699,7 @@ def dashboard_tables(user_id: int, limit: int = 50) -> dict:
         rows = conn.execute(
             "SELECT inv.invoice_number, inv.amount_mdl, inv.pay_status, "
             "inv.checked_at, inv.issue_date, "
-            "a.label AS account_label, a.provider AS provider, "
+            "a.id AS account_id, a.label AS account_label, a.provider AS provider, "
             "h.name AS home_name "
             "FROM invoices inv JOIN accounts a ON a.id = inv.account_id "
             "LEFT JOIN homes h ON h.id = a.home_id "
