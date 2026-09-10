@@ -275,6 +275,7 @@ def list_invoices(
     query = """
         SELECT inv.*, a.label AS account_label, a.icon AS account_icon,
                a.home_id AS home_id, a.provider AS provider,
+               a.contract_number AS contract_number,
                h.name AS home_name
         FROM invoices inv
         JOIN accounts a ON a.id = inv.account_id
@@ -519,6 +520,28 @@ def _is_oplata_provider(provider_id: str) -> bool:
     return (provider_id or "") in OPLATA_PROVIDERS
 
 
+def _disable_duplicate_invoice(account_id: int, invoice_number: str) -> None:
+    """Hide a duplicate-shape row (kept in DB with its history for audit)."""
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT id, pay_status, amount_mdl FROM invoices
+               WHERE account_id = ? AND invoice_number = ? AND status != 'disabled'""",
+            (account_id, invoice_number),
+        ).fetchone()
+        if row is None:
+            return
+        conn.execute(
+            "UPDATE invoices SET status = 'disabled', updated_at = datetime('now') WHERE id = ?",
+            (row["id"],),
+        )
+        conn.execute(
+            """INSERT INTO invoice_history
+               (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
+               VALUES (?, ?, ?, ?, ?)""",
+            (row["id"], row["pay_status"], row["amount_mdl"], _now_str(), "duplicat: aceeasi factura in alta forma"),
+        )
+
+
 def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
     """Persist all invoices returned by a provider (falling back to last_invoice).
 
@@ -526,18 +549,67 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
     single provider check may now update several historic invoices at once.
     For oplata.md-backed providers the answer is the full current debt list,
     so previously-unpaid invoices missing from it are closed as PAID.
+
+    Oplata answers come in two shapes for the same debt — per-bill rows and
+    one collapsed `{PROVIDER}-{contract}` row. When the collapsed row carries
+    the amount of an already-open per-bill row it is the SAME bill twice:
+    the per-bill row wins and the duplicate is retired.
     Returns (newly_created_ids, all_saved_ids).
     """
     invoices = getattr(data, "invoices", None)
     if not invoices:
         last = getattr(data, "last_invoice", None)
         invoices = [last] if last is not None else []
+    with _conn() as conn:
+        acc = conn.execute(
+            "SELECT provider, contract_number FROM accounts WHERE id = ?", (account_id,)
+        ).fetchone()
+    provider = (acc["provider"] or "") if acc else ""
+    contract = (acc["contract_number"] or "") if acc else ""
+    oplata = bool(getattr(data, "is_connected", False)) and _is_oplata_provider(provider)
+
+    # Open rows, to detect a collapsed single-form answer duplicating them.
+    open_rows: list[dict] = []
+    if oplata and invoices:
+        with _conn() as conn:
+            open_rows = [
+                dict(r)
+                for r in conn.execute(
+                    """SELECT invoice_number, amount_mdl FROM invoices
+                       WHERE account_id = ? AND status != 'disabled' AND pay_status != 'PAID'""",
+                    (account_id,),
+                ).fetchall()
+            ]
+
+    nonzero = [inv for inv in invoices if float(getattr(inv, "amount_mdl", 0) or 0) > 0]
+    skip_numbers: set[str] = set()
+    seen_extra: set[str] = set()
+    disable_numbers: set[str] = set()
+    if oplata and len(nonzero) == 1 and open_rows and provider and contract:
+        s = nonzero[0]
+        s_num = (getattr(s, "invoice_number", "") or "")
+        s_amt = float(getattr(s, "amount_mdl", 0) or 0)
+        if s_num == f"{provider.upper()}-{contract}":
+            splits = [r for r in open_rows if (r["invoice_number"] or "") != s_num]
+            if splits:
+                total = round(sum(float(r["amount_mdl"] or 0) for r in splits), 2)
+                matched = [r for r in splits if abs(float(r["amount_mdl"] or 0) - s_amt) < 0.005]
+                if matched and abs(total - s_amt) >= 0.005:
+                    for r in matched:
+                        seen_extra.add(r["invoice_number"] or "")
+                    skip_numbers.add(s_num)
+                    disable_numbers.add(s_num)
+                # else: collapsed view (single == sum of splits) or genuinely
+                # new debt → normal path below.
+
     saved: list[int] = []
     created: list[int] = []
-    current_numbers: set[str] = set()
+    current_numbers: set[str] = set(seen_extra)
     for inv in invoices:
         number = (getattr(inv, "invoice_number", "") or "")
-        if number:
+        if not number or number in skip_numbers:
+            continue
+        if float(getattr(inv, "amount_mdl", 0) or 0) > 0:
             current_numbers.add(number)
         inv_id, is_new = upsert_invoice_from_provider(account_id, inv)
         if inv_id is not None:
@@ -545,24 +617,19 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
             if is_new:
                 created.append(inv_id)
 
+    for num in disable_numbers:
+        _disable_duplicate_invoice(account_id, num)
+
     # INFOSAPR ("summed invoice") providers emit a single cumulative total that
     # already contains any previously-invoiced amount. Keep only the newest
     # unpaid invoice: deactivate the superseded ones so old + new do not both
     # count toward the balance.
-    with _conn() as conn:
-        acc = conn.execute(
-            "SELECT provider FROM accounts WHERE id = ?", (account_id,)
-        ).fetchone()
     if acc is not None and (acc["provider"] or "") == "infosapr" and saved:
         _deactivate_superseded_infosapr(account_id, saved)
 
-    # Oplata providers: close stale unpaid rows missing from this (successful)
-    # verification as PAID — paid, not found, or verified at 0.00.
-    if (
-        getattr(data, "is_connected", False)
-        and acc is not None
-        and _is_oplata_provider(acc["provider"] or "")
-    ):
+    # Oplata providers: close stale unpaid rows missing from this (successful,
+    # non-empty) verification as PAID — paid, not found, or verified at 0.00.
+    if oplata and invoices:
         _mark_missing_oplata_paid(account_id, current_numbers)
 
     return created, saved
