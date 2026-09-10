@@ -690,3 +690,31 @@ def dashboard_stats(user_id: int) -> dict:
         "by_status": by_status,
         "generated_at": datetime.now(),
     }
+
+
+def dashboard_tables(user_id: int, limit_paid: int = 20, limit_unpaid: int = 50) -> dict:
+    """Paid + unpaid invoice rows for the dashboard tables (newest first)."""
+    base = (
+        "SELECT inv.invoice_number, inv.amount_mdl, inv.pay_status, "
+        "inv.checked_at, inv.issue_date, "
+        "a.label AS account_label, a.provider AS provider, "
+        "h.name AS home_name "
+        "FROM invoices inv JOIN accounts a ON a.id = inv.account_id "
+        "LEFT JOIN homes h ON h.id = a.home_id "
+        "WHERE a.user_id = ? AND inv.status = 'enabled' AND a.status = 'enabled' "
+    )
+    with _conn() as conn:
+        unpaid = conn.execute(
+            base
+            + "AND inv.pay_status IN ('UNPAID','OVERDUE','PARTIALLY_PAID') "
+            "AND inv.amount_mdl > 0 "
+            "ORDER BY COALESCE(inv.due_date, inv.issue_date) DESC LIMIT ?",
+            (user_id, int(limit_unpaid)),
+        ).fetchall()
+        paid = conn.execute(
+            base
+            + "AND inv.pay_status = 'PAID' "
+            "ORDER BY COALESCE(inv.checked_at, inv.issue_date) DESC LIMIT ?",
+            (user_id, int(limit_paid)),
+        ).fetchall()
+    return {"unpaid": [dict(r) for r in unpaid], "paid": [dict(r) for r in paid]}

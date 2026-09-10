@@ -85,6 +85,7 @@ from ..services.settings import (
 from ..services import app_content as app_content_svc
 from ..services.sync import (
     dashboard_stats,
+    dashboard_tables,
     enqueue_invoice_job,
     job_info,
     list_invoice_jobs,
@@ -945,6 +946,7 @@ async def dashboard(request: Request, user_id: int | None = Depends(optional_aut
             request,
             homes=list_homes(user_id),
             stats=dashboard_stats(user_id),
+            tables=dashboard_tables(user_id),
         ),
     )
 

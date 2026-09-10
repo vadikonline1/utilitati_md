@@ -135,6 +135,22 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
     return sorted.slice(0, 5);
   }, [invoices]);
 
+  const unpaidTable = useMemo(() => {
+    return invoices
+      .filter((inv) => !isPaid(inv))
+      .sort((a, b) =>
+        String(a.due_date || a.issue_date || '').localeCompare(String(b.due_date || b.issue_date || '')),
+      );
+  }, [invoices]);
+
+  const paidTable = useMemo(() => {
+    return invoices
+      .filter(isPaid)
+      .sort((a, b) =>
+        String(b.checked_at || b.created_at || '').localeCompare(String(a.checked_at || a.created_at || '')),
+      );
+  }, [invoices]);
+
   const supportEnabled = t('dashboard', 'support_enabled') === '1';
 
   const onShowSupport = useCallback(async () => {
@@ -204,6 +220,57 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
             </View>
           ))
         )}
+      </Card>
+
+      <Card title={`Facturi neachitate (${unpaidTable.length})`}>
+        {unpaidTable.length === 0 ? (
+          <Text style={styles.muted}>{loading ? t('common', 'loading') : 'Nicio factură neachitată. Totul e la zi!'}</Text>
+        ) : (
+          unpaidTable.map((inv) => (
+            <Pressable
+              key={inv.id}
+              style={({ pressed }) => [styles.recentRow, pressed && styles.pressed]}
+              android_ripple={{ color: 'rgba(15,118,110,0.12)' }}
+              onPress={() => parentNav('AccountDetail', { id: inv.account_id, label: accountLabel.get(inv.account_id) || '' })}
+            >
+              <View style={styles.flex}>
+                <Text style={styles.recentTitle}>{inv.invoice_number || inv.period || t('invoices', 'default_title')}</Text>
+                <Text style={styles.muted}>{accountLabel.get(inv.account_id) || ''}</Text>
+              </View>
+              <View style={styles.invRight}>
+                <Text style={styles.amount}>{Number(inv.amount_mdl).toFixed(2)} {inv.currency}</Text>
+                <Text style={[styles.status, styles.unpaid]}>{t('invoices', 'unpaid')}</Text>
+              </View>
+            </Pressable>
+          ))
+        )}
+      </Card>
+
+      <Card title={`Facturi achitate (${paidTable.length})`}>
+        {paidTable.length === 0 ? (
+          <Text style={styles.muted}>{loading ? t('common', 'loading') : 'Nicio factură achitată încă.'}</Text>
+        ) : (
+          paidTable.slice(0, 10).map((inv) => (
+            <Pressable
+              key={inv.id}
+              style={({ pressed }) => [styles.recentRow, pressed && styles.pressed]}
+              android_ripple={{ color: 'rgba(15,118,110,0.12)' }}
+              onPress={() => parentNav('AccountDetail', { id: inv.account_id, label: accountLabel.get(inv.account_id) || '' })}
+            >
+              <View style={styles.flex}>
+                <Text style={styles.recentTitle}>{inv.invoice_number || inv.period || t('invoices', 'default_title')}</Text>
+                <Text style={styles.muted}>{accountLabel.get(inv.account_id) || ''}</Text>
+              </View>
+              <View style={styles.invRight}>
+                <Text style={styles.amount}>{Number(inv.amount_mdl).toFixed(2)} {inv.currency}</Text>
+                <Text style={[styles.status, styles.paid]}>{t('invoices', 'paid')}</Text>
+              </View>
+            </Pressable>
+          ))
+        )}
+        {paidTable.length > 10 ? (
+          <Text style={styles.muted}>+ alte {paidTable.length - 10} în tab-ul Facturi.</Text>
+        ) : null}
       </Card>
 
       <Card title="Facturi recente">
