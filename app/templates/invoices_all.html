@@ -5,7 +5,10 @@
   <div class="dash-head">
     <h1>{{ t('invoices_title') }}</h1>
     <div class="row-actions filter-bar">
-      <a class="btn ghost" href="/invoices">{{ t('invoices_all') }}</a>
+      {% set hqs = ('home_id=' ~ current_home.id ~ '&') if current_home else '' %}
+      <a class="btn{{ ' ghost' if status_filter }}" href="/invoices?{{ hqs }}">{{ t('invoices_tab_all') }}</a>
+      <a class="btn{{ ' ghost' if status_filter != 'unpaid' }}" href="/invoices?{{ hqs }}status=unpaid">{{ t('invoices_tab_unpaid') }}</a>
+      <a class="btn{{ ' ghost' if status_filter != 'paid' }}" href="/invoices?{{ hqs }}status=paid">{{ t('invoices_tab_paid') }}</a>
       {% if homes %}
         <form method="get" action="/invoices" class="inline-form filter-form">
           <select name="home_id" class="select" onchange="this.form.submit()">
@@ -79,12 +82,14 @@
   {% endif %}
   {% if total > 20 %}
     <nav class="pagination">
+      {% set pqs = ('home_id=' ~ current_home.id ~ '&') if current_home else '' %}
+      {% set pqs = pqs ~ ('status=' ~ status_filter ~ '&') if status_filter else pqs %}
       {% if page > 1 %}
-        <a class="btn small ghost" href="/invoices?home_id={{ current_home.id if current_home else '' }}&page={{ page - 1 }}">←</a>
+        <a class="btn small ghost" href="/invoices?{{ pqs }}page={{ page - 1 }}">←</a>
       {% endif %}
       <span class="page-info">{{ t('pagination_page') }} {{ page }} / {{ total_pages }}</span>
       {% if page < total_pages %}
-        <a class="btn small ghost" href="/invoices?home_id={{ current_home.id if current_home else '' }}&page={{ page + 1 }}">→</a>
+        <a class="btn small ghost" href="/invoices?{{ pqs }}page={{ page + 1 }}">→</a>
       {% endif %}
     </nav>
   {% endif %}
