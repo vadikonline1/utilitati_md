@@ -710,4 +710,4 @@ def dashboard_tables(user_id: int, limit: int = 50) -> dict:
             "THEN 0 ELSE 1 END, COALESCE(inv.checked_at, inv.issue_date) DESC LIMIT ?",
             (user_id, month, int(limit)),
         ).fetchall()
-    return {"items": [dict(r) for r in rows]}
+    return {"rows": [dict(r) for r in rows]}

@@ -1930,7 +1930,7 @@ async def invoice_refresh(
 @router.get("/invoices", response_class=HTMLResponse)
 async def invoices_all_page(
     request: Request,
-    home_id: int | None = None,
+    home_id: str | None = None,
     page: int = 1,
     job: int | None = None,
     a: int = 1,
@@ -1938,9 +1938,15 @@ async def invoices_all_page(
 ):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
+    # The "all homes" filter submits an empty home_id (?home_id=), which must
+    # not fail int parsing — treat empty/invalid values as "no filter".
+    try:
+        home_id_int = int(str(home_id).strip()) if str(home_id or "").strip() else None
+    except (TypeError, ValueError):
+        home_id_int = None
     if job is not None and not (job_info(job, user_id) or {}).get("finished"):
         _tw = make_translator(get_lang(request.cookies.get("lang")))
-        home_qs = f"home_id={home_id}&" if home_id else ""
+        home_qs = f"home_id={home_id_int}&" if home_id_int else ""
         return _job_wait_response(
             request,
             f"/invoices?{home_qs}job={job}&a={a + 1}",
@@ -1950,9 +1956,9 @@ async def invoices_all_page(
     _t = make_translator(get_lang(request.cookies.get("lang")))
     per_page = 20
     page = max(1, page)
-    accounts = list_accounts(user_id, home_id=home_id)
-    current_home = get_home(user_id, home_id) if home_id else None
-    all_invoices = list_invoices(user_id, home_id=home_id)
+    accounts = list_accounts(user_id, home_id=home_id_int)
+    current_home = get_home(user_id, home_id_int) if home_id_int else None
+    all_invoices = list_invoices(user_id, home_id=home_id_int)
     total = len(all_invoices)
     total_pages = max(1, (total + per_page - 1) // per_page)
     if page > total_pages:
