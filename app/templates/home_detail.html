@@ -161,16 +161,6 @@
       <label>{{ t('home_contract_number') }}
         <input type="text" name="contract_number" id="f_edit_contract" required>
       </label>
-      <div class="provider-edit-username" id="edit-account-username" hidden>
-        <label>{{ t('home_username') }}
-          <input type="text" name="username" id="f_edit_username" autocomplete="off">
-        </label>
-      </div>
-      <div class="provider-edit-password" id="edit-account-password" hidden>
-        <label>{{ t('home_password') }}
-          <input type="password" name="password" id="f_edit_password" autocomplete="off" placeholder="{{ t('account_password_keep') }}">
-        </label>
-      </div>
       <button type="submit">{{ t('account_save_changes') }}</button>
     </form>
   </div>
@@ -196,11 +186,6 @@ function openEditAccount(btn) {
   document.getElementById("edit-account-id").value = d.accountId;
   document.getElementById("f_edit_label").value = d.label || "";
   document.getElementById("f_edit_contract").value = d.contract || "";
-  document.getElementById("f_edit_username").value = d.username || "";
-  document.getElementById("f_edit_password").value = "";
-  const fields = (d.fields || "contract").split(",");
-  document.getElementById("edit-account-username").hidden = !fields.includes("username");
-  document.getElementById("edit-account-password").hidden = !fields.includes("password");
   document.getElementById("f_edit_contract").placeholder = d.accountLabel || "{{ t('home_contract_number') }}";
   document.getElementById("account-edit-form").action = "/homes/" + d.homeId + "/utilities/" + d.accountId + "/edit";
   openModal("modal-edit-account");
