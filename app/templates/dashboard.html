@@ -7,14 +7,14 @@
     <div class="row-actions">
   <div class="card">
     <h2>{{ t('dash_month_table') }}</h2>
-    {% if tables.items %}
+    {% if tables.rows %}
     <div class="data-list cols-3">
       <div class="dl-head">
         <div class="dl-cell">{{ t('dash_col_invoice') }}</div>
         <div class="dl-cell">{{ t('dash_col_account') }}</div>
         <div class="dl-cell">{{ t('dash_col_status') }}</div>
       </div>
-      {% for inv in tables.items %}
+      {% for inv in tables.rows %}
       <div class="dl-row">
         <div class="dl-cell" data-label="{{ t('dash_col_invoice') }}"><b>{{ inv.invoice_number }}</b><br><span class="muted">{{ inv.home_name or '' }} · {{ "%.2f"|format(inv.amount_mdl) }} MDL</span></div>
         <div class="dl-cell" data-label="{{ t('dash_col_account') }}">{{ inv.account_label or inv.provider }}</div>
