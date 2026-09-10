@@ -712,14 +712,37 @@ def update_invoice(user_id: int, invoice_id: int, data: dict[str, Any]) -> bool:
 
 
 def set_invoice_status(user_id: int, invoice_id: int, status: str) -> bool:
-    status = "enabled" if status == "enabled" else "disabled"
+    """Set an invoice payment mark or visibility.
+
+    'paid' -> is_paid=1, pay_status='PAID'; 'unpaid' -> reopened as UNPAID;
+    'enabled'/'disabled' -> visibility toggle (default disabled for safety).
+    """
+    key = (status or "").strip().lower()
     with _conn() as conn:
-        cur = conn.execute(
-            """UPDATE invoices SET status = ?, updated_at = datetime('now')
-               WHERE id = ? AND account_id IN
-               (SELECT id FROM accounts WHERE user_id = ?)""",
-            (status, invoice_id, user_id),
-        )
+        if key == "paid":
+            cur = conn.execute(
+                """UPDATE invoices SET is_paid = 1, pay_status = 'PAID',
+                   checked_at = datetime('now'), updated_at = datetime('now')
+                   WHERE id = ? AND account_id IN
+                   (SELECT id FROM accounts WHERE user_id = ?)""",
+                (invoice_id, user_id),
+            )
+        elif key == "unpaid":
+            cur = conn.execute(
+                """UPDATE invoices SET is_paid = 0, pay_status = 'UNPAID',
+                   updated_at = datetime('now')
+                   WHERE id = ? AND account_id IN
+                   (SELECT id FROM accounts WHERE user_id = ?)""",
+                (invoice_id, user_id),
+            )
+        else:
+            vis = "enabled" if key == "enabled" else "disabled"
+            cur = conn.execute(
+                """UPDATE invoices SET status = ?, updated_at = datetime('now')
+                   WHERE id = ? AND account_id IN
+                   (SELECT id FROM accounts WHERE user_id = ?)""",
+                (vis, invoice_id, user_id),
+            )
         return cur.rowcount > 0
 
 

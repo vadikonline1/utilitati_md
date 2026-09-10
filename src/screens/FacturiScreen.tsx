@@ -104,6 +104,15 @@ export default function FacturiScreen() {
     }
   };
 
+  const setStatus = async (inv: Invoice, status: 'enabled' | 'disabled') => {
+    try {
+      await setInvoiceStatus(inv.id, status);
+      await load();
+    } catch (e) {
+      Alert.alert('Eroare', e instanceof ApiError ? e.message : t('invoices', 'error_save'));
+    }
+  };
+
   const remove = async (inv: Invoice) => {
     Alert.alert(t('invoices', 'delete_title'), t('invoices', 'delete_confirm'), [
       { text: t('common', 'cancel'), style: 'cancel' },
@@ -124,6 +133,8 @@ export default function FacturiScreen() {
 
   const renderInvoice = ({ item }: { item: Invoice }) => {
     const paid = item.is_paid === 1 || item.pay_status === 'PAID';
+    const disabled = item.status === 'disabled';
+    const showDelete = paid || disabled;
     return (
       <Card style={styles.invoice}>
         <View style={styles.row}>
@@ -137,6 +148,9 @@ export default function FacturiScreen() {
             {item.due_date ? (
               <Text style={styles.muted}>{t('invoices', 'due', { value: item.due_date })}</Text>
             ) : null}
+            {item.checked_at ? (
+              <Text style={styles.muted}>{t('invoices', 'checked_at', { value: item.checked_at })}</Text>
+            ) : null}
           </View>
           <View style={styles.invRight}>
             <Text style={styles.amount}>
@@ -146,22 +160,45 @@ export default function FacturiScreen() {
               {paid ? t('invoices', 'paid') : t('invoices', 'unpaid')}
             </Text>
             <View style={styles.actions}>
-              {!paid ? (
+              {!paid && !disabled ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.iconBtn}
+                    onPress={() => markPaid(item)}
+                    accessibilityLabel={t('invoices', 'mark_paid')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={22} color={colors.success} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconBtn}
+                    onPress={() => setStatus(item, 'disabled')}
+                    accessibilityLabel={t('invoices', 'disable')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="eye-off-outline" size={22} color={colors.warning} />
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              {disabled ? (
                 <TouchableOpacity
                   style={styles.iconBtn}
-                  onPress={() => markPaid(item)}
+                  onPress={() => setStatus(item, 'enabled')}
+                  accessibilityLabel={t('invoices', 'enable')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name="checkmark-circle-outline" size={22} color={colors.success} />
+                  <Ionicons name="eye-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>
               ) : null}
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => remove(item)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="trash-outline" size={22} color={colors.danger} />
-              </TouchableOpacity>
+              {showDelete ? (
+                <TouchableOpacity
+                  style={styles.iconBtn}
+                  onPress={() => remove(item)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="trash-outline" size={22} color={colors.danger} />
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         </View>

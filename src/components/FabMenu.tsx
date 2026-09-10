@@ -33,10 +33,10 @@ export default function FabMenu({ items, onPressItem }: Props) {
                 onPressItem(item);
               }}
             >
-              <Text style={styles.itemLabel}>{item.label}</Text>
               <View style={styles.itemIcon}>
                 <Ionicons name={item.icon as any} size={20} color={colors.primary} />
               </View>
+              <Text style={styles.itemLabel}>{item.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -59,27 +59,17 @@ const styles = StyleSheet.create({
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
     borderRadius: radii.pill,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingLeft: spacing.md,
-    paddingRight: 6,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     elevation: 4,
-    minWidth: 150,
-    justifyContent: 'flex-end',
   },
   itemPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
-  itemLabel: { fontSize: 14, fontWeight: '600', color: colors.text, fontFamily, marginRight: spacing.sm },
-  itemIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  itemLabel: { fontSize: 14, fontWeight: '600', color: colors.text, fontFamily, marginLeft: spacing.sm },
+  itemIcon: { alignItems: 'center', justifyContent: 'center' },
   fab: {
     width: 56,
     height: 56,

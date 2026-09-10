@@ -17,11 +17,13 @@ import {
   Account,
   ApiError,
   accountInvoices,
+  deleteInvoice,
   invoiceHistory,
   Invoice,
   InvoiceHistoryEntry,
   listAccounts,
   refreshAccount,
+  setInvoiceStatus,
 } from '../api/client';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -39,6 +41,77 @@ interface Props {
     setOptions: (opts: object) => void;
   };
   route: RouteProp<ParamList, 'AccountDetail'>;
+}
+
+function InvoiceDetail({
+  inv,
+  onPaid,
+  onDisable,
+  onEnable,
+  onDelete,
+}: {
+  inv: Invoice;
+  onPaid: () => void;
+  onDisable: () => void;
+  onEnable: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useContent();
+  const paid = inv.is_paid === 1 || inv.pay_status === 'PAID';
+  const disabled = (inv as { status?: string }).status === 'disabled';
+  return (
+    <View style={styles.detailBox}>
+      <Text style={styles.detailAmount}>
+        {Number(inv.amount_mdl).toFixed(2)} {inv.currency || 'MDL'}
+      </Text>
+      <Text style={[styles.detailStatus, paid ? styles.paid : styles.unpaid]}>
+        {paid ? t('invoices', 'paid') : t('invoices', 'unpaid')}
+        {disabled ? ' · dezactivată' : ''}
+      </Text>
+      {inv.period ? (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Perioada</Text>
+          <Text style={styles.detailValue}>{inv.period}</Text>
+        </View>
+      ) : null}
+      {inv.issue_date ? (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Emisă</Text>
+          <Text style={styles.detailValue}>{inv.issue_date}</Text>
+        </View>
+      ) : null}
+      {inv.due_date ? (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Scadență</Text>
+          <Text style={styles.detailValue}>{inv.due_date}</Text>
+        </View>
+      ) : null}
+      <View style={styles.detailRow}>
+        <Text style={styles.detailLabel}>Ultima verificare</Text>
+        <Text style={styles.detailValue}>{inv.checked_at || '—'}</Text>
+      </View>
+      {inv.external_invoice_id ? (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>ID extern</Text>
+          <Text style={styles.detailValue}>{inv.external_invoice_id}</Text>
+        </View>
+      ) : null}
+      <View style={styles.detailActions}>
+        {!paid && !disabled ? (
+          <>
+            <Button title={t('invoices', 'mark_paid')} onPress={onPaid} style={styles.detailBtn} />
+            <Button title={t('invoices', 'disable')} variant="ghost" onPress={onDisable} style={styles.detailBtn} />
+          </>
+        ) : null}
+        {disabled ? (
+          <Button title={t('invoices', 'enable')} variant="ghost" onPress={onEnable} style={styles.detailBtn} />
+        ) : null}
+        {paid || disabled ? (
+          <Button title={t('invoices', 'delete_title')} variant="danger" onPress={onDelete} style={styles.detailBtn} />
+        ) : null}
+      </View>
+    </View>
+  );
 }
 
 export default function AccountDetailScreen({ navigation, route }: Props) {
@@ -121,6 +194,27 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
     } finally {
       setHistoryLoading(false);
     }
+  };
+
+  const invoiceAction = async (inv: Invoice, kind: 'paid' | 'disabled' | 'enabled' | 'delete') => {
+    try {
+      if (kind === 'delete') {
+        await deleteInvoice(inv.id);
+      } else {
+        await setInvoiceStatus(inv.id, kind);
+      }
+      setHistoryInv(null);
+      await load();
+    } catch (e) {
+      Alert.alert('Eroare', e instanceof ApiError ? e.message : t('account_detail', 'error_save'));
+    }
+  };
+
+  const confirmDelete = (inv: Invoice) => {
+    Alert.alert(t('invoices', 'delete_title'), t('invoices', 'delete_confirm'), [
+      { text: t('common', 'cancel'), style: 'cancel' },
+      { text: t('common', 'delete'), style: 'destructive', onPress: () => invoiceAction(inv, 'delete') },
+    ]);
   };
 
   const historyLabel = (status: string) => {
@@ -220,12 +314,19 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
       <Modal visible={historyInv != null} transparent animationType="slide">
         <View style={styles.modalWrap}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{t('account_detail', 'history_title')}</Text>
+            <Text style={styles.modalTitle}>
+              {historyInv?.invoice_number || t('invoices', 'default_title')}
+            </Text>
             {historyInv ? (
-              <Text style={styles.muted}>
-                {historyInv.invoice_number || t('invoices', 'default_title')}
-              </Text>
+              <InvoiceDetail
+                inv={historyInv}
+                onPaid={() => invoiceAction(historyInv, 'paid')}
+                onDisable={() => invoiceAction(historyInv, 'disabled')}
+                onEnable={() => invoiceAction(historyInv, 'enabled')}
+                onDelete={() => confirmDelete(historyInv)}
+              />
             ) : null}
+            <Text style={[styles.modalTitle, styles.historyTitle]}>{t('account_detail', 'history_title')}</Text>
             <ScrollView>
               {historyLoading ? (
                 <Text style={styles.empty}>{t('common', 'loading')}</Text>
@@ -284,6 +385,22 @@ const styles = StyleSheet.create({
   },
   modal: { backgroundColor: colors.card, borderRadius: 16, padding: spacing.xl, maxHeight: '80%' },
   modalTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  historyTitle: { fontSize: 16, marginTop: spacing.md },
+  detailBox: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  detailAmount: { fontSize: 24, fontWeight: '800', color: colors.text, textAlign: 'center' },
+  detailStatus: { fontSize: 14, fontWeight: '700', textAlign: 'center', marginTop: spacing.xs },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
+  detailLabel: { fontSize: 14, color: colors.muted },
+  detailValue: { fontSize: 14, fontWeight: '600', color: colors.text, marginLeft: spacing.md, textAlign: 'right', flexShrink: 1 },
+  detailActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  detailBtn: { flex: 1, minWidth: '45%' },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
