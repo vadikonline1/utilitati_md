@@ -236,6 +236,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
         "invoices_title": "My invoices",
         "invoices_all": "All",
+        "invoices_tab_all": "All",
+        "invoices_tab_unpaid": "Unpaid",
+        "invoices_tab_paid": "Paid",
         "invoices_for_home": "Invoices for home:",
         "invoices_column_utility": "Utility",
         "invoices_column_home": "Home",
@@ -535,6 +538,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
         "invoices_title": "Мои счета",
         "invoices_all": "Все",
+        "invoices_tab_all": "Все",
+        "invoices_tab_unpaid": "Неоплаченные",
+        "invoices_tab_paid": "Оплаченные",
         "invoices_for_home": "Счета для жилья:",
         "invoices_column_utility": "Услуга",
         "invoices_column_home": "Жильё",
@@ -835,6 +841,9 @@ TRANSLATIONS["ro"] = {
 
     "invoices_title": "Facturile mele",
     "invoices_all": "Toate",
+    "invoices_tab_all": "Toate",
+    "invoices_tab_unpaid": "Neachitate",
+    "invoices_tab_paid": "Achitate",
     "invoices_for_home": "Facturi pentru locuința:",
     "invoices_column_utility": "Utilitate",
     "invoices_column_home": "Locuință",

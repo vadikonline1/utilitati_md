@@ -271,7 +271,13 @@ def list_invoices(
     user_id: int,
     account_id: int | None = None,
     home_id: int | None = None,
+    pay_status_filter: str | None = None,
 ) -> list[dict[str, Any]]:
+    """Invoices for the user (optionally scoped), unpaid first.
+
+    pay_status_filter: None (all), 'unpaid' (UNPAID/OVERDUE/PARTIALLY_PAID),
+    or 'paid' (PAID only).
+    """
     query = """
         SELECT inv.*, a.label AS account_label, a.icon AS account_icon,
                a.home_id AS home_id, a.provider AS provider,
@@ -289,7 +295,13 @@ def list_invoices(
     if home_id is not None:
         query += " AND a.home_id = ?"
         conds.append(home_id)
-    query += " ORDER BY inv.issue_date DESC, inv.id DESC"
+    if pay_status_filter == "unpaid":
+        query += " AND inv.pay_status IN ('UNPAID','OVERDUE','PARTIALLY_PAID')"
+    elif pay_status_filter == "paid":
+        query += " AND inv.pay_status = 'PAID'"
+    query += """ ORDER BY CASE WHEN inv.pay_status IN
+                ('UNPAID','OVERDUE','PARTIALLY_PAID') THEN 0 ELSE 1 END,
+                inv.issue_date DESC, inv.id DESC"""
     with _conn() as conn:
         rows = conn.execute(query, conds).fetchall()
     return [_decode_invoice(dict(r)) for r in rows]

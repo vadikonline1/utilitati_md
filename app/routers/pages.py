@@ -1934,6 +1934,7 @@ async def invoices_all_page(
     page: int = 1,
     job: int | None = None,
     a: int = 1,
+    status: str | None = None,
     user_id: int | None = Depends(optional_auth_token),
 ):
     if user_id is None:
@@ -1944,12 +1945,14 @@ async def invoices_all_page(
         home_id_int = int(str(home_id).strip()) if str(home_id or "").strip() else None
     except (TypeError, ValueError):
         home_id_int = None
+    status_filter = status if status in ("unpaid", "paid") else None
     if job is not None and not (job_info(job, user_id) or {}).get("finished"):
         _tw = make_translator(get_lang(request.cookies.get("lang")))
         home_qs = f"home_id={home_id_int}&" if home_id_int else ""
+        status_qs = f"status={status_filter}&" if status_filter else ""
         return _job_wait_response(
             request,
-            f"/invoices?{home_qs}job={job}&a={a + 1}",
+            f"/invoices?{home_qs}{status_qs}job={job}&a={a + 1}",
             a,
             _tw("invoice_checking_all"),
         )
@@ -1958,7 +1961,7 @@ async def invoices_all_page(
     page = max(1, page)
     accounts = list_accounts(user_id, home_id=home_id_int)
     current_home = get_home(user_id, home_id_int) if home_id_int else None
-    all_invoices = list_invoices(user_id, home_id=home_id_int)
+    all_invoices = list_invoices(user_id, home_id=home_id_int, pay_status_filter=status_filter)
     total = len(all_invoices)
     total_pages = max(1, (total + per_page - 1) // per_page)
     if page > total_pages:
@@ -1987,6 +1990,7 @@ async def invoices_all_page(
             accounts=accounts,
             homes=list_homes(user_id),
             current_home=current_home,
+            status_filter=status_filter,
             page=page,
             total_pages=total_pages,
             total=total,

@@ -41,21 +41,22 @@
           </div>
           <div class="dl-cell" data-label="{{ t('invoice_checked_at') }}">{{ inv.checked_at or '—' }}</div>
           <div class="dl-cell row-actions">
-            {% if inv.status == 'enabled' %}
+            {% if inv.status == 'enabled' and inv.pay_status != 'PAID' %}
               <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
                 <input type="hidden" name="status" value="disabled">
                 <button type="submit" class="btn small">{{ t('invoice_disable') }}</button>
               </form>
             {% else %}
-              <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
-                <input type="hidden" name="status" value="enabled">
-                <button type="submit" class="btn small">{{ t('invoice_enable') }}</button>
+              {% if inv.status == 'disabled' %}
+                <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
+                  <input type="hidden" name="status" value="enabled">
+                  <button type="submit" class="btn small">{{ t('invoice_enable') }}</button>
+                </form>
+              {% endif %}
+              <form method="post" action="/invoices/{{ inv.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('invoice_delete_confirm') }}')">
+                <button type="submit" class="btn-danger small">{{ t('invoice_delete') }}</button>
               </form>
             {% endif %}
-
-            <form method="post" action="/invoices/{{ inv.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('invoice_delete_confirm') }}')">
-              <button type="submit" class="btn-danger small">{{ t('invoice_delete') }}</button>
-            </form>
           </div>
         </div>
       {% endfor %}
