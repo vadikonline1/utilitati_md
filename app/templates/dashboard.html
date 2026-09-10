@@ -5,29 +5,7 @@
   <div class="dash-head">
     <h1>{{ t('dash_welcome') }}</h1>
     <div class="row-actions">
-  <div class="card">
-    <h2>{{ t('dash_month_table') }}</h2>
-    {% if tables.rows %}
-    <div class="data-list cols-3">
-      <div class="dl-head">
-        <div class="dl-cell">{{ t('dash_col_invoice') }}</div>
-        <div class="dl-cell">{{ t('dash_col_account') }}</div>
-        <div class="dl-cell">{{ t('dash_col_status') }}</div>
-      </div>
-      {% for inv in tables.rows %}
-      <div class="dl-row">
-        <div class="dl-cell" data-label="{{ t('dash_col_invoice') }}"><b>{{ inv.invoice_number }}</b><br><span class="muted">{{ inv.home_name or '' }} · {{ "%.2f"|format(inv.amount_mdl) }} MDL</span></div>
-        <div class="dl-cell" data-label="{{ t('dash_col_account') }}">{{ inv.account_label or inv.provider }}</div>
-        <div class="dl-cell" data-label="{{ t('dash_col_status') }}"><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="field-hint">{{ t('dash_no_data') }}</p>
-    {% endif %}
-  </div>
-
-  {% if homes %}
+      {% if homes %}
         <a class="btn ghost" href="/invoices">+ {{ t('home_connect_utility') }}</a>
       {% endif %}
       <a class="btn" href="/homes">{{ t('dash_add_home') }}</a>
@@ -72,6 +50,30 @@
   {% else %}
     <div class="empty"><p>{{ t('dash_connect_first') }}</p></div>
   {% endif %}
+
+  <div class="card">
+    <h2>{{ t('dash_month_table') }}</h2>
+    {% if tables.rows %}
+    <div class="data-list cols-4">
+      <div class="dl-head">
+        <div class="dl-cell">{{ t('dash_col_invoice') }}</div>
+        <div class="dl-cell">{{ t('dash_col_account') }}</div>
+        <div class="dl-cell">{{ t('dash_col_status') }}</div>
+        <div class="dl-cell">{{ t('homes_details') }}</div>
+      </div>
+      {% for inv in tables.rows %}
+      <div class="dl-row">
+        <div class="dl-cell" data-label="{{ t('dash_col_invoice') }}"><b>{{ inv.invoice_number }}</b><br><span class="muted">{{ inv.home_name or '' }} · {{ "%.2f"|format(inv.amount_mdl) }} MDL</span></div>
+        <div class="dl-cell" data-label="{{ t('dash_col_account') }}">{{ inv.account_label or inv.provider }}</div>
+        <div class="dl-cell" data-label="{{ t('dash_col_status') }}"><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></div>
+        <div class="dl-cell row-actions"><a class="btn small" href="/accounts/{{ inv.account_id }}/invoices">{{ t('homes_details') }}</a></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="field-hint">{{ t('dash_no_data') }}</p>
+    {% endif %}
+  </div>
 
   {% if homes %}
     <div class="home-grid">
