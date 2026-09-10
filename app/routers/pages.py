@@ -1822,7 +1822,7 @@ async def utility_edit_submit(
     data = {
         "home_id": home_id,
         "provider": provider,
-        "label": str(form.get("label") or "").strip() or meta.get("name", provider),
+        "label": str(form.get("label") or "").strip() or account.get("label") or meta.get("name", provider),
         "contract_number": contract_number,
         "icon": meta.get("icon", account.get("icon", "📄")),
         "username": account.get("username"),
@@ -1940,9 +1940,10 @@ async def invoices_all_page(
         return RedirectResponse("/login", status_code=303)
     if job is not None and not (job_info(job, user_id) or {}).get("finished"):
         _tw = make_translator(get_lang(request.cookies.get("lang")))
+        home_qs = f"home_id={home_id}&" if home_id else ""
         return _job_wait_response(
             request,
-            f"/invoices?job={job}&a={a + 1}",
+            f"/invoices?{home_qs}job={job}&a={a + 1}",
             a,
             _tw("invoice_checking_all"),
         )
@@ -2026,7 +2027,8 @@ async def invoices_generate(
     # the fresh result once the job finishes.
     if account_id is None and job_id and back == "/invoices":
         return RedirectResponse(f"/invoices?job={job_id}", status_code=303)
-    return RedirectResponse(f"{back}?generated=1&queued=1", status_code=303)
+    sep = "&" if "?" in back else "?"
+    return RedirectResponse(f"{back}{sep}generated=1&queued=1", status_code=303)
 
 
 @router.post("/invoices/{invoice_id}/status")

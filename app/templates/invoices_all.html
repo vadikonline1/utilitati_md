@@ -39,10 +39,10 @@
     <div class="data-list cols-9">
       <div class="dl-head">
         <div class="dl-cell">{{ t('invoices_column_utility') }}</div>
+        <div class="dl-cell">{{ t('home_contract_number') }}</div>
         <div class="dl-cell">{{ t('invoices_column_home') }}</div>
         <div class="dl-cell">{{ t('invoice_number') }}</div>
         <div class="dl-cell">{{ t('invoice_amount') }}</div>
-        <div class="dl-cell">{{ t('invoice_period') }}</div>
         <div class="dl-cell">{{ t('invoice_issued') }}</div>
         <div class="dl-cell">{{ t('invoice_due') }}</div>
         <div class="dl-cell">{{ t('homes_status') }}</div>
@@ -51,10 +51,10 @@
       {% for inv in invoices %}
         <div class="dl-row {{ 'row-disabled' if inv.status == 'disabled' }}">
           <div class="dl-cell" data-label="{{ t('invoices_column_utility') }}">{{ inv.account_icon or '' }} {{ inv.account_label or ('—') }}</div>
+          <div class="dl-cell" data-label="{{ t('home_contract_number') }}">{{ inv.contract_number or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoices_column_home') }}">{{ inv.home_name or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoice_number') }}">{{ inv.invoice_number or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoice_amount') }}">{{ inv.amount_mdl }} {{ inv.currency or 'MDL' }}</div>
-          <div class="dl-cell" data-label="{{ t('invoice_period') }}">{{ inv.period or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoice_issued') }}">{{ inv.issue_date or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoice_due') }}">{{ inv.due_date or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('homes_status') }}"><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></div>
@@ -147,7 +147,7 @@
       </label>
       <p class="field-hint">{{ t('account_provider_readonly') }}</p>
       <label>{{ t('account_label_field') }}
-        <input type="text" name="label" id="f_edit_label">
+        <input type="text" name="label" id="f_edit_label" disabled>
       </label>
       <label>{{ t('home_contract_number') }}
         <input type="text" name="contract_number" id="f_edit_contract" required>

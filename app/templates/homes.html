@@ -35,16 +35,6 @@
           </div>
           <div class="dl-cell row-actions">
             <a class="btn small" href="/homes/{{ home.id }}">{{ t('homes_details') }}</a>
-            <button type="button" class="btn small ghost" onclick="openEditHome(this.closest('.dl-row'))">{{ t('homes_edit') }}</button>
-            <form method="post" action="/homes/{{ home.id }}/status" class="inline-form">
-              {% if home.status == 'enabled' %}
-                <input type="hidden" name="status" value="disabled">
-                <button type="submit" class="btn small">{{ t('homes_disable') }}</button>
-              {% else %}
-                <input type="hidden" name="status" value="enabled">
-                <button type="submit" class="btn small">{{ t('homes_enable') }}</button>
-              {% endif %}
-            </form>
             <a class="btn small" href="/invoices?home_id={{ home.id }}">{{ t('homes_invoices') }}</a>
           </div>
         </div>

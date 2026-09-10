@@ -6,54 +6,24 @@
     <h1>{{ t('dash_welcome') }}</h1>
     <div class="row-actions">
   <div class="card">
-    <h2>{{ t('dash_unpaid_table') }}</h2>
-    {% if tables.unpaid %}
-    <div class="data-list cols-5">
+    <h2>{{ t('dash_month_table') }}</h2>
+    {% if tables.items %}
+    <div class="data-list cols-3">
       <div class="dl-head">
         <div class="dl-cell">{{ t('dash_col_invoice') }}</div>
         <div class="dl-cell">{{ t('dash_col_account') }}</div>
-        <div class="dl-cell">{{ t('dash_col_amount') }}</div>
-        <div class="dl-cell">{{ t('dash_col_date') }}</div>
         <div class="dl-cell">{{ t('dash_col_status') }}</div>
       </div>
-      {% for inv in tables.unpaid %}
+      {% for inv in tables.items %}
       <div class="dl-row">
-        <div class="dl-cell" data-label="{{ t('dash_col_invoice') }}"><b>{{ inv.invoice_number }}</b><br><span class="muted">{{ inv.home_name or '' }}</span></div>
+        <div class="dl-cell" data-label="{{ t('dash_col_invoice') }}"><b>{{ inv.invoice_number }}</b><br><span class="muted">{{ inv.home_name or '' }} · {{ "%.2f"|format(inv.amount_mdl) }} MDL</span></div>
         <div class="dl-cell" data-label="{{ t('dash_col_account') }}">{{ inv.account_label or inv.provider }}</div>
-        <div class="dl-cell" data-label="{{ t('dash_col_amount') }}">{{ "%.2f"|format(inv.amount_mdl) }}</div>
-        <div class="dl-cell" data-label="{{ t('dash_col_date') }}">{{ (inv.checked_at or '')[:16] }}</div>
-        <div class="dl-cell" data-label="{{ t('dash_col_status') }}"><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('dash_status_unpaid') }}</span></div>
+        <div class="dl-cell" data-label="{{ t('dash_col_status') }}"><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></div>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <p class="field-hint">{{ t('dash_no_unpaid') }}</p>
-    {% endif %}
-  </div>
-
-  <div class="card">
-    <h2>{{ t('dash_paid_table') }}</h2>
-    {% if tables.paid %}
-    <div class="data-list cols-5">
-      <div class="dl-head">
-        <div class="dl-cell">{{ t('dash_col_invoice') }}</div>
-        <div class="dl-cell">{{ t('dash_col_account') }}</div>
-        <div class="dl-cell">{{ t('dash_col_amount') }}</div>
-        <div class="dl-cell">{{ t('dash_col_date') }}</div>
-        <div class="dl-cell">{{ t('dash_col_status') }}</div>
-      </div>
-      {% for inv in tables.paid %}
-      <div class="dl-row">
-        <div class="dl-cell" data-label="{{ t('dash_col_invoice') }}"><b>{{ inv.invoice_number }}</b><br><span class="muted">{{ inv.home_name or '' }}</span></div>
-        <div class="dl-cell" data-label="{{ t('dash_col_account') }}">{{ inv.account_label or inv.provider }}</div>
-        <div class="dl-cell" data-label="{{ t('dash_col_amount') }}">{{ "%.2f"|format(inv.amount_mdl) }}</div>
-        <div class="dl-cell" data-label="{{ t('dash_col_date') }}">{{ (inv.checked_at or '')[:16] }}</div>
-        <div class="dl-cell" data-label="{{ t('dash_col_status') }}"><span class="badge pay-paid">{{ t('dash_status_paid') }}</span></div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="field-hint">{{ t('dash_no_paid') }}</p>
+    <p class="field-hint">{{ t('dash_no_data') }}</p>
     {% endif %}
   </div>
 
