@@ -309,6 +309,10 @@ def enqueue_invoice_job(user_id: int, *, account_id: int | None = None) -> int:
     Inserting a row lets any worker (and any number of uvicorn workers) process
     it once, keeping oplata.md traffic serialized even when many users trigger a
     refresh at the same time. Returns the job id, or 0 when nothing to enqueue.
+
+    The same account is never queued twice: an already pending/running job for
+    the same (user, account) is reused so repeated clicks do not re-verify the
+    same contract over and over.
     """
     if account_id is not None:
         with _conn() as conn:
@@ -321,6 +325,22 @@ def enqueue_invoice_job(user_id: int, *, account_id: int | None = None) -> int:
     elif not list_user_enabled_accounts(user_id):
         return 0
     with _conn() as conn:
+        if account_id is None:
+            dup = conn.execute(
+                """SELECT id FROM invoice_jobs WHERE user_id = ?
+                   AND account_id IS NULL AND status IN ('pending','running')
+                   ORDER BY id DESC LIMIT 1""",
+                (user_id,),
+            ).fetchone()
+        else:
+            dup = conn.execute(
+                """SELECT id FROM invoice_jobs WHERE user_id = ? AND account_id = ?
+                   AND status IN ('pending','running')
+                   ORDER BY id DESC LIMIT 1""",
+                (user_id, account_id),
+            ).fetchone()
+        if dup is not None:
+            return int(dup["id"])
         cur = conn.execute(
             "INSERT INTO invoice_jobs (user_id, account_id, status) VALUES (?, ?, 'pending')",
             (user_id, account_id),
