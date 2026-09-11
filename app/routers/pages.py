@@ -1795,9 +1795,10 @@ async def utility_connect(
     new_account = get_account_row(user_id, acc_id)
     if new_account is not None:
         fetched = await fetch_account_data(new_account)
-        created_ids, _saved_ids = persist_invoices(acc_id, fetched)
-        if created_ids:
-            await _notify_invoices_found(user_id, new_account, fetched, created_ids, SITE_URL)
+        created_ids, changed_ids, _saved_ids = persist_invoices(acc_id, fetched)
+        new_ids = created_ids + changed_ids
+        if new_ids:
+            await _notify_invoices_found(user_id, new_account, fetched, new_ids, SITE_URL)
     return RedirectResponse(f"/homes/{home_id}?added={acc_id}", status_code=303)
 
 
