@@ -45,12 +45,13 @@ async def sync_all() -> dict:
                 # Nothing due — skip the provider call for already-paid accounts.
                 continue
             data = await utilities.fetch_account_data(account)
-            created, _saved = utilities.persist_invoices(account["id"], data)
-            if created:
+            created, changed, _saved = utilities.persist_invoices(account["id"], data)
+            new_ids = created + changed
+            if new_ids:
                 await notify.notify_new_invoices(
-                    account["user_id"], account, data, created, SITE_URL
+                    account["user_id"], account, data, new_ids, SITE_URL
                 )
-                await notify.send_push_new_invoices(account["user_id"], created)
+                await notify.send_push_new_invoices(account["user_id"], new_ids)
                 notified += 1
             if data.is_connected:
                 updated += 1
@@ -539,10 +540,11 @@ async def _process_job(job: dict) -> None:
                 # Nothing due — avoid an unnecessary provider call.
                 continue
             data = await utilities.fetch_account_data(account)
-            created, _saved = utilities.persist_invoices(account["id"], data)
-            if created:
-                all_new.extend(created)
-                await _notify_user_new_invoices(user_id, account, created)
+            created, changed, _saved = utilities.persist_invoices(account["id"], data)
+            new_ids = created + changed
+            if new_ids:
+                all_new.extend(new_ids)
+                await _notify_user_new_invoices(user_id, account, new_ids)
         if all_new:
             await notify.send_push_new_invoices(user_id, all_new)
         _finish_job(job["id"], True, f"accounts={len(accounts)}")

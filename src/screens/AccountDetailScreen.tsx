@@ -165,7 +165,7 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
           'Gata',
           t('account_detail', 'refresh_done', { unpaid: res.unpaid_balance_mdl }),
         );
-        const hasNew = (res.created_count ?? 0) > 0 || Boolean(res.balance_increased);
+        const hasNew = (res.created_count ?? 0) > 0 || (res.changed_count ?? 0) > 0 || Boolean(res.balance_increased);
         if (hasNew) {
           notifyNewInvoice(
             content.notifications?.new_invoice_title || 'Factură nouă 🔔',

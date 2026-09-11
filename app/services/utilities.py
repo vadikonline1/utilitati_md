@@ -378,17 +378,18 @@ def normalize_status(
     return INVOICE_STATUS_PAID if amount_mdl == 0 else INVOICE_STATUS_UNKNOWN
 
 
-def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | None, bool]:
+def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | None, bool, bool]:
     """Save an Invoice returned by a provider into the local store (deduped).
-    Appends a row to invoice_history on each provider check.
-    Returns (invoice_id | None, is_new) where is_new True only on first insert.
+    Appends a row to invoice_history only on first insert or on a real
+    amount/status change (identical re-verifications stay silent).
+    Returns (invoice_id | None, is_new, changed).
 
     Zero-amount invoices are never generated: when the provider verifies 0.00
     the invoice is considered absent/paid — an existing unpaid row is closed
     as PAID, otherwise nothing is stored.
     """
     if invoice is None:
-        return None, False
+        return None, False, False
     invoice_number = getattr(invoice, "invoice_number", "") or ""
     amount = float(getattr(invoice, "amount_mdl", 0) or 0)
     is_new = False
@@ -427,14 +428,14 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
                        VALUES (?, ?, ?, ?, ?)""",
                     (inv_id, INVOICE_STATUS_PAID, 0, checked_at, raw_response),
                 )
-                return inv_id, False
-            return None, False
+                return inv_id, False, False
+            return None, False, False
         if existing:
             inv_id = existing["id"]
             # Once an invoice is marked PAID it is final: do not overwrite it
             # with a later (possibly inconsistent) provider amount/status.
             if existing["pay_status"] == INVOICE_STATUS_PAID:
-                return inv_id, False
+                return inv_id, False, False
             # Log history only on a real change (status or amount): repeated
             # identical verifications (e.g. infosapr cumulative totals) must
             # not pile up duplicate rows. The row's checked_at stays fresh.
@@ -473,7 +474,7 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
                    VALUES (?, ?, ?, ?, ?)""",
                 (inv_id, pay_status, amount, checked_at, raw_response),
             )
-        return inv_id, is_new
+        return inv_id, is_new, changed
 
 
 def _deactivate_superseded_infosapr(account_id: int, keep_ids: list[int]) -> None:
@@ -563,7 +564,7 @@ def _disable_duplicate_invoice(account_id: int, invoice_number: str) -> None:
         )
 
 
-def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
+def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int], list[int]]:
     """Persist all invoices returned by a provider (falling back to last_invoice).
 
     Dedupes against the local store and appends invoice_history rows, so a
@@ -575,7 +576,9 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
     one collapsed `{PROVIDER}-{contract}` row. When the collapsed row carries
     the amount of an already-open per-bill row it is the SAME bill twice:
     the per-bill row wins and the duplicate is retired.
-    Returns (newly_created_ids, all_saved_ids).
+    Returns (newly_created_ids, changed_ids, all_saved_ids) where changed_ids
+    are existing rows with a new amount/status — treated as new invoices for
+    notifications.
     """
     invoices = getattr(data, "invoices", None)
     if not invoices:
@@ -625,6 +628,7 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
 
     saved: list[int] = []
     created: list[int] = []
+    changed: list[int] = []
     current_numbers: set[str] = set(seen_extra)
     for inv in invoices:
         number = (getattr(inv, "invoice_number", "") or "")
@@ -632,11 +636,13 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
             continue
         if float(getattr(inv, "amount_mdl", 0) or 0) > 0:
             current_numbers.add(number)
-        inv_id, is_new = upsert_invoice_from_provider(account_id, inv)
+        inv_id, is_new, was_changed = upsert_invoice_from_provider(account_id, inv)
         if inv_id is not None:
             saved.append(inv_id)
             if is_new:
                 created.append(inv_id)
+            elif was_changed:
+                changed.append(inv_id)
 
     for num in disable_numbers:
         _disable_duplicate_invoice(account_id, num)
@@ -653,7 +659,7 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int]]:
     if oplata and invoices:
         _mark_missing_oplata_paid(account_id, current_numbers)
 
-    return created, saved
+    return created, changed, saved
 
 
 def active_unpaid_balance(account_id: int) -> float:
