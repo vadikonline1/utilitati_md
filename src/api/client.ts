@@ -433,6 +433,7 @@ export function refreshAccount(
   unpaid_balance_mdl: number;
   invoice_count: number;
   created_count: number;
+  changed_count: number;
   balance_increased: boolean;
   invoices: Invoice[];
   last_invoice?: Invoice | null;
