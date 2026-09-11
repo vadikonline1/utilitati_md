@@ -270,7 +270,6 @@ jobs:
 
             **Versiune aplicație:** ${{ steps.version.outputs.app_version }}
             **Commit:** ${{ github.sha }}
-            **API URL:** https://utilitati.nistorlazar.md/api
 
             ### Android
             - `utilitati-md-<sha>.apk` — APK instalabil direct (debug-signed). Pentru update prin aplicație se folosește fetch-ul in-app.

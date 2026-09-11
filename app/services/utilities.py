@@ -407,9 +407,10 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
 
     with _conn() as conn:
         existing = conn.execute(
-            "SELECT id, pay_status FROM invoices WHERE account_id = ? AND invoice_number = ?",
+            "SELECT id, pay_status, amount_mdl FROM invoices WHERE account_id = ? AND invoice_number = ?",
             (account_id, invoice_number),
         ).fetchone()
+        changed = False
         if amount == 0:
             # 0.00 means "no debt present": close an existing unpaid row as
             # PAID, but never generate a new zero-amount invoice.
@@ -434,6 +435,13 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
             # with a later (possibly inconsistent) provider amount/status.
             if existing["pay_status"] == INVOICE_STATUS_PAID:
                 return inv_id, False
+            # Log history only on a real change (status or amount): repeated
+            # identical verifications (e.g. infosapr cumulative totals) must
+            # not pile up duplicate rows. The row's checked_at stays fresh.
+            changed = (
+                existing["pay_status"] != pay_status
+                or abs(float(existing["amount_mdl"] or 0) - amount) > 0.005
+            )
             conn.execute(
                 """UPDATE invoices SET amount_mdl = ?, currency = ?, period = ?,
                    issue_date = ?, due_date = ?, is_paid = ?, pay_status = ?,
@@ -458,12 +466,13 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
             inv_id = cur.lastrowid
             is_new = True
 
-        conn.execute(
-            """INSERT INTO invoice_history
-               (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
-               VALUES (?, ?, ?, ?, ?)""",
-            (inv_id, pay_status, amount, checked_at, raw_response),
-        )
+        if is_new or changed:
+            conn.execute(
+                """INSERT INTO invoice_history
+                   (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (inv_id, pay_status, amount, checked_at, raw_response),
+            )
         return inv_id, is_new
 
 
