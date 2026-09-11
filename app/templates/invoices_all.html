@@ -6,7 +6,7 @@
     <h1>{{ t('invoices_title') }}</h1>
     <div class="row-actions filter-bar">
       {% set hqs = ('home_id=' ~ current_home.id ~ '&') if current_home else '' %}
-      <a class="btn{{ ' ghost' if status_filter }}" href="/invoices?{{ hqs }}">{{ t('invoices_tab_all') }}</a>
+      <a class="btn{{ ' ghost' if status_filter }}" href="/invoices">{{ t('invoices_tab_all') }}</a>
       <a class="btn{{ ' ghost' if status_filter != 'unpaid' }}" href="/invoices?{{ hqs }}status=unpaid">{{ t('invoices_tab_unpaid') }}</a>
       <a class="btn{{ ' ghost' if status_filter != 'paid' }}" href="/invoices?{{ hqs }}status=paid">{{ t('invoices_tab_paid') }}</a>
       {% if homes %}
@@ -41,20 +41,20 @@
   {% if invoices %}
     <div class="data-list cols-7">
       <div class="dl-head">
-        <div class="dl-cell">{{ t('invoice_number') }}</div>
         <div class="dl-cell">{{ t('invoices_column_utility') }}</div>
         <div class="dl-cell">{{ t('home_contract_number') }}</div>
         <div class="dl-cell">{{ t('invoice_amount') }}</div>
+        <div class="dl-cell">{{ t('invoices_column_home') }}</div>
         <div class="dl-cell">{{ t('homes_status') }}</div>
         <div class="dl-cell">{{ t('invoice_checked_at') }}</div>
         <div class="dl-cell"></div>
       </div>
       {% for inv in invoices %}
         <div class="dl-row {{ 'row-disabled' if inv.status == 'disabled' }}">
-          <div class="dl-cell" data-label="{{ t('invoice_number') }}">{{ inv.invoice_number or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoices_column_utility') }}">{{ inv.account_icon or '' }} {{ inv.account_label or ('—') }}</div>
           <div class="dl-cell" data-label="{{ t('home_contract_number') }}">{{ inv.contract_number or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoice_amount') }}">{{ inv.amount_mdl }} {{ inv.currency or 'MDL' }}</div>
+          <div class="dl-cell" data-label="{{ t('invoices_column_home') }}">{{ inv.home_name or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('homes_status') }}"><span class="badge pay-{{ inv.pay_status|lower }}">{{ t('st_' ~ inv.pay_status|lower) }}</span></div>
           <div class="dl-cell" data-label="{{ t('invoice_checked_at') }}">{{ (inv.checked_at or '')[:16] or '—' }}</div>
           <div class="dl-cell row-actions">
