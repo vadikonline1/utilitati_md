@@ -43,6 +43,10 @@
           <div class="dl-cell row-actions">
             {% if inv.status == 'enabled' and inv.pay_status != 'PAID' %}
               <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
+                <input type="hidden" name="status" value="paid">
+                <button type="submit" class="btn small">{{ t('invoice_mark_paid') }}</button>
+              </form>
+              <form method="post" action="/invoices/{{ inv.id }}/status" class="inline-form">
                 <input type="hidden" name="status" value="disabled">
                 <button type="submit" class="btn small">{{ t('invoice_disable') }}</button>
               </form>
