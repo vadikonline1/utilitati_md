@@ -97,6 +97,7 @@ from ..services.sync import (
     request_manual_run,
 )
 from ..services.utilities import (
+    count_account_history,
     create_home,
     delete_account,
     delete_home,
@@ -107,6 +108,7 @@ from ..services.utilities import (
     get_invoice,
     get_notification_prefs,
     get_username,
+    list_account_history,
     list_accounts,
     list_homes,
     list_invoice_history,
@@ -1876,6 +1878,7 @@ async def invoice_page(
     request: Request,
     job: int | None = None,
     a: int = 1,
+    hpage: int = 1,
     user_id: int | None = Depends(optional_auth_token),
 ):
     if user_id is None:
@@ -1897,7 +1900,15 @@ async def invoice_page(
             a,
             f"{_tw('invoice_checking')} › {account['label']}",
         )
-    history = list_invoice_history(user_id, invoices[0]["id"]) if invoices else []
+    history_per_page = 20
+    hpage = max(1, hpage)
+    history_total = count_account_history(user_id, account_id)
+    history_pages = max(1, (history_total + history_per_page - 1) // history_per_page)
+    if hpage > history_pages:
+        hpage = history_pages
+    history = list_account_history(
+        user_id, account_id, limit=history_per_page, offset=(hpage - 1) * history_per_page
+    )
     last_check = ""
     for inv in invoices:
         if inv.get("checked_at") and inv["checked_at"] > last_check:
@@ -1909,6 +1920,9 @@ async def invoice_page(
             account=account,
             invoices=invoices,
             history=history,
+            hpage=hpage,
+            history_pages=history_pages,
+            history_total=history_total,
             last_check=last_check,
             provider_meta=PROVIDER_META.get(account["provider"], {}),
             refresh_error=None,

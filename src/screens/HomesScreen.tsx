@@ -59,13 +59,19 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
     (homeId: number) => {
       const accs = accounts.filter((a) => a.home_id === homeId);
       const ids = new Set(accs.map((a) => a.id));
+      const today = new Date().toISOString().slice(0, 10);
       let unpaidCount = 0;
       let unpaidSum = 0;
       let paidCount = 0;
+      let badCount = 0;
       for (const inv of invoices) {
         if (!ids.has(inv.account_id)) continue;
         const paid = inv.is_paid === 1 || inv.pay_status === 'PAID';
-        if (!paid) {
+        const cancelled = inv.pay_status === 'CANCELLED';
+        const overdue = !paid && !cancelled && !!inv.due_date && inv.due_date < today;
+        if (cancelled || overdue) {
+          badCount += 1;
+        } else if (!paid) {
           unpaidCount += 1;
           unpaidSum += Number(inv.amount_mdl) || 0;
         } else {
@@ -73,7 +79,7 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
         }
       }
       const labels = accs.map((a) => a.label || a.provider).filter(Boolean);
-      return { accounts: accs.length, unpaidCount, unpaidSum, paidCount, labels };
+      return { accounts: accs.length, unpaidCount, unpaidSum, paidCount, badCount, labels };
     },
     [accounts, invoices],
   );
@@ -103,22 +109,24 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
                 <Text style={styles.muted} numberOfLines={1}>{st.labels.join(' · ')}</Text>
               ) : null}
               <View style={styles.chips}>
-                {(item.unpaid_invoices ?? 0) > 0 || st.unpaidCount > 0 ? (
+                {st.badCount > 0 ? (
+                  <View style={[styles.chip, styles.chipBad]}>
+                    <Text style={[styles.chipText, styles.chipTextBad]}>{st.badCount}</Text>
+                  </View>
+                ) : null}
+                {st.unpaidCount > 0 ? (
                   <View style={[styles.chip, styles.chipWarn]}>
-                    <Text style={[styles.chipText, styles.chipTextWarn]}>
-                      {t('homes', 'unpaid_chip', { count: item.unpaid_invoices ?? st.unpaidCount })}
-                    </Text>
+                    <Text style={[styles.chipText, styles.chipTextWarn]}>{st.unpaidCount}</Text>
                   </View>
-                ) : (
-                  <View style={[styles.chip, styles.chipOk]}>
-                    <Text style={[styles.chipText, styles.chipTextOk]}>la zi</Text>
-                  </View>
-                )}
+                ) : null}
                 {st.paidCount > 0 ? (
                   <View style={[styles.chip, styles.chipOk]}>
-                    <Text style={[styles.chipText, styles.chipTextOk]}>
-                      {t('homes', 'paid_chip', { count: st.paidCount })}
-                    </Text>
+                    <Text style={[styles.chipText, styles.chipTextOk]}>{st.paidCount}</Text>
+                  </View>
+                ) : null}
+                {st.badCount === 0 && st.unpaidCount === 0 ? (
+                  <View style={[styles.chip, styles.chipOk]}>
+                    <Text style={[styles.chipText, styles.chipTextOk]}>la zi</Text>
                   </View>
                 ) : null}
               </View>
@@ -178,9 +186,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   chipWarn: { backgroundColor: '#fef3c7' },
+  chipBad: { backgroundColor: '#fee2e2' },
   chipOk: { backgroundColor: '#dcfce7' },
   chipText: { color: '#fff', fontSize: 13, fontWeight: '600' },
   chipTextWarn: { color: colors.warning },
+  chipTextBad: { color: colors.danger },
   chipTextOk: { color: colors.success },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xl },
 });

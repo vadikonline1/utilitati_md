@@ -80,20 +80,33 @@
   {% if history %}
     <div class="card" style="margin-top: 24px;">
       <h2>{{ t('invoice_checked_at') }}</h2>
-      <div class="data-list cols-3">
+      <div class="data-list cols-4">
         <div class="dl-head">
+          <div class="dl-cell">{{ t('invoice_number') }}</div>
           <div class="dl-cell">{{ t('homes_status') }}</div>
           <div class="dl-cell">{{ t('invoice_amount') }}</div>
           <div class="dl-cell">{{ t('invoice_checked_at') }}</div>
         </div>
         {% for h in history %}
           <div class="dl-row">
+            <div class="dl-cell" data-label="{{ t('invoice_number') }}">{{ h.invoice_number or '—' }}</div>
             <div class="dl-cell" data-label="{{ t('homes_status') }}"><span class="badge pay-{{ h.pay_status|lower }}">{{ t('st_' ~ h.pay_status|lower) }}</span></div>
             <div class="dl-cell" data-label="{{ t('invoice_amount') }}">{{ h.amount_mdl }} MDL</div>
             <div class="dl-cell" data-label="{{ t('invoice_checked_at') }}">{{ h.checked_at }}</div>
           </div>
         {% endfor %}
       </div>
+      {% if history_total > 20 %}
+        <nav class="pagination">
+          {% if hpage > 1 %}
+            <a class="btn small ghost" href="/accounts/{{ account.id }}/invoices?hpage={{ hpage - 1 }}">←</a>
+          {% endif %}
+          <span class="page-info">{{ t('pagination_page') }} {{ hpage }} / {{ history_pages }}</span>
+          {% if hpage < history_pages %}
+            <a class="btn small ghost" href="/accounts/{{ account.id }}/invoices?hpage={{ hpage + 1 }}">→</a>
+          {% endif %}
+        </nav>
+      {% endif %}
     </div>
   {% else %}
     <p class="muted">{{ t('invoice_no_history') }}</p>
