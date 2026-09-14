@@ -36,6 +36,8 @@ ENV_SETTING_MAP = {
     "admob_interstitial_unit": "ADMOB_ID_INTERSTITIAL",
     "admob_rewarded_unit": "ADMOB_ID_REWARDED",
     "donate_url": "DONATE_URL",
+    "donate_kofi": "DONATE_KOFI",
+    "donate_mia": "DONATE_MIA",
 }
 
 SETTING_KEYS = {
@@ -83,6 +85,8 @@ SETTING_KEYS = {
     "admob_placements",             # comma-list of screens that may show ads
     "fab_menu_items",               # JSON list for the mobile FAB menu (/admin?tab=fab)
     "donate_url",                   # Buy-me-a-coffee link (DONATE_URL), empty = hidden
+    "donate_kofi",                  # Ko-fi link (DONATE_KOFI), empty = hidden
+    "donate_mia",                   # MIA transfer phone (DONATE_MIA), empty = hidden
     "oplata_providers",             # JSON overrides/custom oplata providers (/admin?tab=oplata)
     "fcm_service_account",          # Google FCM service-account JSON (secret)
     "push_provider",                # 'expo' or 'fcm' (mobile token mode)

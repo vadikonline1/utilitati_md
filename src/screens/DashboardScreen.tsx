@@ -18,7 +18,7 @@ import Card from '../components/Card';
 import OfflineBar from '../components/OfflineBar';
 import { useContent } from '../content/useContent';
 import { colors, fontFamily, radii, spacing } from '../theme';
-import { donateUrl, showInterstitialOnce, showRewardedOnce } from '../utils/ads';
+import { donateChannels, showInterstitialOnce, showRewardedOnce } from '../utils/ads';
 import { cached } from '../utils/offline';
 
 type Nav = {
@@ -90,6 +90,8 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const [supportBusy, setSupportBusy] = useState(false);
   const [offline, setOffline] = useState(false);
   const [donate, setDonate] = useState<string | null>(null);
+  const [donateKofi, setDonateKofi] = useState<string | null>(null);
+  const [donateMia, setDonateMia] = useState<string | null>(null);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -111,7 +113,13 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
         const map = new Map<number, { label: string; contract: string }>();
         for (const a of accs.data) map.set(a.id, { label: a.label || a.provider, contract: a.contract_number || '' });
         setAccountInfo(map);
-        donateUrl().then(setDonate).catch(() => undefined);
+        donateChannels()
+          .then((d) => {
+            setDonate(d.coffee);
+            setDonateKofi(d.kofi);
+            setDonateMia(d.mia);
+          })
+          .catch(() => undefined);
       } catch {
         Alert.alert('Eroare', t('dashboard', 'error_load'));
       } finally {
@@ -226,6 +234,24 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
           <Ionicons name="cafe-outline" size={20} color="#000" />
           <Text style={styles.donateTitle}>{t('dashboard', 'donate_title')}</Text>
         </Pressable>
+      ) : null}
+
+      {donateKofi ? (
+        <Pressable
+          style={({ pressed }) => [styles.kofiBtn, pressed && styles.pressed]}
+          android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
+          onPress={() => Linking.openURL(donateKofi).catch(() => undefined)}
+        >
+          <Ionicons name="heart-outline" size={20} color="#fff" />
+          <Text style={styles.kofiTitle}>Ko-fi</Text>
+        </Pressable>
+      ) : null}
+
+      {donateMia ? (
+        <View style={styles.miaBox}>
+          <Ionicons name="phone-portrait-outline" size={20} color={colors.primary} />
+          <Text style={styles.miaText}>MIA: {donateMia}</Text>
+        </View>
       ) : null}
 
       <Card title={`Restanțe: ${stats.arrearsCount} facturi`}>
@@ -406,6 +432,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   donateTitle: { color: '#000', fontSize: 15, fontWeight: '800', marginLeft: spacing.sm, fontFamily },
+  kofiBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: '#FF5E5B',
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  kofiTitle: { color: '#fff', fontSize: 15, fontWeight: '800', marginLeft: spacing.sm, fontFamily },
+  miaBox: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  miaText: { color: colors.text, fontSize: 15, fontWeight: '700', marginLeft: spacing.sm, fontFamily },
   supportTitleRow: { flexDirection: 'row', alignItems: 'center' },
   supportTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginLeft: spacing.sm, fontFamily },
   supportText: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '500', marginTop: spacing.xs, textAlign: 'center', fontFamily },
