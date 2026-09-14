@@ -66,6 +66,7 @@ from ..services.settings import (
     clear_msg_templates,
     delete_setting,
     fab_menu,
+    get_oplata_providers,
     get_setting,
     get_stored_setting,
     get_sync_interval_hours,
@@ -76,6 +77,7 @@ from ..services.settings import (
     retention_enabled,
     set_msg_templates,
     set_fab_menu,
+    set_oplata_providers,
     set_setting,
     set_settings,
     settings_with_prefix,
@@ -167,6 +169,47 @@ PROVIDER_META = {
 }
 
 
+def merged_provider_meta() -> dict:
+    """PROVIDER_META overlaid with /admin?tab=oplata overrides + custom ones.
+
+    Also surfaces the oplata engine params (service_id, account field) so the
+    admin tab can edit everything in one place. Single DB read.
+    """
+    from pyutilitati_md.providers.oplata_utility import (
+        OPLATA_ACCOUNT_NAMES,
+        OPLATA_FULLNAME_LABELS,
+        OPLATA_FULLNAME_REQUIRED,
+        OPLATA_FULLNAME_SPECIAL,
+        OPLATA_NAMES,
+        OPLATA_PROVIDERS,
+        OPLATA_SERVICE_IDS,
+    )
+
+    over = get_oplata_providers()
+    merged = {pid: dict(meta) for pid, meta in PROVIDER_META.items()}
+    for pid in sorted(set(OPLATA_PROVIDERS) | set(over)):
+        o = over.get(pid, {})
+        needs_full = pid in OPLATA_FULLNAME_REQUIRED or o.get("needs_fullname") is True
+        if o.get("needs_fullname") is False:
+            needs_full = False
+        special = pid in OPLATA_FULLNAME_SPECIAL or o.get("fullname_special") is True
+        if o.get("fullname_special") is False:
+            special = False
+        entry = dict(merged.get(pid, {"icon": "🧾", "fields": ["contract"]}))
+        entry["name"] = o.get("name") or OPLATA_NAMES.get(pid, entry.get("name", pid))
+        entry["account_label"] = o.get("account_label") or entry.get("account_label", "")
+        entry["placeholder"] = o.get("placeholder") or entry.get("placeholder", "")
+        entry["icon"] = o.get("icon") or entry.get("icon", "🧾")
+        entry["service_id"] = o.get("service_id", OPLATA_SERVICE_IDS.get(pid, 0))
+        entry["account_name"] = o.get("account_name", OPLATA_ACCOUNT_NAMES.get(pid, "Cont personal"))
+        entry["needs_fullname"] = needs_full
+        entry["fullname_special"] = special
+        entry["fullname_label"] = o.get("fullname_label") or OPLATA_FULLNAME_LABELS.get(pid, "Nume, Prenume")
+        entry["custom"] = pid not in OPLATA_PROVIDERS
+        merged[pid] = entry
+    return merged
+
+
 def _ctx(request, **extra):
     uid = parse_session_token(request.cookies.get("session") or "")
     # Per-user platform language takes priority over the browser/cookie choice.
@@ -183,7 +226,7 @@ def _ctx(request, **extra):
         "now": datetime.now(),
         "SITE_URL": SITE_URL,
         "asset_v": deployed_commit() or "13",
-        "providers": PROVIDER_META,
+        "providers": merged_provider_meta(),
         "lang": lang,
         "t": make_translator(lang),
         "langs": LANG_NAMES,
@@ -368,7 +411,6 @@ async def home(request: Request, user_id: int | None = Depends(optional_auth_tok
             request,
             logged_in=user_id is not None,
             faq_items=faq_svc.list_faq_items(),
-            providers=PROVIDER_META,
         ),
     )
 
@@ -1516,6 +1558,25 @@ async def admin_fab_menu_save(
     return JSONResponse({"ok": True, "count": len(clean)})
 
 
+@router.post("/admin/oplata")
+async def admin_oplata_save(
+    request: Request, user_id: int | None = Depends(optional_auth_token)
+):
+    """Save oplata provider configs (service ids, field labels, customs)."""
+    _t = make_translator(get_lang(request.cookies.get("lang")))
+    if not _is_admin(user_id):
+        return JSONResponse({"error": _t("admin_not_admin")}, status_code=403)
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON."}, status_code=400)
+    items = data.get("providers") if isinstance(data, dict) else None
+    if not isinstance(items, dict):
+        return JSONResponse({"error": "Providers object is required."}, status_code=400)
+    clean = set_oplata_providers(items)
+    return JSONResponse({"ok": True, "count": len(clean)})
+
+
 @router.post("/admin/push")
 async def admin_push_send(
     request: Request, user_id: int | None = Depends(optional_auth_token)
@@ -1769,7 +1830,7 @@ async def utility_connect(
     if not provider or not contract_number:
         return RedirectResponse(f"/homes/{home_id}", status_code=303)
 
-    meta = PROVIDER_META.get(provider, {})
+    meta = merged_provider_meta().get(provider, {})
     fields = meta.get("fields", ["contract"])
     _user = get_user(user_id) or {}
     data = {
@@ -1816,7 +1877,7 @@ async def utility_edit_submit(
         return RedirectResponse(f"/homes/{home_id}", status_code=303)
     form = await request.form()
     provider = str(account.get("provider", "")).strip()
-    meta = PROVIDER_META.get(provider, {})
+    meta = merged_provider_meta().get(provider, {})
     fields = meta.get("fields", ["contract"])
     contract_number = str(form.get("contract_number", "")).strip()
     if not contract_number:
@@ -1924,7 +1985,7 @@ async def invoice_page(
             history_pages=history_pages,
             history_total=history_total,
             last_check=last_check,
-            provider_meta=PROVIDER_META.get(account["provider"], {}),
+            provider_meta=merged_provider_meta().get(account["provider"], {}),
             refresh_error=None,
         ),
     )

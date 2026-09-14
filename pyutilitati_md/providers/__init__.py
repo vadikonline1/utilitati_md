@@ -8,7 +8,7 @@ from aiohttp import ClientSession
 
 from .base import BaseUtilityProvider
 from .infosapr import InfoSaprProvider
-from .oplata_utility import OPLATA_PROVIDERS, OplataUtilityProvider
+from .oplata_utility import OPLATA_PROVIDERS, OplataUtilityProvider, is_oplata_provider
 
 PROVIDER_CLASSES: dict[str, type[BaseUtilityProvider]] = {
     # Dedicated oplata.md connector.
@@ -48,10 +48,6 @@ def get_provider_instance(
     extra_config: dict[str, Any] | None = None,
 ) -> BaseUtilityProvider:
     """Instantiate and return the appropriate provider connector."""
-    provider_cls = PROVIDER_CLASSES.get(provider_id)
-    if not provider_cls:
-        raise ValueError(f"Unknown utility provider: {provider_id}")
-
     base_kwargs = dict(
         contract_number=contract_number,
         place_of_consumption=place_of_consumption,
@@ -62,7 +58,11 @@ def get_provider_instance(
         extra_config=extra_config,
     )
 
-    if provider_id in OPLATA_PROVIDERS:
+    if provider_id in OPLATA_PROVIDERS or is_oplata_provider(provider_id):
         return OplataUtilityProvider(provider_id, **base_kwargs)
+
+    provider_cls = PROVIDER_CLASSES.get(provider_id)
+    if not provider_cls:
+        raise ValueError(f"Unknown utility provider: {provider_id}")
 
     return provider_cls(**base_kwargs)

@@ -19,6 +19,7 @@
       <button type="button" class="tab-btn" data-tab="tab-seo">{{ t('admin_tab_seo') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-ads">{{ t('admin_tab_ads') }}</button>
 <button type="button" class="tab-btn" data-tab="tab-fab">{{ t('admin_tab_fab') }}</button>
+<button type="button" class="tab-btn" data-tab="tab-oplata">{{ t('admin_tab_oplata') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-push">{{ t('admin_tab_push') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-jobs">{{ t('admin_tab_jobs') }}</button>
       <button type="button" class="tab-btn" data-tab="tab-app">{{ t('admin_tab_app') }}</button>
@@ -620,6 +621,45 @@
       </div>
     </div>
 
+    {# ---------------- Oplata providers (service mapping, no code edits) ---------------- #}
+    <section id="tab-oplata" class="admin-tab-panel" hidden>
+      <p class="subtitle">{{ t('admin_oplata_hint') }}</p>
+      <div class="card">
+        <div class="data-list cols-4" id="oplataList"></div>
+        <p class="field-hint" id="oplataEmpty" hidden>{{ t('admin_oplata_empty') }}</p>
+        <div class="row-actions" style="margin-top:10px;">
+          <button type="button" class="btn small" id="oplataAdd">{{ t('admin_oplata_add') }}</button>
+          <button type="button" class="btn small" id="oplataSave">{{ t('admin_save') }}</button>
+          <span id="oplataResult" style="margin-left:10px;"></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="modal-overlay" id="modal-oplata" hidden>
+      <div class="modal">
+        <div class="modal-head">
+          <h2 id="oplataModalTitle"></h2>
+          <button type="button" class="modal-close" id="oplataModalX">×</button>
+        </div>
+        <div class="form-stack">
+          <label>{{ t('admin_oplata_id') }}<input type="text" id="oplataM_id" maxlength="32"></label>
+          <label>{{ t('admin_oplata_name') }}<input type="text" id="oplataM_name" maxlength="120"></label>
+          <label>{{ t('admin_oplata_icon') }}<input type="text" id="oplataM_icon" maxlength="12"></label>
+          <label>{{ t('admin_oplata_service') }}<input type="number" id="oplataM_service" min="0" max="999999"></label>
+          <label>{{ t('admin_oplata_account') }}<input type="text" id="oplataM_account" maxlength="120"></label>
+          <label>{{ t('admin_oplata_label') }}<input type="text" id="oplataM_label" maxlength="120"></label>
+          <label>{{ t('admin_oplata_placeholder') }}<input type="text" id="oplataM_placeholder" maxlength="120"></label>
+          <label class="check"><input type="checkbox" id="oplataM_fullname"> {{ t('admin_oplata_fullname') }}</label>
+          <label class="check"><input type="checkbox" id="oplataM_special"> {{ t('admin_oplata_fullname_special') }}</label>
+          <label>{{ t('admin_oplata_fullname_label') }}<input type="text" id="oplataM_flabel" maxlength="120"></label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn" id="oplataModalSave">{{ t('admin_save') }}</button>
+          <button type="button" class="btn ghost" id="oplataModalCancel">{{ t('admin_cancel') }}</button>
+        </div>
+      </div>
+    </div>
+
     <section id="tab-push" class="admin-tab-panel" hidden>
       <div class="card">
         <h2>{{ t('admin_push_title') }}</h2>
@@ -1108,6 +1148,8 @@ document.addEventListener("DOMContentLoaded", function () {
         history.replaceState(null, "", "/admin?tab=ads");
       } else if (target === "tab-fab") {
         history.replaceState(null, "", "/admin?tab=fab");
+      } else if (target === "tab-oplata") {
+        history.replaceState(null, "", "/admin?tab=oplata");
       } else if (target === "tab-push") {
         history.replaceState(null, "", "/admin?tab=push");
       } else if (target === "tab-jobs") {
@@ -1120,7 +1162,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
   var params = new URLSearchParams(window.location.search);
-  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "fab", "push", "jobs", "app"];
+  var known = ["messages", "contact", "users", "faq", "pages", "seo", "ads", "fab", "oplata", "push", "jobs", "app"];
   if (known.includes(params.get("tab")) || params.get("saved")) {
     var tabKey = params.get("tab") || (params.get("saved") ? "messages" : "");
     var msgBtn = document.querySelector('[data-tab="tab-' + tabKey + '"]');
@@ -1397,6 +1439,139 @@ document.addEventListener("DOMContentLoaded", function () {
     if (e.target && e.target.id === "fabM_action") fabToggleUrlWrap();
   });
   fabRender();
+
+  // Oplata providers editor: merged list, edits in a modal, saved as JSON.
+  // Only overridden fields are stored; empty fields fall back to code defaults.
+  var oplataMap = {{ providers|tojson }};
+  var oplataOrder = Object.keys(oplataMap).sort();
+  var oplataDraftId = null;
+  var OPLATA_TXT = {
+    edit: '{{ t("admin_oplata_edit") }}',
+    del: '{{ t("admin_oplata_delete") }}',
+    saved: '{{ t("admin_oplata_saved") }}',
+    modalAdd: '{{ t("admin_oplata_modal_add") }}',
+    modalEdit: '{{ t("admin_oplata_modal_edit") }}',
+    custom: '{{ t("admin_oplata_custom") }}'
+  };
+  function oplataRender() {
+    var list = document.getElementById("oplataList");
+    if (!list) return;
+    document.getElementById("oplataEmpty").hidden = oplataOrder.length !== 0;
+    var html = '<div class="dl-head"><div class="dl-cell">ID</div>'
+      + '<div class="dl-cell">{{ t("admin_oplata_name") }}</div>'
+      + '<div class="dl-cell">{{ t("admin_oplata_service") }}</div>'
+      + '<div class="dl-cell"></div></div>';
+    oplataOrder.forEach(function (pid) {
+      var it = oplataMap[pid] || {};
+      html += '<div class="dl-row" data-oplata-id="' + fabEsc(pid) + '">';
+      html += '<div class="dl-cell" data-label="ID"><b>' + fabEsc(pid) + '</b>'
+        + (it.custom ? ' <span class="env-badge">' + fabEsc(OPLATA_TXT.custom) + '</span>' : '') + '</div>';
+      html += '<div class="dl-cell" data-label="{{ t("admin_oplata_name") }}">' + fabEsc(it.name || pid)
+        + '<br><span style="color:var(--muted);font-size:0.82rem;">' + fabEsc(it.account_label || "") + '</span></div>';
+      html += '<div class="dl-cell" data-label="{{ t("admin_oplata_service") }}">' + fabEsc(it.service_id == null ? "" : it.service_id) + '</div>';
+      html += '<div class="dl-cell row-actions">'
+        + '<button type="button" class="btn small" data-oplata-edit>' + fabEsc(OPLATA_TXT.edit) + '</button>';
+      if (it.custom) {
+        html += ' <button type="button" class="btn small" data-oplata-del>' + fabEsc(OPLATA_TXT.del) + '</button>';
+      }
+      html += '</div></div>';
+    });
+    list.innerHTML = html;
+  }
+  function oplataOpenModal(pid) {
+    oplataDraftId = pid;
+    var it = (pid && oplataMap[pid]) || {};
+    document.getElementById("oplataModalTitle").textContent = pid ? OPLATA_TXT.modalEdit : OPLATA_TXT.modalAdd;
+    var idInput = document.getElementById("oplataM_id");
+    idInput.value = pid || "";
+    idInput.disabled = !!pid;
+    document.getElementById("oplataM_name").value = it.name || "";
+    document.getElementById("oplataM_icon").value = it.icon || "";
+    document.getElementById("oplataM_service").value = it.service_id == null ? "" : it.service_id;
+    document.getElementById("oplataM_account").value = it.account_name || "";
+    document.getElementById("oplataM_label").value = it.account_label || "";
+    document.getElementById("oplataM_placeholder").value = it.placeholder || "";
+    document.getElementById("oplataM_fullname").checked = !!it.needs_fullname;
+    document.getElementById("oplataM_special").checked = !!it.fullname_special;
+    document.getElementById("oplataM_flabel").value = it.fullname_label || "";
+    openModal("modal-oplata");
+  }
+  function oplataCollect() {
+    var pid = oplataDraftId || document.getElementById("oplataM_id").value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (!pid) return null;
+    var svc = parseInt(document.getElementById("oplataM_service").value, 10);
+    var rec = {
+      name: document.getElementById("oplataM_name").value.trim(),
+      icon: document.getElementById("oplataM_icon").value.trim(),
+      service_id: isNaN(svc) ? 0 : svc,
+      account_name: document.getElementById("oplataM_account").value.trim(),
+      account_label: document.getElementById("oplataM_label").value.trim(),
+      placeholder: document.getElementById("oplataM_placeholder").value.trim(),
+      needs_fullname: document.getElementById("oplataM_fullname").checked,
+      fullname_special: document.getElementById("oplataM_special").checked,
+      fullname_label: document.getElementById("oplataM_flabel").value.trim()
+    };
+    // Drop empty overrides so code defaults keep applying (booleans kept:
+    // an explicit false must override a code true, e.g. no-name providers).
+    Object.keys(rec).forEach(function (k) {
+      if (typeof rec[k] !== "boolean" && (rec[k] === "" || rec[k] === 0)) delete rec[k];
+    });
+    return { pid: pid, rec: rec };
+  }
+  document.addEventListener("click", function (e) {
+    var row = e.target && e.target.closest ? e.target.closest("[data-oplata-id]") : null;
+    if (row) {
+      var pid = row.getAttribute("data-oplata-id");
+      if (e.target.closest("[data-oplata-edit]")) {
+        oplataOpenModal(pid);
+      } else if (e.target.closest("[data-oplata-del]")) {
+        delete oplataMap[pid];
+        var ix = oplataOrder.indexOf(pid);
+        if (ix >= 0) oplataOrder.splice(ix, 1);
+        oplataRender();
+      }
+      return;
+    }
+    if (e.target && e.target.id === "oplataAdd") {
+      oplataOpenModal(null);
+    }
+    if (e.target && (e.target.id === "oplataModalCancel" || e.target.id === "oplataModalX")) {
+      closeModal("modal-oplata");
+    }
+    if (e.target && e.target.id === "oplataModalSave") {
+      var got = oplataCollect();
+      if (!got) return;
+      oplataMap[got.pid] = Object.assign({}, oplataMap[got.pid], got.rec);
+      if (oplataOrder.indexOf(got.pid) < 0) oplataOrder.push(got.pid);
+      oplataOrder.sort();
+      closeModal("modal-oplata");
+      oplataRender();
+    }
+    if (e.target && e.target.id === "oplataSave") {
+      var btn = e.target;
+      var res = document.getElementById("oplataResult");
+      btn.disabled = true; res.textContent = "...";
+      fetch("/admin/oplata", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({providers: oplataMap})
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        btn.disabled = false;
+        if (data.error) {
+          res.innerHTML = '<span style="color:red">' + fabEsc(data.error) + '</span>';
+        } else {
+          res.innerHTML = '<span style="color:green">' + fabEsc(OPLATA_TXT.saved) + ' (' + data.count + ')</span>';
+        }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        res.innerHTML = '<span style="color:red">error</span>';
+      });
+    }
+  });
+  oplataRender();
 
   // Push notifications: AJAX send.
   window.sendPush = function () {

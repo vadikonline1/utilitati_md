@@ -334,9 +334,9 @@ async def _get_account(user_id: int, account_id: int) -> dict:
 
 @router.get("/providers")
 async def providers(user_id: int = Depends(get_auth_token)):
-    from .pages import PROVIDER_META
+    from .pages import merged_provider_meta
 
-    return [{"id": pid, **meta} for pid, meta in sorted(PROVIDER_META.items())]
+    return [{"id": pid, **meta} for pid, meta in sorted(merged_provider_meta().items())]
 
 
 # --------------------------------------------------------------------------- #
