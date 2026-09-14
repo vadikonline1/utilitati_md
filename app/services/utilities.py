@@ -95,6 +95,16 @@ def list_homes(user_id: int) -> list[dict[str, Any]]:
                           AS unpaid_invoices,
                       (SELECT COUNT(*) FROM invoices inv
                         JOIN accounts a ON a.id = inv.account_id
+                        WHERE a.home_id = h.id AND inv.status = 'enabled'
+                          AND inv.pay_status IN ('UNPAID','PARTIALLY_PAID'))
+                          AS open_invoices,
+                      (SELECT COUNT(*) FROM invoices inv
+                        JOIN accounts a ON a.id = inv.account_id
+                        WHERE a.home_id = h.id AND inv.status = 'enabled'
+                          AND inv.pay_status IN ('OVERDUE','CANCELLED'))
+                          AS bad_invoices,
+                      (SELECT COUNT(*) FROM invoices inv
+                        JOIN accounts a ON a.id = inv.account_id
                         WHERE a.home_id = h.id AND inv.pay_status = 'PAID'
                           AND inv.status = 'enabled')
                           AS paid_invoices
@@ -372,6 +382,34 @@ def get_invoice(user_id: int, invoice_id: int) -> dict[str, Any] | None:
     return _decode_invoice(dict(row)) if row else None
 
 
+def _log_invoice_history(conn, inv_id: int, pay_status: str, amount: float,
+                         checked_at: str, raw_response: str | None) -> None:
+    """Append a history row, collapsing same-day repeats into the last one.
+
+    When the user refreshes several times in one day only the latest check of
+    that day is kept (updated in place); a check on another day always adds a
+    new record, so the full cross-day history is preserved.
+    """
+    last = conn.execute(
+        """SELECT id, checked_at FROM invoice_history
+           WHERE invoice_id = ? ORDER BY id DESC LIMIT 1""",
+        (inv_id,),
+    ).fetchone()
+    if last is not None and str(last["checked_at"] or "")[:10] == str(checked_at or "")[:10]:
+        conn.execute(
+            """UPDATE invoice_history SET pay_status = ?, amount_mdl = ?,
+               checked_at = ?, raw_response = ? WHERE id = ?""",
+            (pay_status, amount, checked_at, raw_response, last["id"]),
+        )
+        return
+    conn.execute(
+        """INSERT INTO invoice_history
+           (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
+           VALUES (?, ?, ?, ?, ?)""",
+        (inv_id, pay_status, amount, checked_at, raw_response),
+    )
+
+
 def normalize_status(
     amount_mdl: float, is_paid: bool, due_date: date | str | None
 ) -> str:
@@ -431,12 +469,7 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
                        checked_at = ?, updated_at = datetime('now') WHERE id = ?""",
                     (INVOICE_STATUS_PAID, checked_at, inv_id),
                 )
-                conn.execute(
-                    """INSERT INTO invoice_history
-                       (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (inv_id, INVOICE_STATUS_PAID, 0, checked_at, raw_response),
-                )
+                _log_invoice_history(conn, inv_id, INVOICE_STATUS_PAID, 0, checked_at, raw_response)
                 return inv_id, False, False
             return None, False, False
         if existing:
@@ -477,12 +510,7 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
             is_new = True
 
         if is_new or changed:
-            conn.execute(
-                """INSERT INTO invoice_history
-                   (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (inv_id, pay_status, amount, checked_at, raw_response),
-            )
+            _log_invoice_history(conn, inv_id, pay_status, amount, checked_at, raw_response)
         return inv_id, is_new, changed
 
 
@@ -532,12 +560,8 @@ def _mark_missing_oplata_paid(account_id: int, current_numbers: set[str]) -> int
                    checked_at = ?, updated_at = datetime('now') WHERE id = ?""",
                 (checked_at, row["id"]),
             )
-            conn.execute(
-                """INSERT INTO invoice_history
-                   (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
-                   VALUES (?, 'PAID', ?, ?, ?)""",
-                (row["id"], row["amount_mdl"], checked_at, "oplata: absent from provider response"),
-            )
+            _log_invoice_history(conn, row["id"], "PAID", row["amount_mdl"], checked_at,
+                                 "oplata: absent from provider response")
             marked += 1
     return marked
 
@@ -565,12 +589,49 @@ def _disable_duplicate_invoice(account_id: int, invoice_number: str) -> None:
             "UPDATE invoices SET status = 'disabled', updated_at = datetime('now') WHERE id = ?",
             (row["id"],),
         )
+        _log_invoice_history(conn, row["id"], row["pay_status"], row["amount_mdl"], _now_str(),
+                             "duplicat: aceeasi factura in alta forma")
+
+
+def _rollover_infosapr(account_id: int, invoice_number: str, new_amount: float) -> bool:
+    """Close an infosapr invoice whose cumulative amount changed as CANCELLED.
+
+    InfoSapr cancels the previous bill at the provider and reissues the debt
+    together with the new consumption (e.g. 150 unpaid + 200 new = 350). The
+    old row is renamed, marked CANCELLED (kept for audit, out of balances)
+    and the caller then stores the new amount as a fresh invoice row, which
+    notifies as a new bill. Returns True when a rollover happened.
+    """
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT id, amount_mdl FROM invoices
+               WHERE account_id = ? AND invoice_number = ? AND status != 'disabled'
+                 AND pay_status IN ('UNPAID','OVERDUE','PARTIALLY_PAID')""",
+            (account_id, invoice_number),
+        ).fetchone()
+        if row is None:
+            return False
+        if abs(float(row["amount_mdl"] or 0) - new_amount) < 0.005:
+            return False
+        suffix = 0
+        while True:
+            suffix += 1
+            new_number = f"{invoice_number}-ANULAT" if suffix == 1 else f"{invoice_number}-ANULAT-{suffix}"
+            taken = conn.execute(
+                "SELECT 1 FROM invoices WHERE account_id = ? AND invoice_number = ?",
+                (account_id, new_number),
+            ).fetchone()
+            if taken is None:
+                break
+        checked_at = _now_str()
         conn.execute(
-            """INSERT INTO invoice_history
-               (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
-               VALUES (?, ?, ?, ?, ?)""",
-            (row["id"], row["pay_status"], row["amount_mdl"], _now_str(), "duplicat: aceeasi factura in alta forma"),
+            """UPDATE invoices SET invoice_number = ?, is_paid = 1, pay_status = ?,
+               checked_at = ?, updated_at = datetime('now') WHERE id = ?""",
+            (new_number, INVOICE_STATUS_CANCELLED, checked_at, row["id"]),
         )
+        _log_invoice_history(conn, row["id"], INVOICE_STATUS_CANCELLED, row["amount_mdl"],
+                             checked_at, "anulata de furnizor, inlocuita")
+        return True
 
 
 def _rollover_infosapr(account_id: int, invoice_number: str, new_amount: float) -> bool:
@@ -772,8 +833,18 @@ def active_unpaid_balance(account_id: int) -> float:
 
 
 def account_is_paid(account_id: int) -> bool:
-    """True when the account has no active unpaid invoice (nothing due)."""
+    """True when the account has no active unpaid invoice (nothing due).
+
+    An account with no invoice rows at all is NOT considered paid — it still
+    has to be verified (e.g. right after its invoices were deleted).
+    """
     with _conn() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) AS c FROM invoices WHERE account_id = ?",
+            (account_id,),
+        ).fetchone()["c"]
+        if not total:
+            return False
         row = conn.execute(
             """SELECT 1 FROM invoices
                WHERE account_id = ? AND is_paid = 0 AND status != 'disabled'
@@ -793,6 +864,35 @@ def list_invoice_history(user_id: int, invoice_id: int) -> list[dict[str, Any]]:
                WHERE h.invoice_id = ? AND a.user_id = ?
                ORDER BY h.checked_at DESC""",
             (invoice_id, user_id),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def count_account_history(user_id: int, account_id: int) -> int:
+    """Total history rows across all invoices of the account."""
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT COUNT(*) AS c FROM invoice_history h
+               JOIN invoices inv ON inv.id = h.invoice_id
+               JOIN accounts a ON a.id = inv.account_id
+               WHERE inv.account_id = ? AND a.user_id = ?""",
+            (account_id, user_id),
+        ).fetchone()
+    return int(row["c"])
+
+
+def list_account_history(
+    user_id: int, account_id: int, limit: int = 20, offset: int = 0
+) -> list[dict[str, Any]]:
+    """History across all invoices of the account, newest checks first."""
+    with _conn() as conn:
+        rows = conn.execute(
+            """SELECT h.*, inv.invoice_number FROM invoice_history h
+               JOIN invoices inv ON inv.id = h.invoice_id
+               JOIN accounts a ON a.id = inv.account_id
+               WHERE inv.account_id = ? AND a.user_id = ?
+               ORDER BY h.checked_at DESC, h.id DESC LIMIT ? OFFSET ?""",
+            (account_id, user_id, int(limit), int(offset)),
         ).fetchall()
     return [dict(r) for r in rows]
 
