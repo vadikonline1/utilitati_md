@@ -228,6 +228,8 @@ def _ctx(request, **extra):
         "asset_v": deployed_commit() or "13",
         "providers": merged_provider_meta(),
         "donate_url": get_setting("donate_url", "").strip(),
+        "donate_kofi": get_setting("donate_kofi", "").strip(),
+        "donate_mia": get_setting("donate_mia", "").strip(),
         "lang": lang,
         "t": make_translator(lang),
         "langs": LANG_NAMES,
@@ -1099,6 +1101,8 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         "fcm_service_account": str(form.get("fcm_service_account", "")).strip(),
         "push_provider": str(form.get("push_provider", "fcm")).strip(),
         "donate_url": str(form.get("donate_url", "")).strip(),
+        "donate_kofi": str(form.get("donate_kofi", "")).strip(),
+        "donate_mia": str(form.get("donate_mia", "")).strip(),
     }
     if sync_mode == "interval":
         try:

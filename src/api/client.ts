@@ -346,6 +346,8 @@ export interface AppConfig {
   push: { provider: 'fcm' | 'expo'; fcm_configured?: boolean; ok?: boolean };
   fab_menu?: ServerFabItem[];
   donate_url?: string;
+  donate_kofi?: string;
+  donate_mia?: string;
 }
 
 export function getConfig(): Promise<AppConfig> {

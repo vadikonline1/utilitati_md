@@ -126,11 +126,23 @@
       {% endif %}
     </div>
     {% endif %}
-    {% if donate_url %}
+    {% if donate_url or donate_kofi or donate_mia %}
     <div class="store-badges">
+      {% if donate_url %}
       <a class="store-badge" href="{{ donate_url }}" target="_blank" rel="noopener" title="{{ t('donate_btn') }}">
         <span style="display:inline-flex;align-items:center;gap:8px;background:#FFDD00;color:#000;font-weight:800;border-radius:6px;padding:9px 14px;font-size:15px;">☕ {{ t('donate_btn') }}</span>
       </a>
+      {% endif %}
+      {% if donate_kofi %}
+      <a class="store-badge" href="{{ donate_kofi }}" target="_blank" rel="noopener" title="Ko-fi">
+        <span style="display:inline-flex;align-items:center;gap:8px;background:#FF5E5B;color:#fff;font-weight:800;border-radius:6px;padding:9px 14px;font-size:15px;">♥ Ko-fi</span>
+      </a>
+      {% endif %}
+      {% if donate_mia %}
+      <span class="store-badge" title="MIA">
+        <span style="display:inline-flex;align-items:center;gap:8px;background:#0f766e;color:#fff;font-weight:800;border-radius:6px;padding:9px 14px;font-size:15px;">MIA: {{ donate_mia }}</span>
+      </span>
+      {% endif %}
     </div>
     {% endif %}
     <p class="footer-desc">{{ t('footer_desc') }}</p>

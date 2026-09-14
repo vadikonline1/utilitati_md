@@ -91,6 +91,21 @@ export async function donateUrl(): Promise<string | null> {
   return url || null;
 }
 
+function trimmed(v: unknown): string | null {
+  const s = typeof v === 'string' ? v.trim() : '';
+  return s || null;
+}
+
+/** All configured donate channels (only the filled ones are returned). */
+export async function donateChannels(): Promise<{ coffee: string | null; kofi: string | null; mia: string | null }> {
+  const cfg = await loadAppConfig();
+  return {
+    coffee: trimmed(cfg?.donate_url),
+    kofi: trimmed(cfg?.donate_kofi),
+    mia: trimmed(cfg?.donate_mia),
+  };
+}
+
 /**
  * Whether ads may show on the given placement (server config only).
  */

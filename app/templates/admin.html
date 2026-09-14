@@ -88,6 +88,14 @@
                 <input type="url" name="donate_url" value="{{ settings.get('donate_url', '') }}" placeholder="https://…" spellcheck="false">
                 {% if settings.get('_env_donate_url') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
               </label>
+              <label>{{ t('admin_donate_kofi') }}
+                <input type="url" name="donate_kofi" value="{{ settings.get('donate_kofi', '') }}" placeholder="https://ko-fi.com/…" spellcheck="false">
+                {% if settings.get('_env_donate_kofi') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+              </label>
+              <label>{{ t('admin_donate_mia') }}
+                <input type="text" name="donate_mia" value="{{ settings.get('donate_mia', '') }}" placeholder="060000000" spellcheck="false">
+                {% if settings.get('_env_donate_mia') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+              </label>
               <span class="field-hint">{{ t('admin_donate_hint') }}</span>
             </div>
           </div>
