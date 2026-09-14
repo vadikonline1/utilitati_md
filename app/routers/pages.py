@@ -2012,6 +2012,8 @@ async def invoice_refresh(
 async def invoices_all_page(
     request: Request,
     home_id: str | None = None,
+    account_id: str | None = None,
+    contract: str | None = None,
     page: int = 1,
     job: int | None = None,
     a: int = 1,
@@ -2020,20 +2022,32 @@ async def invoices_all_page(
 ):
     if user_id is None:
         return RedirectResponse("/login", status_code=303)
-    # The "all homes" filter submits an empty home_id (?home_id=), which must
+    # The "all" filter options submit empty values (?home_id=&...), which must
     # not fail int parsing — treat empty/invalid values as "no filter".
-    try:
-        home_id_int = int(str(home_id).strip()) if str(home_id or "").strip() else None
-    except (TypeError, ValueError):
-        home_id_int = None
+    def _to_int(raw: str | None) -> int | None:
+        try:
+            return int(str(raw).strip()) if str(raw or "").strip() else None
+        except (TypeError, ValueError):
+            return None
+
+    home_id_int = _to_int(home_id)
+    account_id_int = _to_int(account_id)
+    contract_q = (contract or "").strip() or None
     status_filter = status if status in ("unpaid", "paid") else None
     if job is not None and not (job_info(job, user_id) or {}).get("finished"):
         _tw = make_translator(get_lang(request.cookies.get("lang")))
-        home_qs = f"home_id={home_id_int}&" if home_id_int else ""
-        status_qs = f"status={status_filter}&" if status_filter else ""
+        keep_qs = ""
+        if home_id_int:
+            keep_qs += f"home_id={home_id_int}&"
+        if account_id_int:
+            keep_qs += f"account_id={account_id_int}&"
+        if contract_q:
+            keep_qs += f"contract={contract_q}&"
+        if status_filter:
+            keep_qs += f"status={status_filter}&"
         return _job_wait_response(
             request,
-            f"/invoices?{home_qs}{status_qs}job={job}&a={a + 1}",
+            f"/invoices?{keep_qs}job={job}&a={a + 1}",
             a,
             _tw("invoice_checking_all"),
         )
@@ -2042,7 +2056,14 @@ async def invoices_all_page(
     page = max(1, page)
     accounts = list_accounts(user_id, home_id=home_id_int)
     current_home = get_home(user_id, home_id_int) if home_id_int else None
-    all_invoices = list_invoices(user_id, home_id=home_id_int, pay_status_filter=status_filter)
+    current_account = get_account_row(user_id, account_id_int) if account_id_int else None
+    all_invoices = list_invoices(
+        user_id,
+        account_id=account_id_int,
+        home_id=home_id_int,
+        pay_status_filter=status_filter,
+        contract_query=contract_q,
+    )
     total = len(all_invoices)
     total_pages = max(1, (total + per_page - 1) // per_page)
     if page > total_pages:
@@ -2071,6 +2092,8 @@ async def invoices_all_page(
             accounts=accounts,
             homes=list_homes(user_id),
             current_home=current_home,
+            current_account=current_account,
+            contract_q=contract_q or "",
             status_filter=status_filter,
             page=page,
             total_pages=total_pages,

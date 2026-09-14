@@ -1,8 +1,13 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,17 +16,22 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 
 import {
+  Account,
   ApiError,
   deleteInvoice,
+  Home,
   Invoice,
   listAccounts,
+  listHomes,
   listInvoices,
   setInvoiceStatus,
 } from '../api/client';
 import AdBanner from '../components/AdBanner';
+import Button from '../components/Button';
 import Card from '../components/Card';
+import Input from '../components/Input';
 import { useContent } from '../content/useContent';
-import { colors, spacing } from '../theme';
+import { colors, fontFamily, radii, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 type Section = { title: string; invoices: Invoice[] };
@@ -30,6 +40,17 @@ type Row =
   | { kind: 'section'; key: string; title: string }
   | { kind: 'invoice'; key: string; inv: Invoice }
   | { kind: 'banner'; key: string };
+
+type StatusFilter = 'all' | 'unpaid' | 'paid';
+
+interface Filters {
+  status: StatusFilter;
+  account: number | null;
+  home: number | null;
+  contract: string;
+}
+
+const EMPTY_FILTERS: Filters = { status: 'all', account: null, home: null, contract: '' };
 
 function buildRows(sections: Section[]): Row[] {
   const rows: Row[] = [];
@@ -52,10 +73,19 @@ function formatMonth(value?: string | null): string {
   return m ? `${m[2]}.${m[1]}` : '—';
 }
 
+function isPaidInv(inv: Invoice): boolean {
+  return inv.is_paid === 1 || inv.pay_status === 'PAID';
+}
+
 export default function FacturiScreen() {
   const { t } = useContent();
-  const [sections, setSections] = useState<Section[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [homes, setHomes] = useState<Home[]>([]);
   const [accountInfo, setAccountInfo] = useState<Map<number, { label: string; contract: string }>>(new Map());
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS);
+  const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -66,32 +96,19 @@ export default function FacturiScreen() {
       setLoading(true);
     }
     try {
-      const invData = await listInvoices();
-      const invoices = invData.invoices;
-      const accounts = await listAccounts();
+      const [invData, accs, hm] = await Promise.all([
+        listInvoices(),
+        listAccounts().catch(() => [] as Account[]),
+        listHomes().catch(() => [] as Home[]),
+      ]);
+      setInvoices(invData.invoices);
+      setAccounts(accs);
+      setHomes(hm);
       const infoById = new Map<number, { label: string; contract: string }>();
-      const labelById = new Map<number, string>();
-      for (const a of accounts) {
-        labelById.set(a.id, a.label || a.provider);
+      for (const a of accs) {
         infoById.set(a.id, { label: a.label || a.provider, contract: a.contract_number || '' });
       }
       setAccountInfo(infoById);
-
-      const byAccount = new Map<string, Invoice[]>();
-      const ungrouped: Invoice[] = [];
-      for (const inv of invoices) {
-        const label = labelById.get(inv.account_id);
-        if (label) {
-          if (!byAccount.has(label)) byAccount.set(label, []);
-          byAccount.get(label)!.push(inv);
-        } else {
-          ungrouped.push(inv);
-        }
-      }
-      const grouped: Section[] = [];
-      byAccount.forEach((list, title) => grouped.push({ title, invoices: list }));
-      if (ungrouped.length > 0) grouped.push({ title: t('invoices', 'group_others'), invoices: ungrouped });
-      setSections(grouped);
     } catch {
       Alert.alert('Eroare', t('invoices', 'error_load'));
     } finally {
@@ -105,6 +122,50 @@ export default function FacturiScreen() {
       load();
     }, [load]),
   );
+
+  const filtered = useMemo(() => {
+    const homeIds = filters.home
+      ? new Set(accounts.filter((a) => a.home_id === filters.home).map((a) => a.id))
+      : null;
+    const q = filters.contract.trim().toLowerCase();
+    return invoices.filter((inv) => {
+      if (filters.status === 'unpaid' && isPaidInv(inv)) return false;
+      if (filters.status === 'paid' && !isPaidInv(inv)) return false;
+      if (filters.account && inv.account_id !== filters.account) return false;
+      if (homeIds && !homeIds.has(inv.account_id)) return false;
+      if (q) {
+        const c = accountInfo.get(inv.account_id)?.contract.toLowerCase() || '';
+        if (!c.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [invoices, filters, accounts, accountInfo]);
+
+  const sections = useMemo(() => {
+    const labelById = new Map<number, string>();
+    for (const a of accounts) labelById.set(a.id, a.label || a.provider);
+    const byAccount = new Map<string, Invoice[]>();
+    const ungrouped: Invoice[] = [];
+    for (const inv of filtered) {
+      const label = labelById.get(inv.account_id);
+      if (label) {
+        if (!byAccount.has(label)) byAccount.set(label, []);
+        byAccount.get(label)!.push(inv);
+      } else {
+        ungrouped.push(inv);
+      }
+    }
+    const grouped: Section[] = [];
+    byAccount.forEach((list, title) => grouped.push({ title, invoices: list }));
+    if (ungrouped.length > 0) grouped.push({ title: t('invoices', 'group_others'), invoices: ungrouped });
+    return grouped;
+  }, [filtered, accounts, t]);
+
+  const activeCount =
+    (filters.status !== 'all' ? 1 : 0) +
+    (filters.account ? 1 : 0) +
+    (filters.home ? 1 : 0) +
+    (filters.contract.trim() ? 1 : 0);
 
   const markPaid = async (inv: Invoice) => {
     try {
@@ -142,8 +203,13 @@ export default function FacturiScreen() {
     ]);
   };
 
+  const openFilter = () => {
+    setDraft({ ...filters });
+    setModal(true);
+  };
+
   const renderInvoice = ({ item }: { item: Invoice }) => {
-    const paid = item.is_paid === 1 || item.pay_status === 'PAID';
+    const paid = isPaidInv(item);
     const cancelled = item.pay_status === 'CANCELLED';
     const disabled = item.status === 'disabled';
     const showDelete = paid || cancelled || disabled;
@@ -223,6 +289,12 @@ export default function FacturiScreen() {
     );
   };
 
+  const statusOpts: { value: StatusFilter; label: string }[] = [
+    { value: 'all', label: t('invoices', 'f_all') },
+    { value: 'unpaid', label: t('invoices', 'f_unpaid') },
+    { value: 'paid', label: t('invoices', 'f_paid') },
+  ];
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -239,12 +311,114 @@ export default function FacturiScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
         }
         contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <Pressable
+            style={({ pressed }) => [styles.filterBtn, pressed && styles.pressed]}
+            android_ripple={{ color: 'rgba(15,118,110,0.12)' }}
+            onPress={openFilter}
+          >
+            <Ionicons name="funnel-outline" size={20} color={colors.primary} />
+            <Text style={styles.filterBtnText}>
+              {t('invoices', 'filter_title')}
+              {activeCount > 0 ? ` (${activeCount})` : ''}
+            </Text>
+            {activeCount > 0 ? (
+              <TouchableOpacity
+                onPress={() => setFilters({ ...EMPTY_FILTERS })}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle-outline" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            ) : null}
+          </Pressable>
+        }
         ListEmptyComponent={
           <Text style={styles.empty}>
             {loading ? t('common', 'loading') : t('invoices', 'empty')}
           </Text>
         }
       />
+
+      <Modal visible={modal} transparent animationType="slide" onRequestClose={() => setModal(false)}>
+        <KeyboardAvoidingView style={styles.modalWrap} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modal}>
+            <ScrollView>
+              <Text style={styles.modalTitle}>{t('invoices', 'filter_title')}</Text>
+              <Text style={styles.sectionLabel}>{t('invoices', 'f_status')}</Text>
+              <View style={styles.chipRow}>
+                {statusOpts.map((o) => (
+                  <Pressable
+                    key={o.value}
+                    style={({ pressed }) => [
+                      styles.statusChip,
+                      draft.status === o.value && styles.statusChipActive,
+                      pressed && styles.pressed,
+                    ]}
+                    onPress={() => setDraft((d) => ({ ...d, status: o.value }))}
+                  >
+                    <Text style={[styles.statusChipText, draft.status === o.value && styles.statusChipTextActive]}>
+                      {o.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.sectionLabel}>{t('invoices', 'f_utility')}</Text>
+              {accounts.map((a) => (
+                <Pressable
+                  key={a.id}
+                  style={({ pressed }) => [styles.pickRow, draft.account === a.id && styles.pickRowActive, pressed && styles.pressed]}
+                  onPress={() => setDraft((d) => ({ ...d, account: d.account === a.id ? null : a.id }))}
+                >
+                  <View style={styles.radio}>{draft.account === a.id ? <View style={styles.radioDot} /> : null}</View>
+                  <View style={styles.flex}>
+                    <Text style={styles.pickLabel}>{a.label || a.provider}</Text>
+                    {a.contract_number ? <Text style={styles.muted}>{a.contract_number}</Text> : null}
+                  </View>
+                </Pressable>
+              ))}
+              {homes.length > 0 ? (
+                <>
+                  <Text style={styles.sectionLabel}>{t('invoices', 'f_home')}</Text>
+                  {homes.map((h) => (
+                    <Pressable
+                      key={h.id}
+                      style={({ pressed }) => [styles.pickRow, draft.home === h.id && styles.pickRowActive, pressed && styles.pressed]}
+                      onPress={() => setDraft((d) => ({ ...d, home: d.home === h.id ? null : h.id }))}
+                    >
+                      <View style={styles.radio}>{draft.home === h.id ? <View style={styles.radioDot} /> : null}</View>
+                      <Text style={styles.pickLabel}>{h.name}</Text>
+                    </Pressable>
+                  ))}
+                </>
+              ) : null}
+              <Input
+                label={t('invoices', 'f_contract')}
+                value={draft.contract}
+                onChangeText={(v) => setDraft((d) => ({ ...d, contract: v }))}
+                placeholder="…"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Button
+                title={t('invoices', 'f_apply')}
+                onPress={() => {
+                  setFilters({ ...draft });
+                  setModal(false);
+                }}
+              />
+              <Button
+                title={t('invoices', 'f_reset')}
+                variant="ghost"
+                onPress={() => {
+                  setDraft({ ...EMPTY_FILTERS });
+                  setFilters({ ...EMPTY_FILTERS });
+                  setModal(false);
+                }}
+              />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -273,4 +447,55 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', marginTop: spacing.sm },
   iconBtn: { marginLeft: spacing.md },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xl },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  filterBtnText: { fontSize: 15, fontWeight: '600', color: colors.primary, fontFamily, marginLeft: spacing.sm, flex: 1 },
+  modalWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modal: { backgroundColor: colors.card, borderTopLeftRadius: radii.dialog, borderTopRightRadius: radii.dialog, padding: spacing.xl, maxHeight: '92%' },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: spacing.md, fontFamily },
+  sectionLabel: { fontSize: 14, fontWeight: '600', color: colors.text, fontFamily, marginTop: spacing.md, marginBottom: spacing.sm },
+  chipRow: { flexDirection: 'row', gap: spacing.sm },
+  statusChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.chip,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.background,
+  },
+  statusChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  statusChipText: { fontSize: 14, fontWeight: '600', color: colors.text, fontFamily },
+  statusChipTextActive: { color: '#fff' },
+  pickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  pickRowActive: { borderColor: colors.primary, borderWidth: 2 },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
+  pickLabel: { fontSize: 15, fontWeight: '600', color: colors.text, fontFamily },
 });
