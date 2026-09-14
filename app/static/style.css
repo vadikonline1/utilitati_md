@@ -155,13 +155,13 @@ a:hover { text-decoration: underline; }
 .theme-toggle:hover { border-color: var(--accent-2); }
 
 /* Layout: one unified adaptive container system for every page.
-   Content shrinks to fit (centered) on narrow screens, capped at 1080px
-   on wide screens — no more mixed fixed widths per page. */
+   Content shrinks to fit (centered) with 10% side breathing room on wide
+   screens — no more mixed fixed widths per page. */
 main.dashboard, main.landing { width: fit-content; max-width: fit-content; min-width: min(100%, 320px); margin: 24px auto; padding: 0 20px; box-sizing: border-box; }
 main.landing.home-landing { margin: 0 auto; padding: 0; }
 .container, .landing .container { width: fit-content; max-width: fit-content; min-width: min(100%, 320px); margin: 0 auto; padding: 0 20px; box-sizing: border-box; }
 @media (min-width: 1120px) {
-  main.dashboard, main.landing, .container, .landing .container { max-width: 1080px; }
+  main.dashboard, main.landing, .container, .landing .container { max-width: fit-content; margin-left: 10%; margin-right: 10%; }
 }
 
 h1 { font-size: 1.6rem; margin: 0.2em 0; }

@@ -55,7 +55,7 @@ export const DEFAULT_SCREENS: Record<string, ScreenContent> = {
     f_home: 'Locuință',
     f_contract: 'Contract (caută)',
     f_apply: 'Aplică',
-    f_reset: 'Resetează',
+    f_reset: 'Șterge filtrul',
     empty: 'Nicio factură disponibilă.',
     error_load: 'Nu s-au putut încărca facturile.',
     delete_title: 'Șterge factura',
