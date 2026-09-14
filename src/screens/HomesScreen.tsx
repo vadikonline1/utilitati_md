@@ -61,15 +61,19 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
       const ids = new Set(accs.map((a) => a.id));
       let unpaidCount = 0;
       let unpaidSum = 0;
+      let paidCount = 0;
       for (const inv of invoices) {
         if (!ids.has(inv.account_id)) continue;
         const paid = inv.is_paid === 1 || inv.pay_status === 'PAID';
         if (!paid) {
           unpaidCount += 1;
           unpaidSum += Number(inv.amount_mdl) || 0;
+        } else {
+          paidCount += 1;
         }
       }
-      return { accounts: accs.length, unpaidCount, unpaidSum };
+      const labels = accs.map((a) => a.label || a.provider).filter(Boolean);
+      return { accounts: accs.length, unpaidCount, unpaidSum, paidCount, labels };
     },
     [accounts, invoices],
   );
@@ -95,11 +99,14 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
                   ? `${st.unpaidCount} neachitate · ${st.unpaidSum.toFixed(2)} MDL`
                   : 'totul achitat'}
               </Text>
+              {st.labels.length > 0 ? (
+                <Text style={styles.muted} numberOfLines={1}>{st.labels.join(' · ')}</Text>
+              ) : null}
               <View style={styles.chips}>
-                {(item.unpaid_invoices ?? 0) > 0 ? (
+                {(item.unpaid_invoices ?? 0) > 0 || st.unpaidCount > 0 ? (
                   <View style={[styles.chip, styles.chipWarn]}>
                     <Text style={[styles.chipText, styles.chipTextWarn]}>
-                      {t('homes', 'unpaid_chip', { count: item.unpaid_invoices ?? 0 })}
+                      {t('homes', 'unpaid_chip', { count: item.unpaid_invoices ?? st.unpaidCount })}
                     </Text>
                   </View>
                 ) : (
@@ -107,6 +114,13 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
                     <Text style={[styles.chipText, styles.chipTextOk]}>la zi</Text>
                   </View>
                 )}
+                {st.paidCount > 0 ? (
+                  <View style={[styles.chip, styles.chipOk]}>
+                    <Text style={[styles.chipText, styles.chipTextOk]}>
+                      {t('homes', 'paid_chip', { count: st.paidCount })}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             </View>
             <Ionicons name="chevron-forward" size={22} color={colors.muted} />
