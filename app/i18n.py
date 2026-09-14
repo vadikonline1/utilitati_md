@@ -254,6 +254,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "invoices_generated": "Generation finished: {updated} account(s) updated, {errors} errors.",
         "pagination_page": "Page",
         "invoices_filter_home": "All homes",
+        "invoices_clear_filter": "Clear filter",
         "home_apply": "Filter",
 
         "account_number": "Personal account number",
@@ -566,6 +567,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "invoices_generated": "Генерация завершена: обновлено {updated} счёт(ов), ошибок {errors}.",
         "pagination_page": "Страница",
         "invoices_filter_home": "Все жилья",
+        "invoices_clear_filter": "Убрать фильтр",
         "home_apply": "Фильтровать",
 
         "account_number": "Номер лицевого счёта",
@@ -879,6 +881,7 @@ TRANSLATIONS["ro"] = {
     "invoices_generated": "Generare finalizată: {updated} cont(uri) actualizate, {errors} erori.",
     "pagination_page": "Pagina",
     "invoices_filter_home": "Toate locuințele",
+    "invoices_clear_filter": "Șterge filtrul",
     "home_apply": "Filtrează",
 
     "account_number": "Numărul contului personal",

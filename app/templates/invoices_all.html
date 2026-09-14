@@ -50,13 +50,10 @@
           </select>
         </label>
         {% endif %}
-        <label>{{ t('home_contract_number') }}
-          <input type="text" name="contract" value="{{ contract_q }}" placeholder="{{ t('home_contract_number') }}">
-        </label>
       </div>
       <div class="row-actions">
         <button type="submit" class="btn small">{{ t('home_apply') }}</button>
-        <noscript><button type="submit" class="btn ghost">{{ t('home_apply') }}</button></noscript>
+        <a class="btn-danger small" href="/invoices">{{ t('invoices_clear_filter') }}</a>
       </div>
     </form>
   </div>
