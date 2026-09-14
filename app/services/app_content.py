@@ -36,6 +36,7 @@ DEFAULTS: dict[str, dict[str, dict]] = {
             "delete": "Șterge",
             "edit": "Editează",
             "error_generic": "A apărut o eroare. Încearcă din nou.",
+            "offline": "Fără conexiune — afișez datele salvate.",
         },
         "dashboard": {
             "stat_unpaid_balance": "Sold total neachitat",
@@ -48,6 +49,7 @@ DEFAULTS: dict[str, dict[str, dict]] = {
             "support_title": "Susține proiectul Utilități.MD",
             "support_text": "Urmărește o reclamă și ne ajuți să menținem aplicația gratuită și actualizată.",
             "empty": "Nu ai nicio locuință încă.",
+            "donate_title": "Buy me a coffee",
             "fab_home": "Locuință",
             "fab_utility": "Utilitate",
             "error_load": "Nu s-au putut încărca datele.",
@@ -212,6 +214,7 @@ DEFAULTS: dict[str, dict[str, dict]] = {
             "delete": "Удалить",
             "edit": "Изменить",
             "error_generic": "Произошла ошибка. Попробуйте ещё раз.",
+            "offline": "Нет соединения — показаны сохранённые данные.",
         },
         "dashboard": {
             "stat_unpaid_balance": "Неоплаченный остаток",
@@ -224,6 +227,7 @@ DEFAULTS: dict[str, dict[str, dict]] = {
             "support_title": "Поддержите проект Utilități.MD",
             "support_text": "Посмотрите рекламу и помогите нам поддерживать приложение бесплатным и актуальным.",
             "empty": "У вас пока нет ни одной квартиры.",
+            "donate_title": "Buy me a coffee",
             "fab_home": "Квартира",
             "fab_utility": "Коммунальная услуга",
             "error_load": "Не удалось загрузить данные.",
@@ -387,6 +391,7 @@ DEFAULTS: dict[str, dict[str, dict]] = {
             "delete": "Delete",
             "edit": "Edit",
             "error_generic": "Something went wrong. Try again.",
+            "offline": "No connection — showing saved data.",
         },
         "dashboard": {
             "stat_unpaid_balance": "Total unpaid",
@@ -399,6 +404,7 @@ DEFAULTS: dict[str, dict[str, dict]] = {
             "support_title": "Support the Utilități.MD project",
             "support_text": "Watch an ad and help us keep the app free and up to date.",
             "empty": "No homes yet.",
+            "donate_title": "Buy me a coffee",
             "fab_home": "Home",
             "fab_utility": "Utility",
             "error_load": "Could not load data.",
@@ -631,6 +637,7 @@ _COMMON_FIELDS = (
     ("delete", "text", "Șterge"),
     ("edit", "text", "Editează"),
     ("error_generic", "text", "Eroare generică"),
+    ("offline", "text", "Fără conexiune"),
 )
 
 FIELDS: dict[str, list[tuple[str, str, str]]] = {
@@ -645,6 +652,7 @@ FIELDS: dict[str, list[tuple[str, str, str]]] = {
         ("support_title", "text", "Titlu buton susținere"),
         ("support_text", "text", "Text buton susținere"),
         ("empty", "text", "Text gol (fără locuințe)"),
+        ("donate_title", "text", "Buton donație"),
         ("fab_home", "text", "Meniu FAB: Locuință"),
         ("fab_utility", "text", "Meniu FAB: Utilitate"),
         ("error_load", "text", "Eroare la încărcare"),

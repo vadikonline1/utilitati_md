@@ -13,8 +13,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Account, Home, Invoice, listAccounts, listHomes, listInvoices } from '../api/client';
 import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
+import OfflineBar from '../components/OfflineBar';
 import { useContent } from '../content/useContent';
 import { colors, radii, spacing } from '../theme';
+import { cached } from '../utils/offline';
 import { Ionicons } from '@expo/vector-icons';
 
 type Nav = {
@@ -28,19 +30,25 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
   const [refreshing, setRefreshing] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [offline, setOffline] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
       const [h, accs, inv] = await Promise.all([
-        listHomes(),
-        listAccounts().catch(() => [] as Account[]),
-        listInvoices().catch(() => ({ invoices: [] as Invoice[] })),
+        cached<Home[]>('homes', listHomes),
+        cached<Account[]>('accounts', listAccounts),
+        cached<{ invoices: Invoice[] }>('invoices', listInvoices),
       ]);
-      setHomes(h);
-      setAccounts(accs);
-      setInvoices(inv.invoices);
+      setOffline(h.offline || accs.offline || inv.offline);
+      if (!h.data || !accs.data || !inv.data) {
+        Alert.alert('Eroare', t('homes', 'error_load'));
+        return;
+      }
+      setHomes(h.data);
+      setAccounts(accs.data);
+      setInvoices(inv.data.invoices);
     } catch {
       Alert.alert('Eroare', t('homes', 'error_load'));
     } finally {
@@ -140,6 +148,7 @@ export default function HomesScreen({ navigation }: { navigation: Nav }) {
 
   return (
     <View style={styles.container}>
+      {offline ? <OfflineBar /> : null}
       <FlatList
         data={homes}
         keyExtractor={(h) => String(h.id)}

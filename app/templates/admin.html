@@ -82,6 +82,17 @@
           </div>
 
           <div class="card">
+            <h2>{{ t('admin_donate') }}</h2>
+            <div class="form-stack">
+              <label>{{ t('admin_donate_url') }}
+                <input type="url" name="donate_url" value="{{ settings.get('donate_url', '') }}" placeholder="https://…" spellcheck="false">
+                {% if settings.get('_env_donate_url') %}<span class="env-badge">{{ t('admin_from_env') }}</span>{% endif %}
+              </label>
+              <span class="field-hint">{{ t('admin_donate_hint') }}</span>
+            </div>
+          </div>
+
+          <div class="card">
             <h2>{{ t('admin_sync') }}</h2>
             <div class="form-stack">
               <label class="radio">

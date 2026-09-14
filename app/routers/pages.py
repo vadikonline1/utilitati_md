@@ -227,6 +227,7 @@ def _ctx(request, **extra):
         "SITE_URL": SITE_URL,
         "asset_v": deployed_commit() or "13",
         "providers": merged_provider_meta(),
+        "donate_url": get_setting("donate_url", "").strip(),
         "lang": lang,
         "t": make_translator(lang),
         "langs": LANG_NAMES,
@@ -1097,6 +1098,7 @@ async def admin_submit(request: Request, user_id: int | None = Depends(optional_
         "unconfirmed_hours": str(form.get("unconfirmed_hours", "1")).strip(),
         "fcm_service_account": str(form.get("fcm_service_account", "")).strip(),
         "push_provider": str(form.get("push_provider", "fcm")).strip(),
+        "donate_url": str(form.get("donate_url", "")).strip(),
     }
     if sync_mode == "interval":
         try:
