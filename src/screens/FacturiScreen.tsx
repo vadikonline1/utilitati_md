@@ -29,7 +29,6 @@ import {
 import AdBanner from '../components/AdBanner';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import Input from '../components/Input';
 import { useContent } from '../content/useContent';
 import { colors, fontFamily, radii, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,10 +46,9 @@ interface Filters {
   status: StatusFilter;
   account: number | null;
   home: number | null;
-  contract: string;
 }
 
-const EMPTY_FILTERS: Filters = { status: 'all', account: null, home: null, contract: '' };
+const EMPTY_FILTERS: Filters = { status: 'all', account: null, home: null };
 
 function buildRows(sections: Section[]): Row[] {
   const rows: Row[] = [];
@@ -127,19 +125,14 @@ export default function FacturiScreen() {
     const homeIds = filters.home
       ? new Set(accounts.filter((a) => a.home_id === filters.home).map((a) => a.id))
       : null;
-    const q = filters.contract.trim().toLowerCase();
     return invoices.filter((inv) => {
       if (filters.status === 'unpaid' && isPaidInv(inv)) return false;
       if (filters.status === 'paid' && !isPaidInv(inv)) return false;
       if (filters.account && inv.account_id !== filters.account) return false;
       if (homeIds && !homeIds.has(inv.account_id)) return false;
-      if (q) {
-        const c = accountInfo.get(inv.account_id)?.contract.toLowerCase() || '';
-        if (!c.includes(q)) return false;
-      }
       return true;
     });
-  }, [invoices, filters, accounts, accountInfo]);
+  }, [invoices, filters, accounts]);
 
   const sections = useMemo(() => {
     const labelById = new Map<number, string>();
@@ -164,8 +157,7 @@ export default function FacturiScreen() {
   const activeCount =
     (filters.status !== 'all' ? 1 : 0) +
     (filters.account ? 1 : 0) +
-    (filters.home ? 1 : 0) +
-    (filters.contract.trim() ? 1 : 0);
+    (filters.home ? 1 : 0);
 
   const markPaid = async (inv: Invoice) => {
     try {
@@ -391,14 +383,6 @@ export default function FacturiScreen() {
                   ))}
                 </>
               ) : null}
-              <Input
-                label={t('invoices', 'f_contract')}
-                value={draft.contract}
-                onChangeText={(v) => setDraft((d) => ({ ...d, contract: v }))}
-                placeholder="…"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
               <Button
                 title={t('invoices', 'f_apply')}
                 onPress={() => {
@@ -408,7 +392,7 @@ export default function FacturiScreen() {
               />
               <Button
                 title={t('invoices', 'f_reset')}
-                variant="ghost"
+                variant="danger"
                 onPress={() => {
                   setDraft({ ...EMPTY_FILTERS });
                   setFilters({ ...EMPTY_FILTERS });
