@@ -10,9 +10,10 @@ import {
   AdEventType,
 } from 'react-native-google-mobile-ads';
 
-import { AdmobConfig, getConfig } from '../api/client';
+import { AdmobConfig, AppConfig, getConfig } from '../api/client';
 
 let cached: AdmobConfig | null = null;
+let cachedFull: AppConfig | null = null;
 let loadPromise: Promise<AdmobConfig | null> | null = null;
 let initPromise: Promise<void> | null = null;
 
@@ -60,6 +61,7 @@ export async function loadAdConfig(): Promise<AdmobConfig | null> {
   if (!loadPromise) {
     loadPromise = getConfig()
       .then((cfg) => {
+        cachedFull = cfg;
         cached = cfg.admob;
         return cached;
       })
@@ -71,6 +73,22 @@ export async function loadAdConfig(): Promise<AdmobConfig | null> {
 export async function ensureAdmobInitialized(): Promise<void> {
   await loadAdConfig();
   await ensureInit();
+}
+
+/**
+ * Full server config (cached with the ad config load). Used for non-ad
+ * server-driven values such as the donate link.
+ */
+export async function loadAppConfig(): Promise<AppConfig | null> {
+  await loadAdConfig();
+  return cachedFull;
+}
+
+/** Donate URL from /admin (empty when the button must stay hidden). */
+export async function donateUrl(): Promise<string | null> {
+  const cfg = await loadAppConfig();
+  const url = cfg?.donate_url?.trim();
+  return url || null;
 }
 
 /**

@@ -29,8 +29,10 @@ import {
 import AdBanner from '../components/AdBanner';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import OfflineBar from '../components/OfflineBar';
 import { useContent } from '../content/useContent';
 import { colors, fontFamily, radii, spacing } from '../theme';
+import { cached } from '../utils/offline';
 import { Ionicons } from '@expo/vector-icons';
 
 type Section = { title: string; invoices: Invoice[] };
@@ -81,6 +83,7 @@ export default function FacturiScreen() {
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [offline, setOffline] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -89,11 +92,19 @@ export default function FacturiScreen() {
       setLoading(true);
     }
     try {
-      const [invData, accs, hm] = await Promise.all([
-        listInvoices(),
-        listAccounts().catch(() => [] as Account[]),
-        listHomes().catch(() => [] as Home[]),
+      const [invRes, accRes, hmRes] = await Promise.all([
+        cached<{ invoices: Invoice[] }>('invoices', listInvoices),
+        cached<Account[]>('accounts', listAccounts),
+        cached<Home[]>('homes', listHomes),
       ]);
+      setOffline(invRes.offline || accRes.offline || hmRes.offline);
+      if (!invRes.data || !accRes.data || !hmRes.data) {
+        Alert.alert('Eroare', t('invoices', 'error_load'));
+        return;
+      }
+      const invData = invRes.data;
+      const accs = accRes.data;
+      const hm = hmRes.data;
       setInvoices(invData.invoices);
       setAccounts(accs);
       setHomes(hm);
@@ -273,6 +284,7 @@ export default function FacturiScreen() {
 
   return (
     <View style={styles.container}>
+      {offline ? <OfflineBar /> : null}
       <FlatList
         data={buildRows(sections)}
         keyExtractor={(row) => row.key}

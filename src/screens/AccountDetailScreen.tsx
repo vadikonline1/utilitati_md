@@ -27,8 +27,10 @@ import {
 } from '../api/client';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import OfflineBar from '../components/OfflineBar';
 import { useContent } from '../content/useContent';
 import { colors, spacing } from '../theme';
+import { cached } from '../utils/offline';
 import { notifyNewInvoice } from '../utils/notify';
 
 type ParamList = {
@@ -130,17 +132,25 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
   const [history, setHistory] = useState<InvoiceHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
+  const [offline, setOffline] = useState(false);
 
   const load = useCallback(
     async (isRefresh = false) => {
       if (isRefresh) setRefreshing(true);
       try {
         // fetch account via accounts list to keep single source
-        const accounts = await listAccounts();
-        const acc = accounts.find((a) => a.id === accountId);
+        const accRes = await cached<Account[]>('accounts', listAccounts);
+        const invRes = await cached<{ invoices: Invoice[] }>(`account-${accountId}`, () =>
+          accountInvoices(accountId),
+        );
+        setOffline(accRes.offline || invRes.offline);
+        if (!accRes.data || !invRes.data) {
+          Alert.alert('Eroare', t('account_detail', 'error_load'));
+          return;
+        }
+        const acc = accRes.data.find((a) => a.id === accountId);
         setAccount(acc ?? null);
-        const data = await accountInvoices(accountId);
-        setInvoices(data.invoices);
+        setInvoices(invRes.data.invoices);
       } catch {
         Alert.alert('Eroare', t('account_detail', 'error_load'));
       } finally {
@@ -271,6 +281,7 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
+      {offline ? <OfflineBar /> : null}
       <FlatList
         data={invoices}
         keyExtractor={(i) => String(i.id)}

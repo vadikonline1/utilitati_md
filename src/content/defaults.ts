@@ -8,6 +8,7 @@ export const DEFAULT_SCREENS: Record<string, ScreenContent> = {
     delete: 'Șterge',
     edit: 'Editează',
     error_generic: 'A apărut o eroare. Încearcă din nou.',
+    offline: 'Fără conexiune — afișez datele salvate.',
   },
   dashboard: {
     stat_unpaid_balance: 'Sold total neachitat',
@@ -21,6 +22,7 @@ export const DEFAULT_SCREENS: Record<string, ScreenContent> = {
     support_text:
       'Urmărește o reclamă și ne ajuți să menținem aplicația gratuită și actualizată.',
     empty: 'Nu ai nicio locuință încă.',
+    donate_title: 'Buy me a coffee',
     fab_home: 'Locuință',
     fab_utility: 'Utilitate',
     error_load: 'Nu s-au putut încărca datele.',

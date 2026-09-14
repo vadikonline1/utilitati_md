@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,9 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Home, Invoice, listAccounts, listHomes, listInvoices } from '../api/client';
 import AdBanner from '../components/AdBanner';
 import Card from '../components/Card';
+import OfflineBar from '../components/OfflineBar';
 import { useContent } from '../content/useContent';
 import { colors, fontFamily, radii, spacing } from '../theme';
-import { showInterstitialOnce, showRewardedOnce } from '../utils/ads';
+import { donateUrl, showInterstitialOnce, showRewardedOnce } from '../utils/ads';
+import { cached } from '../utils/offline';
 
 type Nav = {
   navigate: (name: string, params?: object) => void;
@@ -85,18 +88,30 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [supportBusy, setSupportBusy] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [donate, setDonate] = useState<string | null>(null);
 
   const load = useCallback(
     async (isRefresh = false) => {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       try {
-        const [h, inv, accs] = await Promise.all([listHomes(), listInvoices(), listAccounts().catch(() => [])]);
-        setHomes(h);
-        setInvoices(inv.invoices);
+        const [h, inv, accs] = await Promise.all([
+          cached<Home[]>('homes', listHomes),
+          cached<{ invoices: Invoice[] }>('invoices', listInvoices),
+          cached('accounts', () => listAccounts().catch(() => [])),
+        ]);
+        setOffline(h.offline || inv.offline || accs.offline);
+        if (!h.data || !inv.data || !accs.data) {
+          Alert.alert('Eroare', t('dashboard', 'error_load'));
+          return;
+        }
+        setHomes(h.data);
+        setInvoices(inv.data.invoices);
         const map = new Map<number, { label: string; contract: string }>();
-        for (const a of accs) map.set(a.id, { label: a.label || a.provider, contract: a.contract_number || '' });
+        for (const a of accs.data) map.set(a.id, { label: a.label || a.provider, contract: a.contract_number || '' });
         setAccountInfo(map);
+        donateUrl().then(setDonate).catch(() => undefined);
       } catch {
         Alert.alert('Eroare', t('dashboard', 'error_load'));
       } finally {
@@ -177,6 +192,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
       contentContainerStyle={styles.list}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
     >
+      {offline ? <OfflineBar /> : null}
       <View style={styles.grid}>
         <StatCard label={t('dashboard', 'stat_unpaid_balance')} value={`${stats.unpaidBalance.toFixed(2)} MDL`} accent={colors.danger} />
         <StatCard label={t('dashboard', 'stat_open_invoices')} value={String(stats.openInvoices)} />
@@ -198,6 +214,17 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
             <Text style={styles.supportTitle}>{t('dashboard', 'support_title')}</Text>
           </View>
           <Text style={styles.supportText}>{t('dashboard', 'support_text')}</Text>
+        </Pressable>
+      ) : null}
+
+      {donate ? (
+        <Pressable
+          style={({ pressed }) => [styles.donateBtn, pressed && styles.pressed]}
+          android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
+          onPress={() => Linking.openURL(donate).catch(() => undefined)}
+        >
+          <Ionicons name="cafe-outline" size={20} color="#000" />
+          <Text style={styles.donateTitle}>{t('dashboard', 'donate_title')}</Text>
         </Pressable>
       ) : null}
 
@@ -368,6 +395,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   supportBtnBusy: { opacity: 0.6 },
+  donateBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: '#FFDD00',
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  donateTitle: { color: '#000', fontSize: 15, fontWeight: '800', marginLeft: spacing.sm, fontFamily },
   supportTitleRow: { flexDirection: 'row', alignItems: 'center' },
   supportTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginLeft: spacing.sm, fontFamily },
   supportText: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '500', marginTop: spacing.xs, textAlign: 'center', fontFamily },

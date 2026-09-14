@@ -219,7 +219,7 @@ async def read_notification(notif_id: int, user_id: int = Depends(get_auth_token
 async def app_config(user_id: int = Depends(get_auth_token)):
     """Server-driven runtime config for the mobile app (e.g. AdMob)."""
     from ..services.push import _load_service_account
-    from ..services.settings import fab_menu, get_push_provider
+    from ..services.settings import fab_menu, get_push_provider, get_setting
     fcm_configured = _load_service_account() is not None
     provider = get_push_provider()
     push_config: dict = {
@@ -229,7 +229,8 @@ async def app_config(user_id: int = Depends(get_auth_token)):
         "fcm_configured": fcm_configured,
         "ok": not (provider == "fcm" and not fcm_configured),
     }
-    return {"admob": admob_config(), "push": push_config, "fab_menu": fab_menu()}
+    return {"admob": admob_config(), "push": push_config, "fab_menu": fab_menu(),
+            "donate_url": get_setting("donate_url", "").strip()}
 
 
 @router.get("/content")
