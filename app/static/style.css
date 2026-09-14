@@ -155,9 +155,9 @@ a:hover { text-decoration: underline; }
 .theme-toggle:hover { border-color: var(--accent-2); }
 
 /* Layout: fluid on small screens, capped on wide ones (adaptive, all devices) */
-main.dashboard { width: 100%; max-width: fit-content; min-width: min(100%, 320px); margin: 24px auto; padding: 0 20px; box-sizing: border-box; }
+main.dashboard { width: fit-content; max-width: fit-content; min-width: min(100%, 320px); margin: 24px auto; padding: 0 20px; box-sizing: border-box; }
 @media (min-width: 1120px) {
-  main.dashboard { max-width: 1080px; }
+  main.dashboard { max-width: fit-content; }
 }
 .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 .landing { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
