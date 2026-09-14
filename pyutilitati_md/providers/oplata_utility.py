@@ -31,7 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 OPLATA_SERVICE_IDS: dict[str, int] = {
     "premier_energy": 604,
     "energocom": 1333,
-    "infocom": 0,
+    "infocom": 601,
     "termoelectrica": 815,
     "apa_canal_chisinau": 605,
     "starnet": 300,
@@ -80,7 +80,7 @@ OPLATA_NAMES: dict[str, str] = {
 OPLATA_ACCOUNT_NAMES: dict[str, str] = {
     "premier_energy": "Codul NLC",
     "energocom": "Cont personal ",
-    "infocom": "Numărul contului",
+    "infocom": "Numărul facturii",
     "termoelectrica": "Cod ID",
     "apa_canal_chisinau": "Numărul facturii",
     "starnet": "Personal ID",
@@ -111,7 +111,7 @@ OPLATA_FULLNAME_REQUIRED: frozenset[str] = frozenset(
 OPLATA_FULLNAME_LABELS: dict[str, str] = {
     "stroy_master_domofon": "Nume, Prenume",
     "vipinterfon": "Nume, Prenume",
-    "legion_security_group": "Nume, Prenume",
+    "legion_security_group": "Nume , Prenume",
 }
 OPLATA_FULLNAME_SPECIAL: frozenset[str] = frozenset(
     {"legion_security_group", "stroy_master_domofon"}

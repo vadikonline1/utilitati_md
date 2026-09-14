@@ -241,6 +241,7 @@ class OplataMDClient:
         """
         items: list[OplataMDServiceItem] = []
         total = 0.0
+        saw_zero = False
         for tag_match in re.finditer(r"<input[^>]*name=\"Items\[0\]\.Value\"[^>]*>", html_text):
             tag = tag_match.group(0)
             type_match = re.search(r"type=\"(\w+)\"", tag)
@@ -257,12 +258,20 @@ class OplataMDClient:
             amount = self._extract_amount_from_label(label)
             if amount is None:
                 continue
+            if amount == 0:
+                # A 0.00 row means "no debt on this bill" — it must not
+                # force the whole answer into the single-invoice shape.
+                saw_zero = True
+                continue
             name = value if value else label.split(";")[0].strip()
             items.append(OplataMDServiceItem(name=name, amount_mdl=amount))
             total += amount
 
         if not items:
-            return [], None
+            # Zero-only choice list: genuine "no debt" (total 0). Anything
+            # else without a parseable amount: unparseable page (caller
+            # raises not-found instead of wiping debts).
+            return [], (0.0 if saw_zero else None)
         return items, round(total, 2)
 
     @staticmethod
