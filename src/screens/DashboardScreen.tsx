@@ -81,8 +81,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const { t } = useContent();
   const [homes, setHomes] = useState<Home[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [accountLabel, setAccountLabel] = useState<Map<number, string>>(new Map());
-  const [accountContract, setAccountContract] = useState<Map<number, string>>(new Map());
+  const [accountInfo, setAccountInfo] = useState<Map<number, { label: string; contract: string }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [supportBusy, setSupportBusy] = useState(false);
@@ -95,14 +94,9 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
         const [h, inv, accs] = await Promise.all([listHomes(), listInvoices(), listAccounts().catch(() => [])]);
         setHomes(h);
         setInvoices(inv.invoices);
-        const map = new Map<number, string>();
-        const cmap = new Map<number, string>();
-        for (const a of accs) {
-          map.set(a.id, a.label || a.provider);
-          cmap.set(a.id, a.contract_number || '');
-        }
-        setAccountLabel(map);
-        setAccountContract(cmap);
+        const map = new Map<number, { label: string; contract: string }>();
+        for (const a of accs) map.set(a.id, { label: a.label || a.provider, contract: a.contract_number || '' });
+        setAccountInfo(map);
       } catch {
         Alert.alert('Eroare', t('dashboard', 'error_load'));
       } finally {
@@ -122,17 +116,17 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const stats = useMemo(() => computeStats(invoices, homes.length), [invoices, homes]);
 
   const byProvider = useMemo(() => {
-    const map = new Map<string, { unpaid: number; open: number; contract: string }>();
+    const map = new Map<string, { unpaid: number; open: number }>();
     for (const inv of invoices) {
       if (isPaid(inv)) continue;
-      const label = accountLabel.get(inv.account_id) || t('invoices', 'group_others');
-      const cur = map.get(label) || { unpaid: 0, open: 0, contract: accountContract.get(inv.account_id) || '' };
+      const label = accountInfo.get(inv.account_id)?.label || t('invoices', 'group_others');
+      const cur = map.get(label) || { unpaid: 0, open: 0 };
       cur.unpaid += Number(inv.amount_mdl) || 0;
       cur.open += 1;
       map.set(label, cur);
     }
     return [...map.entries()].sort((a, b) => b[1].unpaid - a[1].unpaid).slice(0, 5);
-  }, [invoices, accountLabel, accountContract, t]);
+  }, [invoices, accountInfo, t]);
 
   const recent = useMemo(() => {
     const sorted = [...invoices].sort((a, b) =>
@@ -171,6 +165,11 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   }, [supportBusy]);
 
   const parentNav = (name: string, params?: object) => navigation.navigate(name, params);
+
+  const subtitleOf = (inv: Invoice): string => {
+    const parts = [accountInfo.get(inv.account_id)?.contract || '', inv.issue_date || ''].filter(Boolean);
+    return parts.length > 0 ? parts.join(' · ') : '—';
+  };
 
   return (
     <ScrollView
@@ -218,10 +217,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
         ) : (
           byProvider.map(([label, v]) => (
             <View key={label} style={styles.kvRow}>
-              <View style={styles.flex}>
-                <Text style={styles.kvLabel} numberOfLines={1}>{label}</Text>
-                {v.contract ? <Text style={styles.muted}>{v.contract}</Text> : null}
-              </View>
+              <Text style={styles.kvLabel} numberOfLines={1}>{label}</Text>
               <View style={styles.chip}>
                 <Text style={styles.chipText}>{v.open} deschise</Text>
               </View>
@@ -240,11 +236,11 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
               key={inv.id}
               style={({ pressed }) => [styles.recentRow, pressed && styles.pressed]}
               android_ripple={{ color: 'rgba(15,118,110,0.12)' }}
-              onPress={() => parentNav('AccountDetail', { id: inv.account_id, label: accountLabel.get(inv.account_id) || '' })}
+              onPress={() => parentNav('AccountDetail', { id: inv.account_id, label: accountInfo.get(inv.account_id)?.label || '' })}
             >
               <View style={styles.flex}>
                 <Text style={styles.recentTitle}>{inv.invoice_number || inv.period || t('invoices', 'default_title')}</Text>
-                <Text style={styles.muted}>{accountLabel.get(inv.account_id) || ''}</Text>
+                <Text style={styles.muted}>{subtitleOf(inv)}</Text>
               </View>
               <View style={styles.invRight}>
                 <Text style={styles.amount}>{Number(inv.amount_mdl).toFixed(2)} {inv.currency}</Text>
@@ -264,11 +260,11 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
               key={inv.id}
               style={({ pressed }) => [styles.recentRow, pressed && styles.pressed]}
               android_ripple={{ color: 'rgba(15,118,110,0.12)' }}
-              onPress={() => parentNav('AccountDetail', { id: inv.account_id, label: accountLabel.get(inv.account_id) || '' })}
+              onPress={() => parentNav('AccountDetail', { id: inv.account_id, label: accountInfo.get(inv.account_id)?.label || '' })}
             >
               <View style={styles.flex}>
                 <Text style={styles.recentTitle}>{inv.invoice_number || inv.period || t('invoices', 'default_title')}</Text>
-                <Text style={styles.muted}>{accountLabel.get(inv.account_id) || ''}</Text>
+                <Text style={styles.muted}>{subtitleOf(inv)}</Text>
               </View>
               <View style={styles.invRight}>
                 <Text style={styles.amount}>{Number(inv.amount_mdl).toFixed(2)} {inv.currency}</Text>
@@ -293,11 +289,11 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
                 key={inv.id}
                 style={({ pressed }) => [styles.recentRow, pressed && styles.pressed]}
                 android_ripple={{ color: 'rgba(15,118,110,0.12)' }}
-                onPress={() => parentNav('AccountDetail', { id: inv.account_id, label: accountLabel.get(inv.account_id) || '' })}
+                onPress={() => parentNav('AccountDetail', { id: inv.account_id, label: accountInfo.get(inv.account_id)?.label || '' })}
               >
                 <View style={styles.flex}>
                   <Text style={styles.recentTitle}>{inv.invoice_number || inv.period || t('invoices', 'default_title')}</Text>
-                  <Text style={styles.muted}>{accountLabel.get(inv.account_id) || ''}</Text>
+                  <Text style={styles.muted}>{subtitleOf(inv)}</Text>
                 </View>
                 <View style={styles.invRight}>
                   <Text style={styles.amount}>{Number(inv.amount_mdl).toFixed(2)} {inv.currency}</Text>

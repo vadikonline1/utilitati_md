@@ -66,11 +66,6 @@ function buildRows(sections: Section[]): Row[] {
   return rows;
 }
 
-function formatMonth(value?: string | null): string {
-  const m = /^(\d{4})-(\d{2})/.exec(value || '');
-  return m ? `${m[2]}.${m[1]}` : '—';
-}
-
 function isPaidInv(inv: Invoice): boolean {
   return inv.is_paid === 1 || inv.pay_status === 'PAID';
 }
@@ -206,7 +201,7 @@ export default function FacturiScreen() {
     const disabled = item.status === 'disabled';
     const showDelete = paid || cancelled || disabled;
     const info = accountInfo.get(item.account_id);
-    const contractLine = [info?.contract || '', formatMonth(item.issue_date)].filter((x) => x && x !== '—').join(' · ');
+    const details = [info?.contract || '', item.issue_date || ''].filter(Boolean).join(' · ');
     return (
       <Card style={styles.invoice}>
         <View style={styles.row}>
@@ -214,18 +209,7 @@ export default function FacturiScreen() {
             <Text style={styles.invTitle}>
               {item.invoice_number || item.period || t('invoices', 'default_title')}
             </Text>
-            {!paid ? (
-              <Text style={styles.muted}>{contractLine || '—'}</Text>
-            ) : null}
-            {item.period ? (
-              <Text style={styles.muted}>{t('invoices', 'period', { value: item.period })}</Text>
-            ) : null}
-            {item.due_date ? (
-              <Text style={styles.muted}>{t('invoices', 'due', { value: item.due_date })}</Text>
-            ) : null}
-            {item.checked_at ? (
-              <Text style={styles.muted}>{t('invoices', 'checked_at', { value: item.checked_at })}</Text>
-            ) : null}
+            <Text style={styles.muted}>{details || '—'}</Text>
           </View>
           <View style={styles.invRight}>
             <Text style={styles.amount}>
