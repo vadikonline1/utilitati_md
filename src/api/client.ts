@@ -345,7 +345,7 @@ export interface AppConfig {
   admob: AdmobConfig;
   push: { provider: 'fcm' | 'expo'; fcm_configured?: boolean; ok?: boolean };
   fab_menu?: ServerFabItem[];
-  donate_url?: string;
+  donate_buymeacoffee?: string;
   donate_kofi?: string;
   donate_mia?: string;
 }

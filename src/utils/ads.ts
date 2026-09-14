@@ -87,7 +87,7 @@ export async function loadAppConfig(): Promise<AppConfig | null> {
 /** Donate URL from /admin (empty when the button must stay hidden). */
 export async function donateUrl(): Promise<string | null> {
   const cfg = await loadAppConfig();
-  const url = cfg?.donate_url?.trim();
+  const url = cfg?.donate_buymeacoffee?.trim();
   return url || null;
 }
 
@@ -100,7 +100,7 @@ function trimmed(v: unknown): string | null {
 export async function donateChannels(): Promise<{ coffee: string | null; kofi: string | null; mia: string | null }> {
   const cfg = await loadAppConfig();
   return {
-    coffee: trimmed(cfg?.donate_url),
+    coffee: trimmed(cfg?.donate_buymeacoffee),
     kofi: trimmed(cfg?.donate_kofi),
     mia: trimmed(cfg?.donate_mia),
   };

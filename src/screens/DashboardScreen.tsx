@@ -243,15 +243,19 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
           onPress={() => Linking.openURL(donateKofi).catch(() => undefined)}
         >
           <Ionicons name="heart-outline" size={20} color="#fff" />
-          <Text style={styles.kofiTitle}>Ko-fi</Text>
+          <Text style={styles.kofiTitle}>DONATE KO-FI</Text>
         </Pressable>
       ) : null}
 
       {donateMia ? (
-        <View style={styles.miaBox}>
+        <Pressable
+          style={({ pressed }) => [styles.miaBox, pressed && styles.pressed]}
+          android_ripple={{ color: 'rgba(15,118,110,0.12)' }}
+          onPress={() => Linking.openURL(donateMia).catch(() => undefined)}
+        >
           <Ionicons name="phone-portrait-outline" size={20} color={colors.primary} />
-          <Text style={styles.miaText}>MIA: {donateMia}</Text>
-        </View>
+          <Text style={styles.miaText}>DONATE MIA</Text>
+        </Pressable>
       ) : null}
 
       <Card title={`Restanțe: ${stats.arrearsCount} facturi`}>
