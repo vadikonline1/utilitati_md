@@ -596,10 +596,13 @@ def _mark_missing_oplata_paid(account_id: int, current_numbers: set[str]) -> int
 def _is_oplata_provider(provider_id: str) -> bool:
     """True for generic oplata.md-backed providers (full debt list semantics)."""
     try:
-        from pyutilitati_md.providers.oplata_utility import OPLATA_PROVIDERS
+        from pyutilitati_md.providers.oplata_utility import is_oplata_provider
     except ImportError:  # pragma: no cover
         return False
-    return (provider_id or "") in OPLATA_PROVIDERS
+    try:
+        return bool(is_oplata_provider(provider_id or ""))
+    except Exception:  # pragma: no cover - DB hiccup must not break sync
+        return False
 
 
 def _disable_duplicate_invoice(account_id: int, invoice_number: str) -> None:
