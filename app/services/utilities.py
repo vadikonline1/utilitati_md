@@ -476,7 +476,13 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
             inv_id = existing["id"]
             # Once an invoice is marked PAID it is final: do not overwrite it
             # with a later (possibly inconsistent) provider amount/status.
+            # Only the verification timestamp is refreshed (manually marked
+            # rows are never auto-updated, only by hand).
             if existing["pay_status"] == INVOICE_STATUS_PAID:
+                conn.execute(
+                    "UPDATE invoices SET checked_at = ? WHERE id = ?",
+                    (checked_at, inv_id),
+                )
                 return inv_id, False, False
             # Log history only on a real change (status or amount): repeated
             # identical verifications (e.g. infosapr cumulative totals) must
@@ -496,6 +502,27 @@ def upsert_invoice_from_provider(account_id: int, invoice: Any) -> tuple[int | N
                  raw_response, extra_json, inv_id),
             )
         else:
+            # A new UNPAID row for a bill already marked PAID (same provider
+            # bill reference, e.g. paid through another channel whose channel
+            # data is not synced back): keep the manual mark, do not reopen
+            # the debt. Only the verification timestamp is refreshed.
+            if (
+                not is_paid
+                and amount > 0
+                and external_invoice_id
+            ):
+                paid_dup = conn.execute(
+                    """SELECT id FROM invoices
+                       WHERE account_id = ? AND external_invoice_id = ?
+                         AND pay_status = 'PAID' AND status != 'disabled'""",
+                    (account_id, external_invoice_id),
+                ).fetchone()
+                if paid_dup is not None:
+                    conn.execute(
+                        "UPDATE invoices SET checked_at = ? WHERE id = ?",
+                        (checked_at, paid_dup["id"]),
+                    )
+                    return None, False, False
             cur = conn.execute(
                 """INSERT INTO invoices
                    (account_id, invoice_number, external_invoice_id, amount_mdl,
@@ -576,11 +603,16 @@ def _is_oplata_provider(provider_id: str) -> bool:
 
 
 def _disable_duplicate_invoice(account_id: int, invoice_number: str) -> None:
-    """Hide a duplicate-shape row (kept in DB with its history for audit)."""
+    """Hide a duplicate-shape row (kept in DB with its history for audit).
+
+    Only open (unpaid-ish) rows are ever retired here — PAID/CANCELLED rows
+    are final and must never be touched by automatic matching.
+    """
     with _conn() as conn:
         row = conn.execute(
             """SELECT id, pay_status, amount_mdl FROM invoices
-               WHERE account_id = ? AND invoice_number = ? AND status != 'disabled'""",
+               WHERE account_id = ? AND invoice_number = ? AND status != 'disabled'
+                 AND pay_status IN ('UNPAID','OVERDUE','PARTIALLY_PAID')""",
             (account_id, invoice_number),
         ).fetchone()
         if row is None:

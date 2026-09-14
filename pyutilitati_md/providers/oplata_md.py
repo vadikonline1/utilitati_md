@@ -116,6 +116,14 @@ class OplataMDClient:
 
     def _parse_invoice_html(self, contract_number: str, html_text: str) -> OplataMDInvoiceResult:
         """Parse HTML output from oplata.md invoice page."""
+        _LOGGER.debug(
+            "oplata check %s: html=%d chars, has_amount=%s, has_choice=%s, has_spl=%s",
+            contract_number,
+            len(html_text),
+            'id="Amount"' in html_text,
+            'name="Items[0].Value"' in html_text,
+            "ServicePaymentList[" in html_text,
+        )
         # 1. Extract total amount
         ppvalue_match = re.search(r'id="Amount"[^>]*ppvalue="(\d+)"', html_text)
         amount_match = re.search(r'id="Amount"[^>]*value="([\d\.]+)"', html_text)
@@ -133,13 +141,14 @@ class OplataMDClient:
             except ValueError:
                 pass
 
-        # 1b. Fallback: providers like Premier Energy surface each outstanding
-        # invoice as a radio button (Items[0].Value = "REF; SUMAMDL") instead of
-        # a single id="Amount" total. Parse those into line items.
+        # 1b. Fallback: some providers surface each outstanding invoice as a
+        # choice input (radio/checkbox, sometimes hidden) named
+        # Items[0].Value instead of a single id="Amount" total. Parse those
+        # into line items.
         if total_amount is None and re.search(
-            r'name="Items\[0\]\.Value"[^>]*type="radio"', html_text
+            r'name="Items\[0\]\.Value"', html_text
         ):
-            items, total_amount = self._parse_radio_invoices(html_text)
+            items, total_amount = self._parse_choice_invoices(html_text)
             if total_amount is None:
                 raise UtilitatiMDApiError(
                     f"Failed to parse invoice total amount for contract "
@@ -209,25 +218,42 @@ class OplataMDClient:
     def _parse_radio_invoices(
         self, html_text: str
     ) -> tuple[list[OplataMDServiceItem], float | None]:
-        """Parse providers that return invoices as radio buttons.
+        """Parse providers that return invoices as radio buttons (legacy).
 
-        oplata.md renders each outstanding invoice as:
+        Kept for compatibility; new code paths use _parse_choice_invoices,
+        which additionally tolerates attribute order and hidden inputs.
+        """
+        items, total = self._parse_choice_invoices(html_text)
+        return items, total
+
+    def _parse_choice_invoices(
+        self, html_text: str
+    ) -> tuple[list[OplataMDServiceItem], float | None]:
+        """Parse providers that return one outstanding invoice per choice input.
+
+        oplata.md usually renders each outstanding invoice as:
             <input id="Items_0__Value" name="Items[0].Value" type="radio"
                    value="REF" />REF; 123.45MDL <br />
         The visible label holds the reference followed by "; <amount>MDL".
+        Attribute order is not relied upon, and hidden/checkbox inputs are
+        accepted too (some services render the single bill that way).
         Returns (line_items, total) where total is the sum of all invoices.
         """
         items: list[OplataMDServiceItem] = []
         total = 0.0
-
-        # Each radio block: value="REF" />LABEL <br>
-        pattern = re.compile(
-            r'name="Items\[0\]\.Value"[^>]*type="radio"[^>]*value="([^"]*)"'
-            r'\s*/>\s*([^<\n]+?)\s*(?:<br|</)'
-        )
-        for match in pattern.finditer(html_text):
-            value = match.group(1)
-            label = match.group(2)
+        for tag_match in re.finditer(r"<input[^>]*name=\"Items\[0\]\.Value\"[^>]*>", html_text):
+            tag = tag_match.group(0)
+            type_match = re.search(r"type=\"(\w+)\"", tag)
+            if not type_match or type_match.group(1).lower() not in (
+                "radio",
+                "checkbox",
+                "hidden",
+            ):
+                continue
+            value_match = re.search(r"value=\"([^\"]*)\"", tag)
+            value = value_match.group(1) if value_match else ""
+            label_match = re.match(r"\s*([^<]+)", html_text[tag_match.end(): tag_match.end() + 400])
+            label = label_match.group(1).strip() if label_match else ""
             amount = self._extract_amount_from_label(label)
             if amount is None:
                 continue
