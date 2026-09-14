@@ -82,6 +82,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const [homes, setHomes] = useState<Home[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [accountLabel, setAccountLabel] = useState<Map<number, string>>(new Map());
+  const [accountContract, setAccountContract] = useState<Map<number, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [supportBusy, setSupportBusy] = useState(false);
@@ -95,8 +96,13 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
         setHomes(h);
         setInvoices(inv.invoices);
         const map = new Map<number, string>();
-        for (const a of accs) map.set(a.id, a.label || a.provider);
+        const cmap = new Map<number, string>();
+        for (const a of accs) {
+          map.set(a.id, a.label || a.provider);
+          cmap.set(a.id, a.contract_number || '');
+        }
         setAccountLabel(map);
+        setAccountContract(cmap);
       } catch {
         Alert.alert('Eroare', t('dashboard', 'error_load'));
       } finally {
@@ -116,17 +122,17 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
   const stats = useMemo(() => computeStats(invoices, homes.length), [invoices, homes]);
 
   const byProvider = useMemo(() => {
-    const map = new Map<string, { unpaid: number; open: number }>();
+    const map = new Map<string, { unpaid: number; open: number; contract: string }>();
     for (const inv of invoices) {
       if (isPaid(inv)) continue;
       const label = accountLabel.get(inv.account_id) || t('invoices', 'group_others');
-      const cur = map.get(label) || { unpaid: 0, open: 0 };
+      const cur = map.get(label) || { unpaid: 0, open: 0, contract: accountContract.get(inv.account_id) || '' };
       cur.unpaid += Number(inv.amount_mdl) || 0;
       cur.open += 1;
       map.set(label, cur);
     }
     return [...map.entries()].sort((a, b) => b[1].unpaid - a[1].unpaid).slice(0, 5);
-  }, [invoices, accountLabel, t]);
+  }, [invoices, accountLabel, accountContract, t]);
 
   const recent = useMemo(() => {
     const sorted = [...invoices].sort((a, b) =>
@@ -212,7 +218,10 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
         ) : (
           byProvider.map(([label, v]) => (
             <View key={label} style={styles.kvRow}>
-              <Text style={styles.kvLabel} numberOfLines={1}>{label}</Text>
+              <View style={styles.flex}>
+                <Text style={styles.kvLabel} numberOfLines={1}>{label}</Text>
+                {v.contract ? <Text style={styles.muted}>{v.contract}</Text> : null}
+              </View>
               <View style={styles.chip}>
                 <Text style={styles.chipText}>{v.open} deschise</Text>
               </View>
