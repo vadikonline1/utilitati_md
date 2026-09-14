@@ -81,6 +81,7 @@ SETTING_KEYS = {
     "admob_rewarded_unit_ios",
     "admob_placements",             # comma-list of screens that may show ads
     "fab_menu_items",               # JSON list for the mobile FAB menu (/admin?tab=fab)
+    "oplata_providers",             # JSON overrides/custom oplata providers (/admin?tab=oplata)
     "fcm_service_account",          # Google FCM service-account JSON (secret)
     "push_provider",                # 'expo' or 'fcm' (mobile token mode)
 }
@@ -433,6 +434,100 @@ def set_fab_menu(items: object) -> list[dict]:
     clean = sanitize_fab_menu(items)
     set_setting("fab_menu_items", json.dumps(clean, ensure_ascii=False))
     return clean
+
+
+# --------------------------------------------------------------------------- #
+# Oplata provider configs (service ids + field labels, /admin?tab=oplata)
+# --------------------------------------------------------------------------- #
+OPLATA_PROVIDER_FIELDS = (
+    "service_id",
+    "account_name",
+    "name",
+    "icon",
+    "account_label",
+    "placeholder",
+    "needs_fullname",
+    "fullname_special",
+    "fullname_label",
+)
+
+_OPLATA_ID_RE = None
+
+
+def _oplata_id_ok(pid: object) -> bool:
+    import re
+
+    global _OPLATA_ID_RE
+    if _OPLATA_ID_RE is None:
+        _OPLATA_ID_RE = re.compile(r"^[a-z0-9_]{2,32}$")
+    return bool(pid) and _OPLATA_ID_RE.match(str(pid)) is not None
+
+
+def sanitize_oplata_providers(raw: object) -> dict:
+    """Clean the admin-managed oplata provider overrides.
+
+    Returns {provider_id: {field: value}} with clamped types. Unknown ids or
+    garbage entries are dropped; code defaults fill anything not overridden.
+    """
+    if not isinstance(raw, dict):
+        return {}
+    out: dict = {}
+    for pid, entry in raw.items():
+        pid = str(pid or "").strip().lower()
+        if not _oplata_id_ok(pid) or not isinstance(entry, dict):
+            continue
+        clean: dict = {}
+        try:
+            clean["service_id"] = max(0, int(entry.get("service_id", 0) or 0))
+        except (TypeError, ValueError):
+            clean["service_id"] = 0
+        for key in (
+            "account_name",
+            "name",
+            "icon",
+            "account_label",
+            "placeholder",
+            "fullname_label",
+        ):
+            val = str(entry.get(key) or "").strip()[:120]
+            if val:
+                clean[key] = val
+        for key in ("needs_fullname", "fullname_special"):
+            if entry.get(key) in (True, 1, "1", "true", "on"):
+                clean[key] = True
+            elif entry.get(key) in (False, 0, "0", "false", "off"):
+                clean[key] = False
+        if clean.get("service_id", 0) <= 0:
+            # A zero service id can never talk to oplata — drop it so the
+            # code default (or, for customs, the visible broken state) applies
+            # instead of silently overriding with 0.
+            clean.pop("service_id", None)
+        out[str(pid)] = clean
+    return out
+
+
+def get_oplata_providers() -> dict:
+    """Admin-managed oplata overrides/custom providers (raw, sanitized)."""
+    import json
+
+    raw = get_setting("oplata_providers", "").strip()
+    if not raw:
+        return {}
+    try:
+        return sanitize_oplata_providers(json.loads(raw))
+    except (ValueError, TypeError):
+        return {}
+
+
+def set_oplata_providers(items: object) -> dict:
+    """Persist sanitized oplata provider overrides; returns what was stored."""
+    import json
+
+    clean = sanitize_oplata_providers(items)
+    set_setting("oplata_providers", json.dumps(clean, ensure_ascii=False))
+    return clean
+
+
 # --------------------------------------------------------------------------- #
 # AdMob / Google Ads configuration (served to the mobile app via /api/config)
 # --------------------------------------------------------------------------- #

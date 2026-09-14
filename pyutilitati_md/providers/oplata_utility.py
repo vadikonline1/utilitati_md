@@ -121,6 +121,50 @@ OPLATA_FULLNAME_SPECIAL: frozenset[str] = frozenset(
 OPLATA_PROVIDERS: frozenset[str] = frozenset(OPLATA_NAMES)
 
 
+def _oplata_overrides() -> dict[str, dict[str, Any]]:
+    """Admin-managed overrides from /admin?tab=oplata (empty when unset)."""
+    try:
+        from app.services.settings import get_oplata_providers
+    except Exception:
+        return {}
+    try:
+        data = get_oplata_providers()
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def is_oplata_provider(provider_id: str) -> bool:
+    """True for generic oplata providers, including admin-added custom ones."""
+    if provider_id in OPLATA_PROVIDERS:
+        return True
+    return provider_id in _oplata_overrides()
+
+
+def resolve_oplata_params(provider_id: str) -> dict[str, Any]:
+    """Effective oplata params: code defaults overlaid with admin overrides."""
+    over = _oplata_overrides().get(provider_id, {})
+    needs_fullname = (
+        provider_id in OPLATA_FULLNAME_REQUIRED or over.get("needs_fullname") is True
+    )
+    if over.get("needs_fullname") is False:
+        needs_fullname = False
+    special = (
+        provider_id in OPLATA_FULLNAME_SPECIAL or over.get("fullname_special") is True
+    )
+    if over.get("fullname_special") is False:
+        special = False
+    return {
+        "service_id": over.get("service_id", OPLATA_SERVICE_IDS.get(provider_id, 0)),
+        "account_name": over.get("account_name", OPLATA_ACCOUNT_NAMES.get(provider_id, "Cont personal")),
+        "name": over.get("name", OPLATA_NAMES.get(provider_id, provider_id)),
+        "needs_fullname": needs_fullname,
+        "fullname_label": over.get("fullname_label", OPLATA_FULLNAME_LABELS.get(provider_id, "Nume, Prenume")),
+        "fullname_special": special,
+        "custom": provider_id not in OPLATA_PROVIDERS,
+    }
+
+
 def _stable_ref(name: str | None) -> str:
     """Sanitize a provider bill reference for use in an invoice_number."""
     clean = re.sub(r"[^A-Za-z0-9\-_]", "", (name or "").strip())
@@ -133,11 +177,14 @@ class OplataUtilityProvider(BaseUtilityProvider):
     def __init__(self, provider_id: str, *args, **kwargs) -> None:
         """Initialize a generic oplata.md-backed provider."""
         super().__init__(*args, **kwargs)
+        params = resolve_oplata_params(provider_id)
         self._id = provider_id
-        self._name = OPLATA_NAMES.get(provider_id, provider_id)
-        self._account_name = OPLATA_ACCOUNT_NAMES.get(provider_id, "Cont personal")
-        self._service_id = OPLATA_SERVICE_IDS.get(provider_id, 0)
-        self._needs_fullname = provider_id in OPLATA_FULLNAME_REQUIRED
+        self._name = params["name"]
+        self._account_name = params["account_name"]
+        self._service_id = params["service_id"]
+        self._needs_fullname = params["needs_fullname"]
+        self._fullname_label = params["fullname_label"]
+        self._fullname_special = params["fullname_special"]
         self.client = OplataMDClient(session=self.session)
 
     @property
@@ -157,13 +204,13 @@ class OplataUtilityProvider(BaseUtilityProvider):
         full_name = (self.full_name or "").strip()
         if not full_name:
             return []
-        label = OPLATA_FULLNAME_LABELS.get(self._id, "Nume, Prenume")
+        label = self._fullname_label or "Nume, Prenume"
         return [
             {
-                "key": "special1" if self._id in OPLATA_FULLNAME_SPECIAL else "fullname",
+                "key": "special1" if self._fullname_special else "fullname",
                 "name": label,
                 "value": full_name,
-                "special": self._id in OPLATA_FULLNAME_SPECIAL,
+                "special": self._fullname_special,
             }
         ]
 
