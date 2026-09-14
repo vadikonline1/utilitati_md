@@ -9,6 +9,7 @@ from typing import Any
 
 from pyutilitati_md import (
     AccountData,
+    INVOICE_STATUS_CANCELLED,
     INVOICE_STATUS_OVERDUE,
     INVOICE_STATUS_PAID,
     INVOICE_STATUS_UNPAID,
@@ -520,7 +521,7 @@ def _mark_missing_oplata_paid(account_id: int, current_numbers: set[str]) -> int
         rows = conn.execute(
             """SELECT id, invoice_number, amount_mdl FROM invoices
                WHERE account_id = ? AND status != 'disabled'
-                 AND pay_status != 'PAID'""",
+                 AND pay_status NOT IN ('PAID','CANCELLED')""",
             (account_id,),
         ).fetchall()
         for row in rows:
@@ -572,6 +573,51 @@ def _disable_duplicate_invoice(account_id: int, invoice_number: str) -> None:
         )
 
 
+def _rollover_infosapr(account_id: int, invoice_number: str, new_amount: float) -> bool:
+    """Close an infosapr invoice whose cumulative amount changed as CANCELLED.
+
+    InfoSapr cancels the previous bill at the provider and reissues the debt
+    together with the new consumption (e.g. 150 unpaid + 200 new = 350). The
+    old row is renamed, marked CANCELLED (kept for audit, out of balances)
+    and the caller then stores the new amount as a fresh invoice row, which
+    notifies as a new bill. Returns True when a rollover happened.
+    """
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT id, amount_mdl FROM invoices
+               WHERE account_id = ? AND invoice_number = ? AND status != 'disabled'
+                 AND pay_status IN ('UNPAID','OVERDUE','PARTIALLY_PAID')""",
+            (account_id, invoice_number),
+        ).fetchone()
+        if row is None:
+            return False
+        if abs(float(row["amount_mdl"] or 0) - new_amount) < 0.005:
+            return False
+        suffix = 0
+        while True:
+            suffix += 1
+            new_number = f"{invoice_number}-ANULAT" if suffix == 1 else f"{invoice_number}-ANULAT-{suffix}"
+            taken = conn.execute(
+                "SELECT 1 FROM invoices WHERE account_id = ? AND invoice_number = ?",
+                (account_id, new_number),
+            ).fetchone()
+            if taken is None:
+                break
+        checked_at = _now_str()
+        conn.execute(
+            """UPDATE invoices SET invoice_number = ?, is_paid = 1, pay_status = ?,
+               checked_at = ?, updated_at = datetime('now') WHERE id = ?""",
+            (new_number, INVOICE_STATUS_CANCELLED, checked_at, row["id"]),
+        )
+        conn.execute(
+            """INSERT INTO invoice_history
+               (invoice_id, pay_status, amount_mdl, checked_at, raw_response)
+               VALUES (?, ?, ?, ?, ?)""",
+            (row["id"], INVOICE_STATUS_CANCELLED, row["amount_mdl"], checked_at, "anulata de furnizor, inlocuita"),
+        )
+        return True
+
+
 def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int], list[int]]:
     """Persist all invoices returned by a provider (falling back to last_invoice).
 
@@ -608,7 +654,8 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int], 
                 dict(r)
                 for r in conn.execute(
                     """SELECT invoice_number, amount_mdl FROM invoices
-                       WHERE account_id = ? AND status != 'disabled' AND pay_status != 'PAID'""",
+                       WHERE account_id = ? AND status != 'disabled'
+                         AND pay_status NOT IN ('PAID','CANCELLED')""",
                     (account_id,),
                 ).fetchall()
             ]
@@ -618,27 +665,33 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int], 
     seen_extra: set[str] = set()
     disable_numbers: set[str] = set()
     contract_form = f"{provider.upper()}-{contract}" if provider and contract else ""
-    response_single = (
-        len(nonzero) == 1
-        and (getattr(nonzero[0], "invoice_number", "") or "") == contract_form
-        if contract_form else False
-    )
     if oplata and open_rows and contract_form:
-        if response_single and len(nonzero) == 1:
+        db_singles = [r for r in open_rows if (r["invoice_number"] or "") == contract_form]
+        if len(nonzero) == 1:
             s = nonzero[0]
             s_num = (getattr(s, "invoice_number", "") or "")
             s_amt = float(getattr(s, "amount_mdl", 0) or 0)
-            splits = [r for r in open_rows if (r["invoice_number"] or "") != s_num]
-            if splits:
-                total = round(sum(float(r["amount_mdl"] or 0) for r in splits), 2)
-                matched = [r for r in splits if abs(float(r["amount_mdl"] or 0) - s_amt) < 0.005]
-                if matched and abs(total - s_amt) >= 0.005:
-                    for r in matched:
-                        seen_extra.add(r["invoice_number"] or "")
-                    skip_numbers.add(s_num)
-                    disable_numbers.add(s_num)
-                # else: collapsed view (single == sum of splits) or genuinely
-                # new debt → normal path below.
+            if s_num == contract_form:
+                splits = [r for r in open_rows if (r["invoice_number"] or "") != s_num]
+                if splits:
+                    total = round(sum(float(r["amount_mdl"] or 0) for r in splits), 2)
+                    matched = [r for r in splits if abs(float(r["amount_mdl"] or 0) - s_amt) < 0.005]
+                    if matched and abs(total - s_amt) >= 0.005:
+                        for r in matched:
+                            seen_extra.add(r["invoice_number"] or "")
+                        skip_numbers.add(s_num)
+                        disable_numbers.add(s_num)
+                    # else: collapsed view (single == sum of splits) or genuinely
+                    # new debt → normal path below.
+            elif db_singles and any(
+                abs(float(r["amount_mdl"] or 0) - s_amt) < 0.005 for r in db_singles
+            ):
+                # Ref-numbered single (e.g. PREMIER_ENERGY-2061090312)
+                # duplicating the old contract-form single with the same
+                # amount: retire the contract shape, keep the bill.
+                seen_extra.add(contract_form)
+                disable_numbers.add(contract_form)
+            # else: genuinely new debt → normal path below.
         else:
             # Reverse case: the answer holds per-bill rows while an old
             # contract-form single is still open (e.g. PREMIER_ENERGY-2061090
@@ -660,6 +713,21 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int], 
     created: list[int] = []
     changed: list[int] = []
     current_numbers: set[str] = set(seen_extra)
+    if (
+        getattr(data, "is_connected", False)
+        and acc is not None
+        and (acc["provider"] or "") == "infosapr"
+        and invoices
+    ):
+        # InfoSapr carry-over billing: an amount change on the same invoice
+        # number means the provider cancelled the old bill and reissued the
+        # debt together with the new consumption. Retire the old row as
+        # CANCELLED so the upsert below stores a genuinely new invoice.
+        for inv in invoices:
+            inv_number = (getattr(inv, "invoice_number", "") or "")
+            inv_amount = float(getattr(inv, "amount_mdl", 0) or 0)
+            if inv_number and inv_amount > 0:
+                _rollover_infosapr(account_id, inv_number, inv_amount)
     for inv in invoices:
         number = (getattr(inv, "invoice_number", "") or "")
         if not number or number in skip_numbers:

@@ -58,14 +58,19 @@ function InvoiceDetail({
 }) {
   const { t } = useContent();
   const paid = inv.is_paid === 1 || inv.pay_status === 'PAID';
+  const cancelled = inv.pay_status === 'CANCELLED';
   const disabled = (inv as { status?: string }).status === 'disabled';
   return (
     <View style={styles.detailBox}>
       <Text style={styles.detailAmount}>
         {Number(inv.amount_mdl).toFixed(2)} {inv.currency || 'MDL'}
       </Text>
-      <Text style={[styles.detailStatus, paid ? styles.paid : styles.unpaid]}>
-        {paid ? t('invoices', 'paid') : t('invoices', 'unpaid')}
+      <Text style={[styles.detailStatus, cancelled ? styles.cancelled : paid ? styles.paid : styles.unpaid]}>
+        {cancelled
+          ? t('account_detail', 'status_cancelled')
+          : paid
+          ? t('invoices', 'paid')
+          : t('invoices', 'unpaid')}
         {disabled ? ' · dezactivată' : ''}
       </Text>
       {inv.period ? (
@@ -219,6 +224,7 @@ export default function AccountDetailScreen({ navigation, route }: Props) {
 
   const historyLabel = (status: string) => {
     const s = status || '';
+    if (s === 'CANCELLED') return t('account_detail', 'history_cancelled');
     if (s === 'PAID' || s === 'OVERPAID' || s === 'PARTIALLY_PAID') {
       return t('account_detail', 'history_paid');
     }
@@ -376,6 +382,7 @@ const styles = StyleSheet.create({
   status: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   paid: { color: colors.success },
   unpaid: { color: colors.danger },
+  cancelled: { color: '#7c3aed' },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xl },
   modalWrap: {
     flex: 1,

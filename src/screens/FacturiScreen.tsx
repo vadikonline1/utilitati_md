@@ -133,8 +133,9 @@ export default function FacturiScreen() {
 
   const renderInvoice = ({ item }: { item: Invoice }) => {
     const paid = item.is_paid === 1 || item.pay_status === 'PAID';
+    const cancelled = item.pay_status === 'CANCELLED';
     const disabled = item.status === 'disabled';
-    const showDelete = paid || disabled;
+    const showDelete = paid || cancelled || disabled;
     return (
       <Card style={styles.invoice}>
         <View style={styles.row}>
@@ -156,8 +157,8 @@ export default function FacturiScreen() {
             <Text style={styles.amount}>
               {Number(item.amount_mdl).toFixed(2)} {item.currency}
             </Text>
-            <Text style={[styles.status, paid ? styles.paid : styles.unpaid]}>
-              {paid ? t('invoices', 'paid') : t('invoices', 'unpaid')}
+            <Text style={[styles.status, cancelled ? styles.cancelled : paid ? styles.paid : styles.unpaid]}>
+              {cancelled ? t('invoices', 'cancelled') : paid ? t('invoices', 'paid') : t('invoices', 'unpaid')}
             </Text>
             <View style={styles.actions}>
               {!paid && !disabled ? (
@@ -252,6 +253,7 @@ const styles = StyleSheet.create({
   status: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   paid: { color: colors.success },
   unpaid: { color: colors.danger },
+  cancelled: { color: '#7c3aed' },
   actions: { flexDirection: 'row', marginTop: spacing.sm },
   iconBtn: { marginLeft: spacing.md },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xl },

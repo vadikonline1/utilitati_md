@@ -16,13 +16,13 @@
     </div>
   </div>
   <p class="subtitle">{{ t('invoice_subtitle') }} {{ account.contract_number }}</p>
+  {% if last_check %}<p class="muted">{{ t('invoice_checked_at') }}: {{ last_check }}</p>{% endif %}
 
   {% if invoices %}
-    <div class="data-list cols-8">
+    <div class="data-list cols-7">
       <div class="dl-head">
         <div class="dl-cell">{{ t('invoice_number') }}</div>
         <div class="dl-cell">{{ t('invoice_amount') }}</div>
-        <div class="dl-cell">{{ t('invoice_period') }}</div>
         <div class="dl-cell">{{ t('invoice_issued') }}</div>
         <div class="dl-cell">{{ t('invoice_due') }}</div>
         <div class="dl-cell">{{ t('homes_status') }}</div>
@@ -33,7 +33,6 @@
         <div class="dl-row {{ 'row-disabled' if inv.status == 'disabled' }}">
           <div class="dl-cell" data-label="{{ t('invoice_number') }}">{{ inv.invoice_number or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoice_amount') }}">{{ inv.amount_mdl }} {{ inv.currency or 'MDL' }}</div>
-          <div class="dl-cell" data-label="{{ t('invoice_period') }}">{{ inv.period or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoice_issued') }}">{{ inv.issue_date or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('invoice_due') }}">{{ inv.due_date or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('homes_status') }}">

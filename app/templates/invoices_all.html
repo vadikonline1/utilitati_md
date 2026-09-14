@@ -38,6 +38,18 @@
   {% if current_home %}<p class="subtitle">{{ t('invoices_for_home') }} {{ current_home.name }}</p>
   {% elif homes %}<p class="muted">{{ t('connect_utility_select_home') }}</p>{% endif %}
 
+  <details class="card">
+    <summary><b>{{ t('invoice_status_legend') }}</b></summary>
+    <div class="form-stack" style="margin-top:10px;">
+      <p><span class="badge pay-paid">{{ t('st_paid') }}</span> {{ t('st_info_paid') }}</p>
+      <p><span class="badge pay-unpaid">{{ t('st_unpaid') }}</span> {{ t('st_info_unpaid') }}</p>
+      <p><span class="badge pay-overdue">{{ t('st_overdue') }}</span> {{ t('st_info_overdue') }}</p>
+      <p><span class="badge pay-partially_paid">{{ t('st_partial') }}</span> {{ t('st_info_partially_paid') }}</p>
+      <p><span class="badge pay-cancelled">{{ t('st_cancelled') }}</span> {{ t('st_info_cancelled') }}</p>
+      <p><span class="badge pay-unknown">{{ t('st_unknown') }}</span> {{ t('st_info_unknown') }}</p>
+    </div>
+  </details>
+
   {% if invoices %}
     <div class="data-list cols-7">
       <div class="dl-head">
