@@ -47,9 +47,15 @@ function buildRows(sections: Section[]): Row[] {
   return rows;
 }
 
+function formatMonth(value?: string | null): string {
+  const m = /^(\d{4})-(\d{2})/.exec(value || '');
+  return m ? `${m[2]}.${m[1]}` : '—';
+}
+
 export default function FacturiScreen() {
   const { t } = useContent();
   const [sections, setSections] = useState<Section[]>([]);
+  const [accountInfo, setAccountInfo] = useState<Map<number, { label: string; contract: string }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -63,8 +69,13 @@ export default function FacturiScreen() {
       const invData = await listInvoices();
       const invoices = invData.invoices;
       const accounts = await listAccounts();
+      const infoById = new Map<number, { label: string; contract: string }>();
       const labelById = new Map<number, string>();
-      for (const a of accounts) labelById.set(a.id, a.label || a.provider);
+      for (const a of accounts) {
+        labelById.set(a.id, a.label || a.provider);
+        infoById.set(a.id, { label: a.label || a.provider, contract: a.contract_number || '' });
+      }
+      setAccountInfo(infoById);
 
       const byAccount = new Map<string, Invoice[]>();
       const ungrouped: Invoice[] = [];
@@ -136,6 +147,8 @@ export default function FacturiScreen() {
     const cancelled = item.pay_status === 'CANCELLED';
     const disabled = item.status === 'disabled';
     const showDelete = paid || cancelled || disabled;
+    const info = accountInfo.get(item.account_id);
+    const contractLine = [info?.contract || '', formatMonth(item.issue_date)].filter((x) => x && x !== '—').join(' · ');
     return (
       <Card style={styles.invoice}>
         <View style={styles.row}>
@@ -143,6 +156,9 @@ export default function FacturiScreen() {
             <Text style={styles.invTitle}>
               {item.invoice_number || item.period || t('invoices', 'default_title')}
             </Text>
+            {!paid ? (
+              <Text style={styles.muted}>{contractLine || '—'}</Text>
+            ) : null}
             {item.period ? (
               <Text style={styles.muted}>{t('invoices', 'period', { value: item.period })}</Text>
             ) : null}
