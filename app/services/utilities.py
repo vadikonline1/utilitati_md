@@ -84,11 +84,19 @@ def list_homes(user_id: int) -> list[dict[str, Any]]:
                       (SELECT COUNT(*) FROM accounts a
                         WHERE a.home_id = h.id AND a.status = 'enabled')
                           AS utilities_count,
+                      (SELECT GROUP_CONCAT(a.label, ', ') FROM accounts a
+                        WHERE a.home_id = h.id AND a.status = 'enabled')
+                          AS utility_labels,
                       (SELECT COUNT(*) FROM invoices inv
                         JOIN accounts a ON a.id = inv.account_id
                         WHERE a.home_id = h.id AND inv.is_paid = 0
                           AND inv.status = 'enabled')
-                          AS unpaid_invoices
+                          AS unpaid_invoices,
+                      (SELECT COUNT(*) FROM invoices inv
+                        JOIN accounts a ON a.id = inv.account_id
+                        WHERE a.home_id = h.id AND inv.pay_status = 'PAID'
+                          AND inv.status = 'enabled')
+                          AS paid_invoices
                FROM homes h WHERE h.user_id = ? ORDER BY h.created_at DESC""",
             (user_id,),
         ).fetchall()
@@ -609,11 +617,17 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int], 
     skip_numbers: set[str] = set()
     seen_extra: set[str] = set()
     disable_numbers: set[str] = set()
-    if oplata and len(nonzero) == 1 and open_rows and provider and contract:
-        s = nonzero[0]
-        s_num = (getattr(s, "invoice_number", "") or "")
-        s_amt = float(getattr(s, "amount_mdl", 0) or 0)
-        if s_num == f"{provider.upper()}-{contract}":
+    contract_form = f"{provider.upper()}-{contract}" if provider and contract else ""
+    response_single = (
+        len(nonzero) == 1
+        and (getattr(nonzero[0], "invoice_number", "") or "") == contract_form
+        if contract_form else False
+    )
+    if oplata and open_rows and contract_form:
+        if response_single and len(nonzero) == 1:
+            s = nonzero[0]
+            s_num = (getattr(s, "invoice_number", "") or "")
+            s_amt = float(getattr(s, "amount_mdl", 0) or 0)
             splits = [r for r in open_rows if (r["invoice_number"] or "") != s_num]
             if splits:
                 total = round(sum(float(r["amount_mdl"] or 0) for r in splits), 2)
@@ -625,6 +639,22 @@ def persist_invoices(account_id: int, data: Any) -> tuple[list[int], list[int], 
                     disable_numbers.add(s_num)
                 # else: collapsed view (single == sum of splits) or genuinely
                 # new debt → normal path below.
+        else:
+            # Reverse case: the answer holds per-bill rows while an old
+            # contract-form single is still open (e.g. PREMIER_ENERGY-2061090
+            # vs the real bill PREMIER_ENERGY-2061090312). When the single
+            # amount matches one of the bills (or their sum) it is the SAME
+            # debt in the other shape: retire the single, keep the bills.
+            # Otherwise the single is genuinely stale → closed as paid below.
+            current_amounts = [float(getattr(inv, "amount_mdl", 0) or 0) for inv in nonzero]
+            current_total = round(sum(current_amounts), 2)
+            for r in open_rows:
+                if (r["invoice_number"] or "") != contract_form:
+                    continue
+                s_amt = float(r["amount_mdl"] or 0)
+                if any(abs(a - s_amt) < 0.005 for a in current_amounts) or abs(current_total - s_amt) < 0.005:
+                    seen_extra.add(contract_form)
+                    disable_numbers.add(contract_form)
 
     saved: list[int] = []
     created: list[int] = []

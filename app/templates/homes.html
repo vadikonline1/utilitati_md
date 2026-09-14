@@ -8,12 +8,14 @@
   </div>
 
   {% if homes %}
-    <div class="data-list cols-6">
+    <div class="data-list cols-8">
       <div class="dl-head">
         <div class="dl-cell">{{ t('homes_name') }}</div>
         <div class="dl-cell">{{ t('homes_address') }}</div>
         <div class="dl-cell">{{ t('homes_floor') }}</div>
         <div class="dl-cell">{{ t('homes_area') }}</div>
+        <div class="dl-cell">{{ t('homes_utilities') }}</div>
+        <div class="dl-cell">{{ t('homes_invoices') }}</div>
         <div class="dl-cell">{{ t('homes_status') }}</div>
         <div class="dl-cell">{{ t('homes_actions') }}</div>
       </div>
@@ -30,6 +32,8 @@
           <div class="dl-cell" data-label="{{ t('homes_address') }}">{{ home.address }}</div>
           <div class="dl-cell" data-label="{{ t('homes_floor') }}">{{ home.floor or '—' }}</div>
           <div class="dl-cell" data-label="{{ t('homes_area') }}">{{ home.metro_area or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('homes_utilities') }}">{{ home.utility_labels or '—' }}</div>
+          <div class="dl-cell" data-label="{{ t('homes_invoices') }}"><span class="badge pay-unpaid">{{ home.unpaid_invoices or 0 }} {{ t('homes_unpaid') }}</span> / <span class="badge pay-paid">{{ home.paid_invoices or 0 }} {{ t('homes_paid') }}</span></div>
           <div class="dl-cell" data-label="{{ t('homes_status') }}">
             <span class="badge {{ home.status }}">{{ t('homes_enable') if home.status == 'enabled' else t('homes_disable') }}</span>
           </div>

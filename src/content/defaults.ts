@@ -28,6 +28,7 @@ export const DEFAULT_SCREENS: Record<string, ScreenContent> = {
   homes: {
     accounts_chip: '{count} conturi',
     unpaid_chip: '{count} neplătite',
+    paid_chip: '{count} achitate',
     empty: 'Nu ai nicio locuință încă.',
     fab_home: 'Locuință',
     fab_utility: 'Utilitate',
