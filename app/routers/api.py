@@ -230,7 +230,7 @@ async def app_config(user_id: int = Depends(get_auth_token)):
         "ok": not (provider == "fcm" and not fcm_configured),
     }
     return {"admob": admob_config(), "push": push_config, "fab_menu": fab_menu(),
-            "donate_url": get_setting("donate_url", "").strip(),
+            "donate_buymeacoffee": get_setting("donate_buymeacoffee", "").strip(),
             "donate_kofi": get_setting("donate_kofi", "").strip(),
             "donate_mia": get_setting("donate_mia", "").strip()}
 
