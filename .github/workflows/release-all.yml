@@ -69,6 +69,25 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install Android NDK (with retry)
+        # The NDK zip from Google is occasionally truncated on first download
+        # ("Error on ZipFile unknown archive"), which fails the whole build.
+        # Pre-install it here with retries so Gradle finds it ready.
+        run: |
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i: installing ndk;27.1.12297006"
+            if yes | "$SDKMGR" --install "ndk;27.1.12297006"; then
+              echo "NDK installed"
+              "$SDKMGR" --list_installed | grep -i ndk || true
+              break
+            fi
+            echo "NDK install failed, cleaning partial download and retrying..."
+            rm -rf "$ANDROID_HOME/.temp" "$ANDROID_HOME/ndk/27.1.12297006" 2>/dev/null || true
+            sleep 15
+            if [ "$i" = 5 ]; then echo "::error::NDK install failed after 5 attempts"; exit 1; fi
+          done
+
       - name: Generate native android project (expo prebuild)
         run: npx expo prebuild --platform android --no-install
 
