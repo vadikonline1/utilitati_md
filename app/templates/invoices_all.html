@@ -5,21 +5,13 @@
   <div class="dash-head">
     <h1>{{ t('invoices_title') }}</h1>
     <div class="row-actions filter-bar">
-      {% set hqs = ('home_id=' ~ current_home.id ~ '&') if current_home else '' %}
-      <a class="btn{{ ' ghost' if status_filter }}" href="/invoices">{{ t('invoices_tab_all') }}</a>
-      <a class="btn{{ ' ghost' if status_filter != 'unpaid' }}" href="/invoices?{{ hqs }}status=unpaid">{{ t('invoices_tab_unpaid') }}</a>
-      <a class="btn{{ ' ghost' if status_filter != 'paid' }}" href="/invoices?{{ hqs }}status=paid">{{ t('invoices_tab_paid') }}</a>
-      {% if homes %}
-        <form method="get" action="/invoices" class="inline-form filter-form">
-          <select name="home_id" class="select" onchange="this.form.submit()">
-            <option value="">{{ t('invoices_filter_home') }}</option>
-            {% for h in homes %}
-              <option value="{{ h.id }}" {{ 'selected' if current_home and current_home.id == h.id }}>{{ h.name }}</option>
-            {% endfor %}
-          </select>
-          <noscript><button type="submit" class="btn ghost">{{ t('home_apply') }}</button></noscript>
-        </form>
-      {% endif %}
+      {% set fqs = '' %}
+      {% if current_home %}{% set fqs = fqs ~ 'home_id=' ~ current_home.id ~ '&' %}{% endif %}
+      {% if current_account %}{% set fqs = fqs ~ 'account_id=' ~ current_account.id ~ '&' %}{% endif %}
+      {% if contract_q %}{% set fqs = fqs ~ 'contract=' ~ contract_q ~ '&' %}{% endif %}
+      <a class="btn{{ ' ghost' if status_filter }}" href="/invoices?{{ fqs }}">{{ t('invoices_tab_all') }}</a>
+      <a class="btn{{ ' ghost' if status_filter != 'unpaid' }}" href="/invoices?{{ fqs }}status=unpaid">{{ t('invoices_tab_unpaid') }}</a>
+      <a class="btn{{ ' ghost' if status_filter != 'paid' }}" href="/invoices?{{ fqs }}status=paid">{{ t('invoices_tab_paid') }}</a>
       {% if homes %}
         <button type="button" class="btn" onclick="openModal('modal-connect-utility')">+ {{ t('home_connect_utility') }}</button>
       {% else %}
@@ -33,6 +25,40 @@
         </form>
       {% endif %}
     </div>
+  </div>
+  <div class="card">
+    <form method="get" action="/invoices" class="form-stack">
+      {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+      <div class="form-row">
+        {% if homes %}
+        <label>{{ t('invoices_filter_home') }}
+          <select name="home_id" class="select" onchange="this.form.submit()">
+            <option value="">{{ t('invoices_filter_home') }}</option>
+            {% for h in homes %}
+              <option value="{{ h.id }}" {{ 'selected' if current_home and current_home.id == h.id }}>{{ h.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        {% endif %}
+        {% if accounts %}
+        <label>{{ t('invoices_column_utility') }}
+          <select name="account_id" class="select" onchange="this.form.submit()">
+            <option value="">{{ t('invoices_all') }}</option>
+            {% for a in accounts %}
+              <option value="{{ a.id }}" {{ 'selected' if current_account and current_account.id == a.id }}>{{ a.label or a.provider }} ({{ a.contract_number or '' }})</option>
+            {% endfor %}
+          </select>
+        </label>
+        {% endif %}
+        <label>{{ t('home_contract_number') }}
+          <input type="text" name="contract" value="{{ contract_q }}" placeholder="{{ t('home_contract_number') }}">
+        </label>
+      </div>
+      <div class="row-actions">
+        <button type="submit" class="btn small">{{ t('home_apply') }}</button>
+        <noscript><button type="submit" class="btn ghost">{{ t('home_apply') }}</button></noscript>
+      </div>
+    </form>
   </div>
   {% if generated_msg %}<p class="notice">{{ generated_msg }}</p>{% endif %}
   {% if current_home %}<p class="subtitle">{{ t('invoices_for_home') }} {{ current_home.name }}</p>
@@ -96,7 +122,10 @@
   {% endif %}
   {% if total > 20 %}
     <nav class="pagination">
-      {% set pqs = ('home_id=' ~ current_home.id ~ '&') if current_home else '' %}
+      {% set pqs = '' %}
+      {% if current_home %}{% set pqs = pqs ~ 'home_id=' ~ current_home.id ~ '&' %}{% endif %}
+      {% if current_account %}{% set pqs = pqs ~ 'account_id=' ~ current_account.id ~ '&' %}{% endif %}
+      {% if contract_q %}{% set pqs = pqs ~ 'contract=' ~ contract_q ~ '&' %}{% endif %}
       {% set pqs = pqs ~ ('status=' ~ status_filter ~ '&') if status_filter else pqs %}
       {% if page > 1 %}
         <a class="btn small ghost" href="/invoices?{{ pqs }}page={{ page - 1 }}">←</a>

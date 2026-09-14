@@ -291,11 +291,12 @@ def list_invoices(
     account_id: int | None = None,
     home_id: int | None = None,
     pay_status_filter: str | None = None,
+    contract_query: str | None = None,
 ) -> list[dict[str, Any]]:
     """Invoices for the user (optionally scoped), unpaid first.
 
     pay_status_filter: None (all), 'unpaid' (UNPAID/OVERDUE/PARTIALLY_PAID),
-    or 'paid' (PAID only).
+    or 'paid' (PAID only). contract_query matches account contract numbers.
     """
     query = """
         SELECT inv.*, a.label AS account_label, a.icon AS account_icon,
@@ -318,6 +319,9 @@ def list_invoices(
         query += " AND inv.pay_status IN ('UNPAID','OVERDUE','PARTIALLY_PAID')"
     elif pay_status_filter == "paid":
         query += " AND inv.pay_status = 'PAID'"
+    if contract_query:
+        query += " AND a.contract_number LIKE ?"
+        conds.append(f"%{contract_query}%")
     query += """ ORDER BY CASE WHEN inv.pay_status IN
                 ('UNPAID','OVERDUE','PARTIALLY_PAID') THEN 0 ELSE 1 END,
                 inv.issue_date DESC, inv.id DESC"""
