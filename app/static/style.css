@@ -154,8 +154,11 @@ a:hover { text-decoration: underline; }
 }
 .theme-toggle:hover { border-color: var(--accent-2); }
 
-/* Layout */
-main.dashboard { max-width: 1080px; margin: 24px auto; padding: 0 20px; }
+/* Layout: fluid on small screens, capped on wide ones (adaptive, all devices) */
+main.dashboard { width: 100%; max-width: fit-content; min-width: min(100%, 320px); margin: 24px auto; padding: 0 20px; box-sizing: border-box; }
+@media (min-width: 1120px) {
+  main.dashboard { max-width: 1080px; }
+}
 .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 .landing { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
 .home-landing { max-width: none; padding: 0; }
@@ -439,6 +442,7 @@ textarea {
 .badge.pay-overdue { background: var(--badge-bad-bg); color: var(--red); }
 .badge.pay-partially_paid { background: var(--badge-warn-bg); color: var(--amber); }
 .badge.pay-unknown { background: var(--badge-mut-bg); color: var(--muted); }
+.badge.pay-cancelled { background: rgba(124,58,237,0.14); color: #7c3aed; }
 .badge.pay-error { background: var(--badge-bad-bg); color: var(--red); }
 button.badge { border: none; cursor: pointer; font-family: inherit; line-height: 1.4; padding: 3px 10px; }
 button.badge:hover { filter: brightness(0.95); }

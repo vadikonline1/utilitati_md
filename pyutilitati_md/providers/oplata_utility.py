@@ -231,9 +231,21 @@ class OplataUtilityProvider(BaseUtilityProvider):
                     )
                 )
         elif res.items:
+            # Collapsed single invoice. For Premier Energy the bill reference
+            # is used even for a single invoice (e.g. PREMIER_ENERGY-2061090312
+            # instead of PREMIER_ENERGY-2061090) so the number stays stable
+            # across checks; other providers keep the contract number.
+            ref_number = f"{self._id.upper()}-{self.contract_number}"
+            if self._id == "premier_energy":
+                ref = next(
+                    (_stable_ref(i.name) for i in res.items if i.amount_mdl > 0),
+                    _stable_ref(res.items[0].name),
+                )
+                if ref:
+                    ref_number = f"{self._id.upper()}-{ref}"
             invoices.append(
                 Invoice(
-                    invoice_number=f"{self._id.upper()}-{self.contract_number}",
+                    invoice_number=ref_number,
                     amount_mdl=res.total_amount_mdl,
                     issue_date=date.today(),
                     is_paid=(res.total_amount_mdl <= 0),

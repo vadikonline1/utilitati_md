@@ -1898,6 +1898,10 @@ async def invoice_page(
             f"{_tw('invoice_checking')} › {account['label']}",
         )
     history = list_invoice_history(user_id, invoices[0]["id"]) if invoices else []
+    last_check = ""
+    for inv in invoices:
+        if inv.get("checked_at") and inv["checked_at"] > last_check:
+            last_check = inv["checked_at"]
     return templates.TemplateResponse(
         request, "invoices.html",
         _ctx(
@@ -1905,6 +1909,7 @@ async def invoice_page(
             account=account,
             invoices=invoices,
             history=history,
+            last_check=last_check,
             provider_meta=PROVIDER_META.get(account["provider"], {}),
             refresh_error=None,
         ),

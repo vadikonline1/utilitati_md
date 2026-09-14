@@ -145,7 +145,7 @@ export default function DashboardScreen({ navigation }: { navigation: Nav }) {
 
   const paidTable = useMemo(() => {
     return invoices
-      .filter(isPaid)
+      .filter((inv) => isPaid(inv) && inv.pay_status !== 'CANCELLED')
       .sort((a, b) =>
         String(b.checked_at || b.created_at || '').localeCompare(String(a.checked_at || a.created_at || '')),
       );

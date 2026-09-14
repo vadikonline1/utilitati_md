@@ -7,6 +7,7 @@ from .exceptions import (
     UtilitatiMDError,
 )
 from .models import (
+    INVOICE_STATUS_CANCELLED,
     INVOICE_STATUS_ERROR,
     INVOICE_STATUS_OVERDUE,
     INVOICE_STATUS_PAID,
@@ -25,7 +26,8 @@ __all__ = [
     "UtilitatiMDError",
     "UtilitatiMDAuthError",
     "UtilitatiMDConnectionError",
-    "UtilitatiMDApiError",
+    "UtilitatiMDError",
+    "INVOICE_STATUS_CANCELLED",
     "INVOICE_STATUS_ERROR",
     "INVOICE_STATUS_OVERDUE",
     "INVOICE_STATUS_PAID",
